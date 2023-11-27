@@ -1,1 +1,10 @@
-/Manifest.toml
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+docs/build/
+build/
+docs/site/
+.vscode/
+.DS_Store
+test/script.jl
+Manifest.toml
