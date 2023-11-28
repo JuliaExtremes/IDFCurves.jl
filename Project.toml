@@ -3,6 +3,9 @@ uuid = "17afcda4-a678-4b99-aabd-b1f8835dcb1e"
 authors = ["Jonathan Jalbert", "Paul Mathivon", "Auguste Paoli"]
 version = "0.1.1"
 
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+
 [compat]
 julia = "1"
 

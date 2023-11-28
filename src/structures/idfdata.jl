@@ -105,6 +105,6 @@ function Base.show(io::IO, obj::IDFdata)
     prefix = "  "
     println(io, "IDFdata")
     for tag in gettag(obj)
-        println(io, prefix, tag, ": ", typeof(getdata(obj, tag)), "[", length(getyear(obj,tag)), "]" )
+        println(io, prefix, tag, ": ", typeof(getdata(obj, tag)), "[", length(getdata(obj,tag)), "]" )
     end
 end

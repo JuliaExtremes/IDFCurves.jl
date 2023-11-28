@@ -1,14 +1,20 @@
 module IDFCurves
 
-# Write your package code here.
+using Distributions
 
-    include("structures.jl")
+import Base: exponent, rand
+import Distributions: location, loglikelihood, rand, scale, shape
 
-    export
 
-        # Variable type
-        IDFdata,
+include("structures.jl")
 
-        getdata, getduration, gettag, getyear
+export
+
+    # Variable type
+    IDFdata,
+    getdata, getduration, gettag, getyear,
+
+    dGEV,
+    duration, exponent, getdistribution, location, loglikelihood, offset, rand, scale, shape
 
 end
