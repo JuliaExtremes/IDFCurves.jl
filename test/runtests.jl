@@ -1,5 +1,5 @@
 using IDFCurves
-using Distributions, Test
+using CSV, DataFrames, Distributions, Test
 
 @testset "IDFCurves.jl" begin
     include("structures_test.jl")

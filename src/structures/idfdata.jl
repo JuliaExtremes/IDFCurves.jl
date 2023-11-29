@@ -19,6 +19,41 @@ struct IDFdata
     end
 end
 
+"""
+    IDFdata(df::DataFrame, year_id::String, duration::Dict{String, T} where T<:Real)
+
+Construct a IDFdata sructure from a DataFrame.
+
+### Details
+
+- `year_id`: string indicating the year column
+- `duration`: Dictionary mapping the dataframe id to duration.
+
+See the tutorial for an example.
+"""
+function IDFdata(df::DataFrame, year_id::String, duration::Dict{String, T} where T<:Real)
+    x = df[:, year_id]
+    
+    year = Dict{String, Vector{Int64}}()
+    data = Dict{String, Vector{Float64}}()
+
+    tags = collect(keys(duration))
+    
+    for k in tags
+    
+        yₖ = df[:, k]
+
+        id = ismissing.(yₖ)
+
+        year[k] = x[.!(id)]
+        data[k] = yₖ[.!(id)]
+
+    end
+    
+    return IDFdata(tags, duration, year, data)
+    
+end
+
 Base.Broadcast.broadcastable(obj::IDFdata) = Ref(obj)
 
 """

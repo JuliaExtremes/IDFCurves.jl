@@ -35,29 +35,25 @@
             @test getduration(s, tags[i]) == durations[i]
             @test getyear(s, tags[i]) == years
         end
- 
-        
-        # @test getdata(s, "30min") == y[:,1]
-        # @test getdata(s, "1h") == y[:,2]
-        # @test getdata(s, "24h") == y[:,3]
 
-        # @test getdata(s, "30min", 2020) == y[1,1]
-        # @test getdata(s, "30min", 2021) == y[2,1]
+    end
 
-        # @test getdata(s, "1h", 2020) == y[1,2]
-        # @test getdata(s, "1h", 2021) == y[2,2]
+    @testset "IDFdata(::DataFrame)" begin
 
-        # @test getdata(s, "24h", 2020) == y[1,3]
-        # @test getdata(s, "24h", 2021) == y[2,3]
-
-        # @test getduration(s, "30min") == durations[1]
-
-
-        # for tag in gettag(s)
-        #     @test getduration(s, tag) == durations
-        #     @test getyear(s, tag) == years
-        # end
-
+        df = CSV.read(joinpath("..","data","IDF_702S006.csv"), DataFrame)
+    
+        tags = names(df)[2:10]
+        durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+        duration_dict = Dict(zip(tags, durations))
+    
+        data = IDFdata(df, "Year", duration_dict)
+    
+        @test duration_dict == getduration(data)
+        for tag in gettag(data)
+            @test getyear(data, tag) == df[:, :Year]
+            @test getdata(data, tag) ≈ df[:, tag]
+        end
+    
     end
     
 end

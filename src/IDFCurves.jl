@@ -1,6 +1,6 @@
 module IDFCurves
 
-using Distributions
+using CSV, DataFrames, Distributions
 
 import Base: exponent, rand
 import Distributions: location, loglikelihood, rand, scale, shape
