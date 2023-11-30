@@ -7,6 +7,7 @@
     @test exponent(pd) ≈ .8 
     @test offset(pd) == 5
     @test duration(pd) == 60
+    @test all([params(pd)...] .≈ [100, 1, 0, .8, 5])
 end
 
 @testset "getdistribution(::dGEV)" begin
@@ -30,6 +31,12 @@ end
     ll = sum(logpdf.(GeneralizedExtremeValue(sqrt(2),sqrt(2),.1), y₁)) + sum(logpdf.(GeneralizedExtremeValue(1,1,.1), y₃))
 
     @test loglikelihood(pd, data) ≈ ll
+end
+
+@testset "map_to_real_space(::Type{<:dGEV}, θ)" begin
+    
+    θ = [1., 0., -.5, 0., 0.]
+    @test IDFCurves.map_to_real_space(dGEV, θ) ≈ [1., 1., .5, .5, 1.]
 end
 
 @testset "rand(::dGEV)" begin
@@ -73,4 +80,26 @@ end
         @test length(getdata(data, tag[i])) == n
     end
 
+end
+
+## Fit 
+
+@testset "fit_mle(::dGEV)" begin
+
+    df = CSV.read(joinpath("..", "data","IDF_702S006.csv"), DataFrame)
+    
+    tags = names(df)[2:10]
+    durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+    duration_dict = Dict(zip(tags, durations))
+        
+    data = IDFdata(df, "Year", duration_dict)
+
+    fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [1., 1., .1, .8, .01])
+
+    @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
+
+    fd = IDFCurves.fit_mle(dGEV, data, 1, [1., 1., .1, .8, .01])
+
+    @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
+    
 end

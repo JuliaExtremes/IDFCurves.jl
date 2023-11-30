@@ -64,9 +64,12 @@ Return the duration offset
 """
 offset(pd::dGEV) = pd.δ
 
+params(pd::dGEV) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
+
 scale(pd::dGEV) = pd.σ₀
 
 shape(pd::dGEV) = pd.ξ
+
 
 
 ### Methods
@@ -118,6 +121,18 @@ function loglikelihood(pd::dGEV, data::IDFdata)
 end
 
 """
+    map_to_real_space(::Type{<:dGEV}, θ)
+
+Map the vector of parameters of the dGEV to place them in the real hypercube.
+"""
+function map_to_real_space(::Type{<:dGEV}, θ)
+    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
+
+    return [θ[1], exp(θ[2]), logistic(θ[3] + .5), logistic(θ[4]), exp(θ[5])]
+
+end
+
+"""
     rand(pd::dGEV, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
 
 Generate a random sample of size `n` for duration vector `d` from the dGEV model `pd`.
@@ -155,5 +170,41 @@ function rand(pd::dGEV, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVec
     
 end
 
+## Fit
+
+function fit_mle_gradient_free(pd::Type{<:dGEV}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
+
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(dGEV(d₀, map_to_real_space(dGEV, θ)...), data)
+    
+    res = Optim.optimize(fobj, initialvalues)
+    
+    if Optim.converged(res)
+        θ̂ = Optim.minimizer(res)
+    else
+        @warn "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values."
+        θ̂ = initialvalues
+    end
+    
+    fd = dGEV(d₀, map_to_real_space(dGEV, θ̂)...)
+    
+    return fd
+end
 
 
+function fit_mle(pd::Type{<:dGEV}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
+
+    fobj(θ::DenseVector{<:Real}) =  -loglikelihood(dGEV(d₀, map_to_real_space(dGEV, θ)...), data)
+
+    res = Optim.optimize(TwiceDifferentiable(fobj, initialvalues; autodiff = :forward), initialvalues)
+    
+    if Optim.converged(res)
+        θ̂ = Optim.minimizer(res)
+    else
+        @warn "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values."
+        θ̂ = initialvalues
+    end
+    
+    fd = dGEV(d₀, map_to_real_space(dGEV, θ̂)...)
+    
+    return fd
+end
