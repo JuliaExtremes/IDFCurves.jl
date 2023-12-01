@@ -12,6 +12,7 @@ LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 
 [compat]
+LogExpFunctions = "0.3"
 julia = "1"
 
 [extras]
