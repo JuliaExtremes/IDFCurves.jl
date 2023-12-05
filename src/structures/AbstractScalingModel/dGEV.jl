@@ -100,6 +100,23 @@ function getdistribution(pd::dGEV, d::Real)
 end
 
 """
+
+    hessian(pd::dGEV, data::IDFdata)
+
+Compute the Hessian matrix of the pGEV distribution `pd` associated with the IDF data `data`.
+"""
+function hessian(pd::dGEV, data::IDFdata)
+
+    d₀ = duration(pd)
+    θ̂ = [params(pd)...]
+
+    fobj(θ) = -loglikelihood(dGEV(d₀, θ...), data)
+
+    H = ForwardDiff.hessian(fobj, θ̂)
+
+end
+
+"""
     loglikelihood(pd::dGEV, data::IDFdata)
 
  Return the loglikelihood of the parameters in `pd` as a function of `data``    
@@ -169,6 +186,9 @@ function rand(pd::dGEV, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVec
     return IDFdata(tags, d_dict, x_dict, data_dict)
     
 end
+
+
+
 
 ## Fit
 

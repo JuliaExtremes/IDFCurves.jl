@@ -1,9 +1,9 @@
 module IDFCurves
 
-using CSV, DataFrames, Distributions, Gadfly, LogExpFunctions, Optim
+using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LogExpFunctions, Optim
 
 import Base: exponent, rand
-import Distributions: location, loglikelihood, params, rand, scale, shape
+import Distributions: location, loglikelihood, params, quantile, rand, scale, shape
 
 
 include("structures.jl")
@@ -16,6 +16,6 @@ export
     getdata, getduration, gettag, getyear,
 
     dGEV,
-    duration, exponent, getdistribution, location, loglikelihood, offset, params, rand, scale, shape
+    duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, rand, scale, shape
 
 end

@@ -84,15 +84,17 @@ end
 
 ## Fit 
 
-@testset "fit_mle(::dGEV)" begin
 
-    df = CSV.read(joinpath("..", "data","IDF_702S006.csv"), DataFrame)
+
+df = CSV.read(joinpath("..", "data","IDF_702S006.csv"), DataFrame)
     
-    tags = names(df)[2:10]
-    durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
-    duration_dict = Dict(zip(tags, durations))
+tags = names(df)[2:10]
+durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+duration_dict = Dict(zip(tags, durations))
         
-    data = IDFdata(df, "Year", duration_dict)
+data = IDFdata(df, "Year", duration_dict)
+
+@testset "fit_mle(::dGEV)" begin
 
     fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [1., 1., .1, .8, .01])
 
@@ -101,5 +103,16 @@ end
     fd = IDFCurves.fit_mle(dGEV, data, 1, [1., 1., .1, .8, .01])
 
     @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
+
+    @testset "hessian(::dGEV, data)" begin
+    
+    @test IDFCurves.hessian(fd, data) ≈ [21.5015 -10.5403 46.7217 -100.863 -283.946;
+        -10.5403 37.1912 21.0899 -43.1767 31.1629;
+        46.7217 21.0899 1332.12 412.91 -1281.44;
+        -100.863 -43.1767 412.91 21878.6 -15727.8;
+        -283.946 31.1629 -1281.44 -15727.8 23588.0] rtol=.05
+
+    end
     
 end
+
