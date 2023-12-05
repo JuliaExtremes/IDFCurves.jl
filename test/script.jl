@@ -1,6 +1,6 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, ForwardDiff, Gadfly,  LogExpFunctions, Optim
+using CSV, DataFrames, Distributions, Extremes, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim
 
 import IDFCurves.IDFdata
 import Distributions: fit_mle, params, quantile
@@ -17,6 +17,11 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 fd = IDFCurves.fit_mle(dGEV, data, 1, [1, 1, 0, .9, 1])
+
+H = Hermitian(IDFCurves.hessian(fd, data))
+
+
+
 # fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [1, 1, 0, .9, 1])
 
 m = getdistribution(fd, 24)
@@ -28,3 +33,5 @@ y = getdata(data, "24h")
 
 
 quantile(fd, 1, .9)
+
+function quantile_lbound(fd::dGEV, H::)

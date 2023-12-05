@@ -1,6 +1,6 @@
 module IDFCurves
 
-using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LogExpFunctions, Optim
+using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim
 
 import Base: exponent, rand
 import Distributions: location, loglikelihood, params, quantile, rand, scale, shape

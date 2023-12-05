@@ -112,7 +112,7 @@ function hessian(pd::dGEV, data::IDFdata)
 
     fobj(θ) = -loglikelihood(dGEV(d₀, θ...), data)
 
-    H = ForwardDiff.hessian(fobj, θ̂)
+    H = Hermitian(ForwardDiff.hessian(fobj, θ̂))
 
 end
 
