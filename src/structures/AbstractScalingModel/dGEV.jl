@@ -165,6 +165,34 @@ function quantile(pd::dGEV, d::Real, p::Real)
 end
 
 """
+    quantilevar(fd::dGEV, data::IDFdata, d::Real, p::Real)
+
+Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted dGEV model `fd` on the IDFdata `data`.      
+"""
+function quantilevar(fd::dGEV, data::IDFdata, d::Real, p::Real)
+    @assert 0<p<1 "the quantile level sould be in (0,1)."
+    @assert d>0 "the duration sould be positive."
+
+    d₀ = duration(fd)
+    θ̂ = collect(params(fd))
+
+    H = IDFCurves.hessian(fd, data)
+
+    # quantile function
+    g(θ::DenseVector{<:Real}) = quantile( dGEV(d₀, θ...), d, p)
+
+    # gradient
+    ∇ = ForwardDiff.gradient(g, θ̂)
+
+    # Approximate variance computed with the delta method
+    u = H\∇
+    v = dot(∇, u)
+
+    return v
+
+end
+
+"""
     rand(pd::dGEV, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
 
 Generate a random sample of size `n` for duration vector `d` from the dGEV model `pd`.
