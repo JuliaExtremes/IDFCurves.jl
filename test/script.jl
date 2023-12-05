@@ -27,31 +27,4 @@ y = getdata(data, "24h")
 
 
 
-H = hessian(fd, data)
-
-@testset "hessian(::dGEV, data)" begin
-    
-    @test H ≈ [21.5015 -10.5403 46.7217 -100.863 -283.946;
-    -10.5403 37.1912 21.0899 -43.1767 31.1629;
-    46.7217 21.0899 1332.12 412.91 -1281.44;
-   -100.863 -43.1767 412.91 21878.6 -15727.8;
-   -283.946 31.1629 -1281.44 -15727.8 23588.0] rtol=.05
-
-end
-
-"""
-    quantile(pd::dGEV, d::Real, p::Real)
-
-Compute the quantile of level `p` for the duration `d` of the dGEV model `pd`. 
-"""
-function quantile(pd::dGEV, d::Real, p::Real)
-    @assert 0<p<1 "The quantile level p must be in (0,1)."
-    @assert d>0 "The duration must be positive."
-
-    marginal = IDFCurves.getdistribution(pd, d)
-
-    return quantile(marginal, p)
-
-end
-
 quantile(fd, 1, .9)

@@ -150,6 +150,21 @@ function map_to_real_space(::Type{<:dGEV}, θ)
 end
 
 """
+    quantile(pd::dGEV, d::Real, p::Real)
+
+Compute the quantile of level `p` for the duration `d` of the dGEV model `pd`. 
+"""
+function quantile(pd::dGEV, d::Real, p::Real)
+    @assert 0<p<1 "The quantile level p must be in (0,1)."
+    @assert d>0 "The duration must be positive."
+
+    marginal = IDFCurves.getdistribution(pd, d)
+
+    return quantile(marginal, p)
+
+end
+
+"""
     rand(pd::dGEV, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
 
 Generate a random sample of size `n` for duration vector `d` from the dGEV model `pd`.

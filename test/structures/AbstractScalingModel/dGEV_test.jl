@@ -39,6 +39,13 @@ end
     @test IDFCurves.map_to_real_space(dGEV, θ) ≈ [1., 1., .5, .5, 1.]
 end
 
+@testset "quantile(::dGEV)" begin
+    pd = dGEV(60, 100, 1, 0, .8, 5)
+    
+    @test quantile(pd, 60, .9) ≈ quantile(GeneralizedExtremeValue(100,1,0), .9)
+    
+end
+
 @testset "rand(::dGEV)" begin
     
     pd = dGEV(60, 100, 1, .1, .8, 5)
