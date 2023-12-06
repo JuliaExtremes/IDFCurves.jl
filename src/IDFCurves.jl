@@ -17,6 +17,6 @@ export
     getdata, getduration, gettag, getyear,
 
     dGEV,
-    duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilevar, rand, scale, shape
+    duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape
 
 end

@@ -59,57 +59,9 @@ function scale(pd::dGEV, d::Real)
 
 end
 
-location(fd, 1)
-location(fd, 24)
+IDFCurves.quantilevar(fd, data, 24, .95)
 
-scale(fd, 1)
-scale(fd, 24)
-
-
-d₀ = 1
-θ̂ = collect(params(fd))
-
-"""
-    quantilevar(fd::dGEV, data::IDFdata, d::Real, p::Real)
-
-Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted dGEV model `fd` on the IDFdata `data`.      
-"""
-function quantilevar(fd::dGEV, data::IDFdata, d::Real, p::Real)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
-
-    d₀ = duration(fd)
-    θ̂ = collect(params(fd))
-
-    H = IDFCurves.hessian(fd, data)
-
-    # quantile function
-    g(θ::DenseVector{<:Real}) = quantile( dGEV(d₀, θ...), d, p)
-
-    # gradient
-    ∇ = ForwardDiff.gradient(g, θ̂)
-
-    # Approximate variance computed with the delta method
-    u = H\∇
-    v = dot(∇, u)
-
-    return v
-
-end
-
-quantilevar(fd, data, 24, .95)
-
-
-
-g(θ::DenseVector{<:Real}) = quantile( dGEV(d₀, θ...), 24, .95)
-
-g(collect(params(fd)))
-
-∇ = ForwardDiff.gradient(g, θ̂)
-H = IDFCurves.hessian(fd, data)
-
-u = H\∇
-v = dot(∇, U)
+IDFCurves.quantilecint(fd, data, 24, .95)
 
 
 function getmarginalparameters(pd::dGEV, d::Real)

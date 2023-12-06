@@ -130,7 +130,12 @@ data = IDFdata(df, "Year", duration_dict)
     end
 
     @testset "quantilevar" begin
-        @test quantilevar(fd, data, 24, .95) ≈ 0.014404245774623275
+        @test IDFCurves.quantilevar(fd, data, 24, .95) ≈ 0.014404245774623275
+    end
+
+    @testset "quantilevar" begin
+        @test quantilecint(fd, data, 24, .95) ≈ [3.2642, 3.7346] atol = 1e-4
+        @test quantilecint(fd, data, 24, .95, .1) ≈ [3.3020, 3.6968] atol = 1e-4
     end
     
 end

@@ -193,6 +193,27 @@ function quantilevar(fd::dGEV, data::IDFdata, d::Real, p::Real)
 end
 
 """
+    quantilecint(fd::dGEV, data::IDFdata, d::Real, p::Real, α::Real=.05)
+
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+"""
+function quantilecint(fd::dGEV, data::IDFdata, d::Real, p::Real, α::Real=.05)
+    @assert 0<p<1 "the quantile level sould be in (0,1)."
+    @assert d>0 "the duration sould be positive."
+    @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
+
+    q̂ = quantile(fd, d, p)
+    v = IDFCurves.quantilevar(fd, data, d, p)
+
+   dist = Normal(q̂, sqrt(v))
+
+   return quantile.(dist, [α/2, 1-α/2])
+
+end
+
+
+
+"""
     rand(pd::dGEV, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
 
 Generate a random sample of size `n` for duration vector `d` from the dGEV model `pd`.
@@ -237,12 +258,12 @@ Override of the show function for the objects of type dGEV.
 
 """
 function Base.show(io::IO, obj::dGEV)
-    println(io, "dGEV( d₀ = ", duration(obj),
-        "μ₀ = ", round(location(obj), digits=4),
-        "σ₀ = ", round(scale(obj), digits=4),
-        "ξ = ", round(shape(obj), digits=4),
-        "α = ", round(exponent(obj), digits=4),
-        "δ = ", round(offset(obj), digits=4),
+    println(io, "dGEV(d₀ = ", duration(obj),
+        ", μ₀ = ", round(location(obj), digits=4),
+        ", σ₀ = ", round(scale(obj), digits=4),
+        ", ξ = ", round(shape(obj), digits=4),
+        ", α = ", round(exponent(obj), digits=4),
+        ", δ = ", round(offset(obj), digits=4),
         ")")
 end
 
