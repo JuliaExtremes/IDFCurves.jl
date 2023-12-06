@@ -36,6 +36,9 @@
             @test getyear(s, tags[i]) == years
         end
 
+        @test gettag(s, .5) == "30min"
+        @test_throws ErrorException gettag(s, 5)
+
     end
 
     @testset "Base.show(io, IDFdata)" begin

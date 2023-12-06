@@ -125,8 +125,34 @@ function getyear(s::IDFdata, tag::String)
     return getyear(s)[tag]
 end
 
+"""
+    gettag(data::IDFdata)
 
+Return the tag list.
+"""
 gettag(s::IDFdata) = s.tag
+
+"""
+    gettag(data::IDFdata, d::Real)
+
+Return the tag corresponding to the duration `d` if it exists; throw an error otherwise.
+"""
+function gettag(data::IDFdata, d::Real)
+
+    duration_dict = getduration(data)
+
+    has(x::Real, y::Real) = x ≈ y
+    has(x::Vector{<:Real}, y::Real) = any(has(i, y) for i in x)
+
+    key_value = [k for (k,v) in duration_dict if has(v, d)] 
+
+    if isempty(key_value)
+        error("the specified duration does not correspond to a tag.")
+    else
+        return key_value[]
+    end
+
+end
 
 
 
