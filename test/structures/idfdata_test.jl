@@ -40,7 +40,7 @@
 
     @testset "IDFdata(::DataFrame)" begin
 
-        df = CSV.read(joinpath("..","data","IDF_702S006.csv"), DataFrame)
+        df = CSV.read(joinpath("..","data","702S006.csv"), DataFrame)
     
         tags = names(df)[2:10]
         durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]

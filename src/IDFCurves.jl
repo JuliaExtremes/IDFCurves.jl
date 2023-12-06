@@ -6,6 +6,7 @@ import Base: exponent, rand
 import Distributions: location, loglikelihood, params, quantile, rand, scale, shape
 
 
+include("data.jl")
 include("structures.jl")
 include("plots.jl")
 
