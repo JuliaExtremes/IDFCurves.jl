@@ -38,6 +38,13 @@
 
     end
 
+    @testset "Base.show(io, IDFdata)" begin
+        # print IDFdata does not throw
+        buffer = IOBuffer()
+        @test_logs Base.show(buffer, s)
+    
+    end
+
     @testset "IDFdata(::DataFrame)" begin
 
         df = CSV.read(joinpath("..","data","702S006.csv"), DataFrame)
@@ -57,3 +64,4 @@
     end
     
 end
+

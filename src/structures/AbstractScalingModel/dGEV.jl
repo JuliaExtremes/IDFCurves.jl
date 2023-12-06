@@ -230,6 +230,22 @@ function rand(pd::dGEV, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVec
     
 end
 
+"""
+    Base.show(io::IO, obj::dGEV)
+
+Override of the show function for the objects of type dGEV.
+
+"""
+function Base.show(io::IO, obj::dGEV)
+    println(io, "dGEV( d₀ = ", duration(obj),
+        "μ₀ = ", round(location(obj), digits=4),
+        "σ₀ = ", round(scale(obj), digits=4),
+        "ξ = ", round(shape(obj), digits=4),
+        "α = ", round(exponent(obj), digits=4),
+        "δ = ", round(offset(obj), digits=4),
+        ")")
+end
+
 
 
 

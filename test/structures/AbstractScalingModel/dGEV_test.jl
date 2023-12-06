@@ -89,6 +89,14 @@ end
 
 end
 
+@testset "Base.show(io, dGEV)" begin
+    # print dGEV does not throw
+    pd = dGEV(60, 100, 1, 0, .8, 5)
+    buffer = IOBuffer()
+    @test_logs Base.show(buffer, pd)
+
+end
+
 ## Fit 
 
 
