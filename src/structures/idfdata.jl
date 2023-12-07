@@ -130,7 +130,15 @@ end
 
 Return the tag list.
 """
-gettag(s::IDFdata) = s.tag
+function gettag(data::IDFdata)
+
+    k = collect(keys(getduration(data)))
+    v = collect(values(getduration(data)))
+
+    ind = sortperm(v)
+
+    return k[ind]
+end
 
 """
     gettag(data::IDFdata, d::Real)

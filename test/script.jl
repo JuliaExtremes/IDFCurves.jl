@@ -4,7 +4,6 @@ using CSV, DataFrames, Distributions, Extremes, Gadfly
 
 
 
-
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
 tags = names(df)[2:10]
@@ -15,6 +14,4 @@ data = IDFdata(df, "Year", duration_dict)
 
 fd = IDFCurves.fit_mle(dGEV, data, 1, [1, 1, 0, .9, 1])
 
-
-
-
+gettag(data)

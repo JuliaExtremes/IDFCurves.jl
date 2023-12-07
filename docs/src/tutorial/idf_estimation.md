@@ -4,7 +4,7 @@
 This tutorial illustrates the functionalities of the library. Before being able to execute it, the following libraries must be installed and imported.
 
 ```@example montreal
-using CSV, DataFrames, Distributions, Gadfly, IDFCurves
+using Cairo, CSV, DataFrames, Distributions, Fontconfig, Gadfly, IDFCurves
 ```
 
 ## Data loading
@@ -27,10 +27,26 @@ The DataFrame can then be converted in a [`IDFdata`](@ref) structure
 data = IDFdata(df, "Year", duration_dict)
 ```
 
-## Estimating the general scaling model (also know as d-GEV)
+## Estimating the general scaling model (also known as d-GEV)
 
 ```@repl montreal
 fd = IDFCurves.fit_mle(dGEV, data, 1, [1., 1., .1, .8, .01])
 ```
 
+Showing the model fit for the 30-min duration
+```@example montreal
+Gadfly.set_default_plot_size(10cm, 8cm)
+qqplotci(fd, data, .5)
+```
 
+Showing the model fit for the 1-hour duration
+```@example montreal
+Gadfly.set_default_plot_size(10cm, 8cm)
+qqplotci(fd, data, 1)
+```
+
+Showing the model fit for the 24-hour duration
+```@example montreal
+Gadfly.set_default_plot_size(10cm, 8cm)
+qqplotci(fd, data, 24)
+```
