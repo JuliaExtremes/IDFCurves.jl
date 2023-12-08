@@ -7,7 +7,7 @@ import Distributions: location, loglikelihood, params, quantile, rand, scale, sh
 
 
 include("structures.jl")
-include("covariance.jl")
+include("utils.jl")
 include("data.jl")
 include("plots.jl")
 
