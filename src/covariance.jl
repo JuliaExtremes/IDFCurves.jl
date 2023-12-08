@@ -20,3 +20,46 @@ function matern(d::Real, ν::Real, ρ::Real)
     return exp(lc)
 
 end
+
+"""
+    logdist(x₁::Real, x₂::Real)
+
+Logarithmic distance between the two positive points `x₁` and `x₂`.
+
+### Details
+
+The logarihmic distance between `x₁ > 0` and `x₂ > 0` is defined as follows:
+
+``h(x₁,x₂) = | \\log x₁ - \\log x₂ |.``
+
+"""
+function logdist(x₁::Real, x₂::Real)
+    @assert x₁ > 0 "point must be positive."
+    @assert x₂ > 0 "point must be positive."
+
+    return abs(log(x₁) - log(x₂))
+
+end
+
+"""
+    logdist(x::AbstractVector{<:Real})
+
+Logarithmic distances between all pairs of points in `x`.
+
+### Details
+
+The function returns a square symmetric matrix of the lenght of `x`.
+"""
+function logdist(x::AbstractVector{<:Real})
+
+    T = Matrix{Float64}(undef, length(x), length(x))
+
+    for i in eachindex(x)
+        for j in eachindex(x)
+            (i ≤ j) ? T[i,j] = logdist(x[i], x[j]) : continue
+        end
+    end
+
+    return Symmetric(T)
+
+end

@@ -13,9 +13,11 @@ Order = [:type]
 
 ```@autodocs
 Modules = [IDFCurves]
-Private = false
+Private = true
 Order = [:function]
 Pages = [
+    "src/data.jl",
+    "src/covariance.jl",
     "src/structures/idfdata.jl",
     "src/structures/AbstractScalingModel/abstractscalingmodel.jl",
     "src/structures/AbstractScalingModel/dGEV.jl",
