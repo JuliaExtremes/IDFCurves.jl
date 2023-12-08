@@ -1,6 +1,6 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, Gadfly
+using CSV, DataFrames, Distributions, Extremes, Gadfly, SpecialFunctions
 
 
 
@@ -14,4 +14,8 @@ data = IDFdata(df, "Year", duration_dict)
 
 fd = IDFCurves.fit_mle(dGEV, data, 1, [1, 1, 0, .9, 1])
 
-gettag(data)
+
+
+
+
+

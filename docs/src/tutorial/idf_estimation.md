@@ -33,20 +33,34 @@ data = IDFdata(df, "Year", duration_dict)
 fd = IDFCurves.fit_mle(dGEV, data, 1, [1., 1., .1, .8, .01])
 ```
 
-Showing the model fit for the 30-min duration
+Displaying the model fit for the 5-, 10-, and 15-minute durations:
 ```@example montreal
-Gadfly.set_default_plot_size(10cm, 8cm)
-qqplotci(fd, data, .5)
+Gadfly.set_default_plot_size(30cm, 8cm)
+p5min = qqplotci(fd, data, 5/60)
+p10min = qqplotci(fd, data, 10/60)
+p15min = qqplotci(fd, data, 15/60)
+
+hstack([p5min, p10min, p15min])
 ```
 
-Showing the model fit for the 1-hour duration
+Displaying the model fit for the 30-min-, 1-, and 2-hour durations:
 ```@example montreal
-Gadfly.set_default_plot_size(10cm, 8cm)
-qqplotci(fd, data, 1)
+Gadfly.set_default_plot_size(30cm, 8cm)
+p30min = qqplotci(fd, data, 30/60)
+p1h = qqplotci(fd, data, 1)
+p2h = qqplotci(fd, data, 2)
+
+hstack([p30min, p1h, p2h])
 ```
 
-Showing the model fit for the 24-hour duration
+Displaying the model fit for the 30-min-, 1-, and 2-hour durations:
 ```@example montreal
-Gadfly.set_default_plot_size(10cm, 8cm)
-qqplotci(fd, data, 24)
+Gadfly.set_default_plot_size(30cm, 8cm)
+p6h = qqplotci(fd, data, 6)
+p12h = qqplotci(fd, data, 12)
+p24h = qqplotci(fd, data, 24)
+
+hstack([p6h, p12h, p24h])
 ```
+
+
