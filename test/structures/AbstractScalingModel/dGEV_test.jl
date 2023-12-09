@@ -10,6 +10,13 @@
     @test all([params(pd)...] .≈ [100, 1, 0, .8, 5])
 end
 
+@testset "cdf(::dGEV)" begin
+    pd = dGEV(1, 100, 1, 0, .8, 5)
+
+    @test cdf(pd, 1, 100) ≈ cdf(GeneralizedExtremeValue(100, 1 , 0), 100)
+    @test cdf(pd, 1, [100, 200]) ≈ cdf.(GeneralizedExtremeValue(100, 1 , 0), [100, 200])
+end
+
 @testset "getdistribution(::dGEV)" begin
     pd = dGEV(60, 100, 1, 0, .8, 5)
     

@@ -75,6 +75,25 @@ shape(pd::dGEV) = pd.ξ
 ### Methods
 
 """
+    cdf(pd::dGEV, d::Real, x::Real)
+
+Return the cdf of the marginal distribution for duration `d` of the model `pd` evaluated at `x`.
+"""
+function cdf(pd::dGEV, d::Real, x::Real)
+
+    margdist = IDFCurves.getdistribution(pd, d)
+    return cdf(margdist, x)
+
+end
+
+function cdf(pd::dGEV, d::Real, x::AbstractVector{<:Real})
+
+    margdist = IDFCurves.getdistribution(pd, d)
+    return cdf.(margdist, x)
+
+end
+
+"""
     getdistribution(pd::dGEV, d::Real)
 
 Return the marginal GEV distribution for duration `d`.

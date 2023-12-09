@@ -74,6 +74,22 @@ function compute_tail_coeff(pd::TDist, max_coeff::Int=750)
     return c[1:i-1]
 end
 
+"""
+    logpdf_TCopula(C::Distributions.GenericMvTDist, u::AbstractVector{<:Real})
+
+Logpdf of the Student copula `C` evaluated at `u`.
+"""
+function logpdf_TCopula(C::Distributions.GenericMvTDist, u::AbstractVector{<:Real})
+    @assert all(0 .≤ u .≤ 1) 
+    
+    ν = C.df
+    margdist = TDist(ν)
+
+    x = quantile.(margdist, u)
+
+    return logpdf(C, x) - sum(logpdf.(margdist, x))
+
+end
 
 """
     matern(d::Real, ν::Real, ρ::Real)

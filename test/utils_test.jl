@@ -1,4 +1,16 @@
 
+@testset "logpdf_TCopula" begin
+    u = [.2, .7]
+    ν = 5
+    Σ = [1 .5; .5 1]
+
+    C = MvTDist(ν, Σ)
+
+    @test_throws AssertionError IDFCurves.logpdf_TCopula(C, [-0.5, 0.7])
+
+    @test IDFCurves.logpdf_TCopula(C, u) ≈ -0.3970179543005301 # Value computed with Copulas.jl
+end
+
 @testset "matern" begin
     @test_throws AssertionError IDFCurves.matern(-1,1,1)
     @test_throws AssertionError IDFCurves.matern(1,-1,1)
