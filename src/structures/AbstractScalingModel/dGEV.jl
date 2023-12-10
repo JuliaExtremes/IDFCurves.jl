@@ -157,14 +157,26 @@ function loglikelihood(pd::dGEV, data::IDFdata)
 end
 
 """
+    map_to_param_space(::Type{<:dGEV}, θ)
+
+Map the parameters from the real hypercube to the dGEV parameter space.
+"""
+function map_to_param_space(::Type{<:dGEV}, θ)
+    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
+
+    return [θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4]), exp(θ[5])]
+
+end
+
+"""
     map_to_real_space(::Type{<:dGEV}, θ)
 
-Map the vector of parameters of the dGEV to place them in the real hypercube.
+Map the parameters from the dGEV parameter spave to the real hypercube.
 """
 function map_to_real_space(::Type{<:dGEV}, θ)
     @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
 
-    return [θ[1], exp(θ[2]), logistic(θ[3] + .5), logistic(θ[4]), exp(θ[5])]
+    return [θ[1], log(θ[2]), logit(θ[3]+.5), logit(θ[4]), log(θ[5])]
 
 end
 
@@ -293,18 +305,20 @@ end
 
 function fit_mle_gradient_free(pd::Type{<:dGEV}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
 
-    fobj(θ::DenseVector{<:Real}) = -loglikelihood(dGEV(d₀, map_to_real_space(dGEV, θ)...), data)
+    θ₀ = IDFCurves.map_to_real_space(dGEV,initialvalues)
+
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(dGEV(d₀, map_to_param_space(dGEV, θ)...), data)
     
-    res = Optim.optimize(fobj, initialvalues)
+    res = Optim.optimize(fobj, θ₀)
     
     if Optim.converged(res)
         θ̂ = Optim.minimizer(res)
     else
         @warn "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values."
-        θ̂ = initialvalues
+        θ̂ = θ₀
     end
     
-    fd = dGEV(d₀, map_to_real_space(dGEV, θ̂)...)
+    fd = dGEV(d₀, map_to_param_space(dGEV, θ̂)...)
     
     return fd
 end
@@ -312,18 +326,20 @@ end
 
 function fit_mle(pd::Type{<:dGEV}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
 
-    fobj(θ::DenseVector{<:Real}) =  -loglikelihood(dGEV(d₀, map_to_real_space(dGEV, θ)...), data)
+    θ₀ = IDFCurves.map_to_real_space(dGEV,initialvalues)
 
-    res = Optim.optimize(TwiceDifferentiable(fobj, initialvalues; autodiff = :forward), initialvalues)
+    fobj(θ::DenseVector{<:Real}) =  -loglikelihood(dGEV(d₀, map_to_param_space(dGEV, θ)...), data)
+
+    res = Optim.optimize(TwiceDifferentiable(fobj, θ₀; autodiff = :forward), θ₀)
     
     if Optim.converged(res)
         θ̂ = Optim.minimizer(res)
     else
         @warn "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values."
-        θ̂ = initialvalues
+        θ̂ = θ₀
     end
     
-    fd = dGEV(d₀, map_to_real_space(dGEV, θ̂)...)
+    fd = dGEV(d₀, map_to_param_space(dGEV, θ̂)...)
     
     return fd
 end

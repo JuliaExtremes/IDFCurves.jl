@@ -40,10 +40,10 @@ end
     @test loglikelihood(pd, data) ≈ ll
 end
 
-@testset "map_to_real_space(::Type{<:dGEV}, θ)" begin
+@testset "map_to_param_space(::Type{<:dGEV}, θ)" begin
     
-    θ = [1., 0., -.5, 0., 0.]
-    @test IDFCurves.map_to_real_space(dGEV, θ) ≈ [1., 1., .5, .5, 1.]
+    θ = [1., 0., 0., 0., 0.]
+    @test IDFCurves.map_to_param_space(dGEV, θ) ≈ [1., 1., 0., .5, 1.]
 end
 
 @testset "quantile(::dGEV)" begin
@@ -118,11 +118,11 @@ data = IDFdata(df, "Year", duration_dict)
 
 @testset "fit_mle(::dGEV)" begin
 
-    fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [1., 1., .1, .8, .01])
+    fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [20, 5, .04, .76, .07])
 
     @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
 
-    fd = IDFCurves.fit_mle(dGEV, data, 1, [1., 1., .1, .8, .01])
+    fd = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .07])
 
     @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
 

@@ -1,8 +1,6 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions
-
-import IDFCurves.loglikelihood
+using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
@@ -13,6 +11,49 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 fd = IDFCurves.fit_mle(dGEV, data, 1, [1, 1, 0, .9, 1])
+
+
+θ₀ = IDFCurves.map_to_real_space(dGEV, [20, 5, .04, .76, .07])
+
+fobj(θ::DenseVector{<:Real}) =  -loglikelihood(dGEV(1, IDFCurves.map_to_param_space(dGEV, θ)...), data)
+
+res = Optim.optimize(TwiceDifferentiable(fobj, θ₀; autodiff = :forward), θ₀)
+
+
+
+
+
+
+
+
+
+durations = getduration.(data, gettag(data))
+h = IDFCurves.logdist(durations)
+
+model(θ::DenseVector{<:Real}) = DependentScalingModel(
+    dGEV(1, IDFCurves.map_to_param_space(dGEV, θ[1:5])...),
+    MvTDist(15, IDFCurves.matern.(h, exp(θ[6]), exp(θ[7])))
+    )
+
+model([1,0,0,.8,.5,-2,-1])
+
+fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
+
+
+θ̂ = params(fd)
+
+initialvalues = [θ̂[1], log(θ̂[2]), logit(θ̂[3])-.5, log(θ̂[4]), log(θ̂[5]), log(1.), log(1.)]
+
+# res = Optim.optimize(TwiceDifferentiable(fobj, initialvalues; autodiff = :forward), initialvalues)
+res = Optim.optimize(fobj, initialvalues)
+
+
+
+
+
+
+
+fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [1, 1, 0, .9, 1])
 
 
 h = IDFCurves.logdist(durations)
@@ -26,125 +67,8 @@ fmm = DependentScalingModel(fd, C)
 
 
 
-function loglikelihood(pd::DependentScalingModel, data)
-
-    tags = gettag(data)
-    idx = getyear(data, tags[1]) #TODO Check for missing data (assumes that all years are present for each duration)
-    d = getduration.(data, tags)
-
-    y = getdata.(data, tags, idx')
-
-    # Marginal loglikelihood
-    ll = loglikelihood(getmarginalmodel(pd), data)
-
-    # Copula loglikelihood #TODO Check for other type of elliptical copula
-    u = cdf.(getmarginalmodel(pd), durations, y)
-    for c in eachcol(u)
-        ll += IDFCurves.logpdf_TCopula(getcopula(pd), c)
-    end
-
-    return ll
-
-end
-
-@testset "loglikelihood(::DependentScalingModel)" begin
-    
-    tags = ["1h", "2h"]
-    durations = [1., 2.]
-    years = [2020, 2021]
-    y = hcat(2:3, 0:1)
-
-    d1 = Dict(zip(tags, durations))
-    d2 = Dict(tags[1] => years, tags[2] => years)
-    d3 = Dict(tags[1] => y[:,1], tags[2] => y[:,2])
-
-    data = IDFdata(tags, d1, d2, d3)
-
-    mm = dGEV(1, 1, 1, 0, .8, .5)
-    C = MvTDist(15, [1. .5; .5 1])
-    pd = DependentScalingModel(mm, C)
-
-    @test loglikelihood(pd, data) ≈ -6.330260155320674
-
-end
 
 
-
-
-
-@time loglikelihood(pd, data)
-
-
-
-tags = gettag(data)
-idx = getyear(data, tags[1]) #TODO Check for missing data (assumes that all years are present for each duration)
-d = getduration.(data, tags)
-
-y = getdata.(data, tags, idx')
-
-ll = loglikelihood(getmarginalmodel(pd), data)
-
-# Copula loglikelihood
-u = cdf.(getmarginalmodel(pd), durations, y)
-
-for c in eachcol(u)
-    ll += IDFCurves.logpdf_TCopula(getcopula(pd), c)
-end
-
-
-
-
-tags = gettag(data)
-idx = getyear(data, "5min") #TODO Check for missing data
-
-d = getduration.(data, tags)
-
-
-y = getdata.(data, tags, idx')
-
-u = cdf.(fd, durations, y)
-
-ll = loglikelihood(fd, data)
-
-for c in eachcol(u)
-    ll += IDFCurves.logpdf_TCopula(C, c)
-end
-
-logpdf_TCopula(C, u)
-
-
-
-
-
-y₁ = y[1]
-
-u₁ = cdf()
-
-
-
-
-function logpdf(pd::DependentScalingModel, data::IDFdata)
-
-    
-
-end
-
-
-
-
-
-
-
-
-m = length(C)
-u = rand(m)
-
-
-@time logpdf_TCopula(C, u)
-
-uv = [rand(m) for i in 1:10]
-
-@time logpdf_TCopula.(Ref(C), uv)
 
 
 
