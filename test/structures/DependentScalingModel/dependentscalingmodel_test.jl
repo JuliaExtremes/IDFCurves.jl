@@ -2,7 +2,7 @@
 @testset "DependentScalingModel construction" begin
     
     pd = dGEV(1, 1, 1, 0, .8, .5)
-    C = MvTDist(15, [1. .5; .5 1])
+    C = TCopula(15, [1. .5; .5 1])
 
     dm = DependentScalingModel(pd, C)
 
@@ -26,7 +26,7 @@ end
     data = IDFdata(tags, d1, d2, d3)
 
     mm = dGEV(1, 1, 1, 0, .8, .5)
-    C = MvTDist(15, [1. .5; .5 1])
+    C = TCopula(15, [1. .5; .5 1])
     pd = DependentScalingModel(mm, C)
 
     @test loglikelihood(pd, data) ≈ -6.330260155320674
