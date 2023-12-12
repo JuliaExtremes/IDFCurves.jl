@@ -79,13 +79,18 @@ end
 
 Logpdf of the Student copula `C` evaluated at `u`.
 """
-function logpdf_TCopula(C::Distributions.GenericMvTDist, u::AbstractVector{<:Real})
+function logpdf_TCopula(C::Distributions.GenericMvTDist, u::AbstractVector{T} where T; autodiff::Symbol=:none)
     @assert all(0 .≤ u .≤ 1) 
+    @assert autodiff in (:none, :forward)
     
     ν = C.df
     margdist = TDist(ν)
 
-    x = quantile.(margdist, u)
+    if autodiff == :none
+        x = quantile.(margdist, u)
+    else
+        x = quantile_ad.(margdist, u)
+    end
 
     return logpdf(C, x) - sum(logpdf.(margdist, x))
 
@@ -99,20 +104,35 @@ Return the Matérn correlation of parameter (ν, ρ) between measurements taken 
 ### Details
 [Matérn covariance function](https://en.wikipedia.org/wiki/Mat%C3%A9rn_covariance_function)
 """
-function matern(d::Real, ν::Real, ρ::Real)
+function matern(d::Real, ν::T where T, ρ::T where T)
     @assert d ≥ 0 "distance must be non-negative."
     @assert ν > 0 "ν must be positive."
     @assert ρ > 0 "ρ must be positive."
 
     if d ≈ 0.
-        lc = 0.
+        c = 1.
     else
-        lc = (1-ν)*log(2) - SpecialFunctions.loggamma(ν) + ν*log(sqrt(2*ν)*d/ρ)+log(SpecialFunctions.besselk(ν,sqrt(2*ν)*d/ρ))
+        c = 2^(1-ν)/SpecialFunctions.gamma(ν) * (sqrt(2*ν) * d/ρ)^ν * SpecialFunctions.besselk(ν,sqrt(2*ν)*d/ρ)
     end
 
-    return exp(lc)
+    return c
 
 end
+# function matern(d::Real, ν::Real, ρ::Real)
+#     @assert d ≥ 0 "distance must be non-negative."
+#     @assert ν > 0 "ν must be positive."
+#     @assert ρ > 0 "ρ must be positive."
+
+#     if d ≈ 0.
+#         lc = 0.
+#     else
+#         lc = (1-ν)*log(2) - SpecialFunctions.loggamma(ν) + ν*log(sqrt(2*ν)*d/ρ)+log(SpecialFunctions.besselk(ν,sqrt(2*ν)*d/ρ))
+#     end
+
+#     return exp(lc)
+
+# end
+
 
 """
     logdist(x₁::Real, x₂::Real)
@@ -158,11 +178,11 @@ function logdist(x::AbstractVector{<:Real})
 end
 
 """
-    quantile(pd::TDist, p::Real)
+    quantile_ad(pd::TDist, p::Real)
 
 Compute the quantile of level `p` of the Student distribution `pd` with an implementation compatible with automatic differentiation.
 """
-function IDFCurves.quantile(pd::TDist, p::Real)
+function quantile_ad(pd::TDist, p::Real)
     @assert  0<p<1 "the quantile level must be in (0,1)."
 
     ν = dof(pd)

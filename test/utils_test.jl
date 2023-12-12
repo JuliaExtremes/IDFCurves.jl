@@ -70,13 +70,13 @@ end
 end
 
 
-@testset "quantile(::TDist)" begin
-    @test_throws AssertionError quantile(TDist(5), 1.5)
+@testset "quantile_ad(::TDist)" begin
+    @test_throws AssertionError IDFCurves.quantile_ad(TDist(5), 1.5)
 
-    @test quantile(TDist(2), .95) ≈ 2.919985580353724
-    @test quantile(TDist(4), .95) ≈ 2.1318467863266495
+    @test IDFCurves.quantile_ad(TDist(2), .95) ≈ 2.919985580353724
+    @test IDFCurves.quantile_ad(TDist(4), .95) ≈ 2.1318467863266495
 
-    @test quantile(TDist(5), .05) ≈ -2.0150483733330233
-    @test quantile(TDist(5), .6) ≈ 0.26718086570414507
-    @test quantile(TDist(5), .95) ≈ 2.015048373333023
+    @test IDFCurves.quantile_ad(TDist(5), .05) ≈ -2.0150483733330233
+    @test IDFCurves.quantile_ad(TDist(5), .6) ≈ 0.26718086570414507
+    @test IDFCurves.quantile_ad(TDist(5), .95) ≈ 2.015048373333023
 end
