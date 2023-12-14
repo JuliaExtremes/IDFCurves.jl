@@ -161,7 +161,7 @@ end
 
 Map the parameters from the real hypercube to the dGEV parameter space.
 """
-function map_to_param_space(::Type{<:dGEV}, θ)
+function map_to_param_space(::Type{<:dGEV}, θ::AbstractVector{<:Real})
     @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
 
     return [θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4]), exp(θ[5])]
@@ -173,7 +173,7 @@ end
 
 Map the parameters from the dGEV parameter spave to the real hypercube.
 """
-function map_to_real_space(::Type{<:dGEV}, θ)
+function map_to_real_space(::Type{<:dGEV}, θ::AbstractVector{<:Real})
     @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
 
     return [θ[1], log(θ[2]), logit(θ[3]+.5), logit(θ[4]), log(θ[5])]

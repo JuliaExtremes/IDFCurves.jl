@@ -11,6 +11,13 @@
 
 end
 
+@testset "get type of DependentScalingModel" begin
+    obj = DependentScalingModel{dGEV, GaussianCopula}
+
+    @test IDFCurves.getmarginaltype(obj) == dGEV
+    @test IDFCurves.getcopulatype(obj) == GaussianCopula
+
+end
 
 @testset "loglikelihood(::DependentScalingModel)" begin
     
@@ -31,4 +38,20 @@ end
 
     @test loglikelihood(pd, data) ≈ -6.330260155320674
 
+end
+
+@testset "fit_mle(::DependenceScalingModel)" begin
+    #TODO
+end
+
+@testset "hessian(::DependenceScalingModel)" begin
+    #TODO
+end
+
+@testset "quantilevar(::DependenceScalingModel)" begin
+    #TODO
+end
+
+@testset "quantilecint(::DependenceScalingModel)" begin
+    #TODO
 end

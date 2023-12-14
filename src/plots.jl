@@ -75,5 +75,45 @@ function qqplotci(fd::dGEV, data::IDFdata, d::Real, α::Real=.05)
         Theme(default_color="black", discrete_highlight_color=c->nothing))
     l2 = layer(df, x=:Model, ymin=:Inf, ymax=:Sup, Geom.ribbon, Theme(lowlight_color=c->"lightgray"))
     
-    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"))
+    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Theme(background_color="white"))
+end
+
+
+
+function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
+    @assert d>0 "duration must be positive."
+    @assert 0 < α < 1 "the level should be in (0,1)." 
+
+    tag = gettag(data, d)
+
+    y = getdata(data, tag)
+
+    n = length(y)
+    q = sort(y)
+
+    p = (1:n) ./ (n+1)
+
+    scaling_model = IDFCurves.getmarginalmodel(fd)
+
+    q̂ = quantile.(scaling_model, d, p)
+
+    df = DataFrame(Empirical = q, Model = q̂)
+
+    q_inf = Float64[]
+    q_sup = Float64[]
+
+    for pᵢ in p
+        c = quantilecint(fd, data, d, pᵢ)
+        push!(q_inf, c[1])
+        push!(q_sup, c[2])
+    end
+
+    df[:,:Inf] = q_inf
+    df[:,:Sup] = q_sup
+
+    l1 = layer(df, x=:Model, y=:Empirical, Geom.point, Geom.abline(color="black", style=:dash), 
+        Theme(default_color="black", discrete_highlight_color=c->nothing))
+    l2 = layer(df, x=:Model, ymin=:Inf, ymax=:Sup, Geom.ribbon, Theme(lowlight_color=c->"lightgray"))
+    
+    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Theme(background_color="white"))
 end

@@ -18,6 +18,8 @@ export
     IDFdata,
     getdata, getduration, gettag, getyear,
 
+    AbstractScalingModel,
+
     dGEV,
     cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape,
 

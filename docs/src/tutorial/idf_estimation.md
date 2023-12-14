@@ -30,7 +30,7 @@ data = IDFdata(df, "Year", duration_dict)
 ## Estimating the general scaling model (also known as d-GEV)
 
 ```@repl montreal
-fd = IDFCurves.fit_mle(dGEV, data, 1, [1., 1., .1, .8, .01])
+fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [20, 5, .04, .76, .07])
 ```
 
 Displaying the model fit for the 5-, 10-, and 15-minute durations:
