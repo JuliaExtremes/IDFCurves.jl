@@ -58,7 +58,7 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
 
     model(θ::DenseVector{<:Real}) = DependentScalingModel(
         scaling_model(d₀::Real, IDFCurves.map_to_param_space(scaling_model, θ[1:5])...),
-        copula_model(exp.(-h./exp(θ[6]))) # TODO: other covariogram
+        copula_model(cor.(ExponentialCorrelationStructure(exp(θ[6])), h))
     )
 
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)

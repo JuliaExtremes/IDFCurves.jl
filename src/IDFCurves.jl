@@ -4,6 +4,7 @@ using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExp
 
 import Base: exponent, rand
 import Distributions: cdf, dof, location, loglikelihood, logpdf, params, quantile, rand, scale, shape
+import Statistics.cor
 
 
 include("structures.jl")
@@ -28,6 +29,11 @@ export
 
     EllipticalCopula,
     GaussianCopula, TCopula,
+
+    AbstractCorrelationStructure,
+    cor,
+
+    ExponentialCorrelationStructure
 
     #plots
     qqplot, qqplotci

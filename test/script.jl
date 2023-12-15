@@ -2,6 +2,9 @@ using IDFCurves, Test
 
 using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff
 
+import Statistics.cor
+import Distributions.params
+
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
 tags = names(df)[2:10]
@@ -19,6 +22,48 @@ initialvalues = [20, 5, .04, .76, .07, 3]
 fm = IDFCurves.fit_mle(DependentScalingModel{dGEV, GaussianCopula}, data, 1, initialvalues)
 
 IDFCurves.qqplotci(fm, data, 6)
+
+
+
+import Statistics.cor
+
+abstract type AbstractCorrelationStructure end
+
+struct ExponentialCorrelationStructure
+    θ::Float64
+    function ExponentialCorrelationStructure(θ::Real)
+        @assert θ > 0 "exponential correlogram parameter must be positive"        
+        return new(float(θ))
+    end
+end
+
+Base.Broadcast.broadcastable(obj::ExponentialCorrelationStructure) = Ref(obj)
+
+params(C::ExponentialCorrelationStructure) = [C.θ]
+
+
+@testset "ExponentialCorrelationStructure contructor" begin
+    @test params(ExponentialCorrelationStructure(1)) ≈ [1.0]
+    @test_throws AssertionError ExponentialCorrelationStructure(-1)
+end
+
+
+function cor(C::ExponentialCorrelationStructure, d::Real)
+    @assert d ≥ 0 "distance must be non-negative."
+
+    ρ = params(C)[]
+
+    return exp(-d/ρ)
+end
+
+@testset "cor(::ExponentialCorrelationStructure)" begin
+    C = ExponentialCorrelationStructure(1)    
+
+    @test_throws AssertionError cor(C,-1)
+    @test cor(C,1) ≈ exp(-1)
+    @test cor.(C,[1, 2]) ≈ exp.(-[1, 2])
+end
+
 
 
 
