@@ -4,7 +4,7 @@
 This tutorial illustrates the functionalities of the library. Before being able to execute it, the following libraries must be installed and imported.
 
 ```@example montreal
-using Cairo, CSV, DataFrames, Distributions, Fontconfig, Gadfly, IDFCurves
+using Cairo, CSV, DataFrames, Distributions, Fontconfig, Gadfly, LinearAlgebra, IDFCurves
 ```
 
 ## Data loading
@@ -32,6 +32,26 @@ data = IDFdata(df, "Year", duration_dict)
 ```@repl montreal
 fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [20, 5, .04, .76, .07])
 ```
+
+The hessian matrix evaluated at the point estimates can be approximated as follows: 
+```@repl montreal
+H = IDFCurves.hessian(fd, data)
+```
+
+The Wald point estimates distributions can be defined as follows:
+```@repl montreal
+Σ = inv(H)
+
+v = diag(Σ)
+
+W = Normal.(collect(params(fd)), sqrt.(v))
+```
+
+The corresponding approximate confidence intervals can be obtained as follows:
+```@repl montreal
+bounds = quantile.(W, [.025 .975])
+```
+
 
 Displaying the model fit for the 5-, 10-, and 15-minute durations:
 ```@example montreal
@@ -62,5 +82,48 @@ p24h = qqplotci(fd, data, 24)
 
 hstack([p6h, p12h, p24h])
 ```
+
+
+
+## Estimating the general scaling model (also known as d-GEV) in combination with a Gaussian copula
+
+
+```@repl montreal
+initialvalues = [20, 5, .04, .76, .07, 3]
+fm = IDFCurves.fit_mle(DependentScalingModel{dGEV, GaussianCopula}, data, 1, initialvalues)
+```
+
+
+Displaying the model fit for the 5-, 10-, and 15-minute durations:
+```@example montreal
+Gadfly.set_default_plot_size(30cm, 8cm)
+p5min = qqplotci(fm, data, 5/60)
+p10min = qqplotci(fm, data, 10/60)
+p15min = qqplotci(fm, data, 15/60)
+    
+hstack([p5min, p10min, p15min])
+```
+    
+Displaying the model fit for the 30-min-, 1-, and 2-hour durations:
+```@example montreal
+Gadfly.set_default_plot_size(30cm, 8cm)
+p30min = qqplotci(fm, data, 30/60)
+p1h = qqplotci(fm, data, 1)
+p2h = qqplotci(fm, data, 2)
+    
+hstack([p30min, p1h, p2h])
+```
+    
+Displaying the model fit for the 30-min-, 1-, and 2-hour durations:
+```@example montreal
+Gadfly.set_default_plot_size(30cm, 8cm)
+p6h = qqplotci(fm, data, 6)
+p12h = qqplotci(fm, data, 12)
+p24h = qqplotci(fm, data, 24)
+    
+hstack([p6h, p12h, p24h])
+```
+    
+
 
 

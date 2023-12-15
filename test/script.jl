@@ -26,6 +26,17 @@ IDFCurves.qqplotci(fm, data, 6)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
 function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real})
 
     durations = getduration.(data, gettag(data))
