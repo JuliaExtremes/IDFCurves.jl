@@ -1,6 +1,7 @@
 module IDFCurves
 
 using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim, PDMats, SpecialFunctions
+import BesselK
 
 import Base: exponent, rand
 import Distributions: cdf, dof, location, loglikelihood, logpdf, params, quantile, rand, scale, shape
@@ -33,7 +34,7 @@ export
     AbstractCorrelationStructure,
     cor,
 
-    ExponentialCorrelationStructure
+    ExponentialCorrelationStructure, MaternCorrelationStructure,
 
     #plots
     qqplot, qqplotci
