@@ -26,7 +26,7 @@ export
     cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape,
 
     DependentScalingModel,
-    getcopula, getmarginalmodel,
+    getcopula, getmarginalmodel, getcorrelogram,
 
     EllipticalCopula,
     GaussianCopula, TCopula,

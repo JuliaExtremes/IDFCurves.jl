@@ -2,9 +2,6 @@ using IDFCurves, Test
 
 using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff
 
-import Statistics.cor
-import Distributions.params
-
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
 tags = names(df)[2:10]
@@ -13,244 +10,58 @@ duration_dict = Dict(zip(tags, durations))
     
 data = IDFdata(df, "Year", duration_dict)
 
-fd = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .07])
 
 
+# dGEV sans copule
 
-initialvalues = [20, 5, .04, .76, .07, 3]
-
-fm = IDFCurves.fit_mle(DependentScalingModel{dGEV, GaussianCopula}, data, 1, initialvalues)
-
-IDFCurves.qqplotci(fm, data, 6)
-
-
-
-import Statistics.cor
-
-abstract type AbstractCorrelationStructure end
-
-struct ExponentialCorrelationStructure
-    θ::Float64
-    function ExponentialCorrelationStructure(θ::Real)
-        @assert θ > 0 "exponential correlogram parameter must be positive"        
-        return new(float(θ))
-    end
-end
-
-Base.Broadcast.broadcastable(obj::ExponentialCorrelationStructure) = Ref(obj)
-
-params(C::ExponentialCorrelationStructure) = [C.θ]
-
-
-@testset "ExponentialCorrelationStructure contructor" begin
-    @test params(ExponentialCorrelationStructure(1)) ≈ [1.0]
-    @test_throws AssertionError ExponentialCorrelationStructure(-1)
-end
-
-
-function cor(C::ExponentialCorrelationStructure, d::Real)
-    @assert d ≥ 0 "distance must be non-negative."
-
-    ρ = params(C)[]
-
-    return exp(-d/ρ)
-end
-
-@testset "cor(::ExponentialCorrelationStructure)" begin
-    C = ExponentialCorrelationStructure(1)    
-
-    @test_throws AssertionError cor(C,-1)
-    @test cor(C,1) ≈ exp(-1)
-    @test cor.(C,[1, 2]) ≈ exp.(-[1, 2])
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real})
-
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations) #TODO: Include the covariogram and the distance in the struct
-
-    scaling_model = IDFCurves.getmarginaltype(pd)
-    copula_model = IDFCurves.getcopulatype(pd)
-
-    θ₀ = [IDFCurves.map_to_real_space(scaling_model, initialvalues[1:5])..., log(initialvalues[6])]
-
-    model(θ::DenseVector{<:Real}) = DependentScalingModel(
-        scaling_model(d₀::Real, IDFCurves.map_to_param_space(scaling_model, θ[1:5])...),
-        copula_model(exp.(-h./exp(θ[6])))
-    )
-
-    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
-
-    res = Optim.optimize(fobj, θ₀)
-
-    θ̂ = Optim.minimizer(res)
-
-    return model(θ̂)
-
-end
-
-fm = IDFCurves.fit_mle(DependentScalingModel{dGEV, GaussianCopula}, data, 1, initialvalues)
-
-
-"""
-
-    hessian(pd::DependentScalingModel, data::IDFdata)
-
-Compute the Hessian matrix of the DependentScalingModel distribution `pd` associated with the IDF data `data`.
-"""
-function hessian(pd::DependentScalingModel, data::IDFdata)
-
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations)
-
-    c = IDFCurves.getcormatrix(getcopula(pd))
-    ρ̂ = -h[1,2]/log(c[1,2])
-
-    θ̂ = [params(getmarginalmodel(pd))..., ρ̂]
-
-    d₀ = duration(getmarginalmodel(pd))
-
-    scaling_model = typeof(getmarginalmodel(fm))
-    copula_model = typeof(getcopula(fm))
-
-    model(θ::DenseVector{<:Real}) = DependentScalingModel(
-        scaling_model(d₀::Real, θ[1:5]...),
-        copula_model(exp.(-h./θ[6]))
-    )
-
-    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
-
-    H = ForwardDiff.hessian(fobj, θ̂)
-
-    return H
-
-end
-
+fm = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .07])
 
 IDFCurves.hessian(fm, data)
 
 
-"""
-    quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
+# dGEV avec copule et structure de covariance de Matern
 
-Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted model `pd` on the IDFdata `data`.      
-"""
-function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
+model = DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}
 
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations)
+initialvalues = [20, 5, .04, .76, .07, 1., 1.]
 
-    c = IDFCurves.getcormatrix(getcopula(pd))
-    ρ̂ = -h[1,2]/log(c[1,2])
+pd = IDFCurves.fit_mle(model, data, 1, initialvalues)
 
-    scaling_model = typeof(IDFCurves.getmarginalmodel(pd))
-
-    θ̂ = [collect(params(getmarginalmodel(pd))) ; ρ̂]
-    d₀ = duration(getmarginalmodel(pd))
-
-    H = hessian(pd, data)
-
-    # quantile function
-    g(θ::DenseVector{<:Real}) = quantile( scaling_model(d₀, θ[1:5]...), d, p)
-
-    # gradient
-    # ∇ = [ForwardDiff.gradient(g, θ̂)..., 0.]
-    ∇ = ForwardDiff.gradient(g, θ̂)
-
-    # Approximate variance computed with the delta method
-    u = H\∇
-    v = dot(∇, u)
-
-    return v
-
-end
-
-IDFCurves.quantilevar(fm, data, 1, .95)
+# Ça ne fonctionne pas avec la différention automatique
+IDFCurves.hessian(pd, data)
 
 
-"""
-    quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+# Le problème provient dans la cascade du calcul de la logpdf avec la copule. Voici une version simplifiée du problème :
 
-Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
-"""
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
-    @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
+u = randn(9)
+Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) # C'est cette opération est problématique. 
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.jacobian(Σ, [1., 3.])
+ForwardDiff.gradient(f, [1., 3.])
 
-    q̂ = quantile(IDFCurves.getmarginalmodel(pd), d, p)
-    v = quantilevar(pd, data, d, p)
+# Si on remplace la ligne problématique par sa valeur pour une copule Matern, ça fonctionne :
 
-    if v > 0
-        dist = Normal(q̂, sqrt(v))
-        return quantile.(dist, [α/2, 1-α/2])
-    else
-        return [q̂, q̂]
-    end
+using BesselK, SpecialFunctions
+g(ν::Real, ρ::Real) = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv.(ν, sqrt(2*ν)*h/ρ)
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(g(θ...)), ones(9))
+ForwardDiff.gradient(f, [1, 1])
 
-end
+# Quelques analyses supplémentaires pour le troubleshooting
 
-IDFCurves.quantilecint(fm, data, 1, .95)
+# Ça ne fonctionne pas non plus pour le 1er paramètre de Matern
+u = randn(9)
+Σ(θ) = cor.(MaternCorrelationStructure(θ, 2.), h)
+f(θ::Real) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.derivative(Σ, 1)
+ForwardDiff.derivative(f, 1)
 
+# Ça ne fonctionne pas non plus pour le 2e paramètre de Matern
+u = randn(9)
+Σ(θ) = cor.(MaternCorrelationStructure(1., θ), h)
+f(θ::Real) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.derivative(Σ, 1)
+ForwardDiff.derivative(f, 1)
 
-
-function qqplotci(fd::DependenceScalingModel, data::IDFdata, d::Real, α::Real=.05)
-    @assert d>0 "duration must be positive."
-    @assert 0 < α < 1 "the level should be in (0,1)." 
-
-    tag = gettag(data, d)
-
-    y = getdata(data, tag)
-
-    n = length(y)
-    q = sort(y)
-
-    p = (1:n) ./ (n+1)
-
-    scaling_model = IDFCurves.getmarginalmodel(fd)
-
-    q̂ = quantile.(scaling_model, d, p)
-
-    df = DataFrame(Empirical = q, Model = q̂)
-
-    q_inf = Float64[]
-    q_sup = Float64[]
-
-    for pᵢ in p
-        c = quantilecint(fd, data, d, pᵢ)
-        push!(q_inf, c[1])
-        push!(q_sup, c[2])
-    end
-
-    df[:,:Inf] = q_inf
-    df[:,:Sup] = q_sup
-
-    l1 = layer(df, x=:Model, y=:Empirical, Geom.point, Geom.abline(color="black", style=:dash), 
-        Theme(default_color="black", discrete_highlight_color=c->nothing))
-    l2 = layer(df, x=:Model, ymin=:Inf, ymax=:Sup, Geom.ribbon, Theme(lowlight_color=c->"lightgray"))
-    
-    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Theme(background_color="white"))
-end
 
 
 

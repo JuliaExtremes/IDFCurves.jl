@@ -1,21 +1,26 @@
 
 @testset "DependentScalingModel construction" begin
     
+    d = [0. 1.; 1. 0.]
     pd = dGEV(1, 1, 1, 0, .8, .5)
-    C = TCopula(15, [1. .5; .5 1])
+    Σ = MaternCorrelationStructure(10., 1.)
+    
+    C = GaussianCopula(cor.(Σ, d))
 
-    dm = DependentScalingModel(pd, C)
+    dm = DependentScalingModel(pd, C, Σ)
 
     @test getmarginalmodel(dm) == pd
     @test getcopula(dm) == C
+    @test getcorrelogram(dm) == Σ
 
 end
 
 @testset "get type of DependentScalingModel" begin
-    obj = DependentScalingModel{dGEV, GaussianCopula}
+    obj = DependentScalingModel{dGEV, GaussianCopula, MaternCorrelationStructure}
 
     @test IDFCurves.getmarginaltype(obj) == dGEV
     @test IDFCurves.getcopulatype(obj) == GaussianCopula
+    @test IDFCurves.getcorrelogramtype(obj) == MaternCorrelationStructure
 
 end
 
@@ -33,8 +38,12 @@ end
     data = IDFdata(tags, d1, d2, d3)
 
     mm = dGEV(1, 1, 1, 0, .8, .5)
-    C = TCopula(15, [1. .5; .5 1])
-    pd = DependentScalingModel(mm, C)
+
+    Σ = MaternCorrelationStructure(1., 1.)
+    h = IDFCurves.logdist(durations)
+    C = GaussianCopula(cor.(Σ, h))
+
+    pd = DependentScalingModel(mm, C, Σ)
 
     @test loglikelihood(pd, data) ≈ -6.330260155320674
 
