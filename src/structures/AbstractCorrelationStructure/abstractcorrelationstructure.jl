@@ -1,11 +1,11 @@
 
 abstract type AbstractCorrelationStructure end
 
-struct ExponentialCorrelationStructure <: AbstractCorrelationStructure
-    θ::Float64
-    function ExponentialCorrelationStructure(θ::Real)
-        @assert θ > 0 "exponential correlogram parameter must be positive"        
-        return new(float(θ))
+struct ExponentialCorrelationStructure{T<:Real} <: AbstractCorrelationStructure
+    θ::T
+    function ExponentialCorrelationStructure(θ::T) where {T<:Real}
+        @assert θ > 0 "exponential correlogram parameter must be positive"     
+        return new{T}(θ)
     end
 end
 

@@ -6,10 +6,10 @@ df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
 tags = names(df)[2:10]
 durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+h = IDFCurves.logdist(durations)
 duration_dict = Dict(zip(tags, durations))
     
 data = IDFdata(df, "Year", duration_dict)
-
 
 
 # dGEV sans copule
@@ -35,35 +35,42 @@ IDFCurves.hessian(pd, data)
 
 u = randn(9)
 Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) # C'est cette opération est problématique. 
-f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+#f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+f(θ::AbstractVector{<:Real}) = log(1/det(Σ(θ))) - u'/Σ(θ)*u
 ForwardDiff.jacobian(Σ, [1., 3.])
-ForwardDiff.gradient(f, [1., 3.])
+ForwardDiff.gradient(f, [1.5, 3.2]) # fonctionne si on commente cette ligne
 
 # Si on remplace la ligne problématique par sa valeur pour une copule Matern, ça fonctionne :
 
 using BesselK, SpecialFunctions
 g(ν::Real, ρ::Real) = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv.(ν, sqrt(2*ν)*h/ρ)
-f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(g(θ...)), ones(9))
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(g(θ...)), u)
 ForwardDiff.gradient(f, [1, 1])
 
 # Quelques analyses supplémentaires pour le troubleshooting
 
 # Ça ne fonctionne pas non plus pour le 1er paramètre de Matern
 u = randn(9)
-Σ(θ) = cor.(MaternCorrelationStructure(θ, 2.), h)
+Σ(θ::Real) = cor.(MaternCorrelationStructure(θ, 2.), h)
 f(θ::Real) = logpdf(MvNormal(Σ(θ)), u)
 ForwardDiff.derivative(Σ, 1)
-ForwardDiff.derivative(f, 1)
+ForwardDiff.derivative(f, 1) # fonctionne si on commente cette ligne
 
 # Ça ne fonctionne pas non plus pour le 2e paramètre de Matern
 u = randn(9)
-Σ(θ) = cor.(MaternCorrelationStructure(1., θ), h)
+Σ(θ::Real) = cor.(MaternCorrelationStructure(1., θ), h)
 f(θ::Real) = logpdf(MvNormal(Σ(θ)), u)
 ForwardDiff.derivative(Σ, 1)
-ForwardDiff.derivative(f, 1)
+ForwardDiff.derivative(f, 1) # fonctionne si on commente cette ligne
 
 
-
+# Si on utilise une structure de corrélation exponentielle :
+u = randn(9)
+Σ(θ::Real) = cor.(ExponentialCorrelationStructure(θ), h) # C'est cette opération est problématique. 
+f(θ::Real) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.derivative(Σ, 1.)
+ForwardDiff.derivative(f, 1.)
+# Ca fonctionne pour la corrélation exponentielle
 
 
 
