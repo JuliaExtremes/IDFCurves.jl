@@ -49,6 +49,7 @@ ForwardDiff.gradient(f, [1.5, 3.2])
 # ou
 Σ(θ::AbstractVector{<:Real}) = 2^(1-θ[1])/SpecialFunctions.gamma(θ[1]) * BesselK.adbesselkxv.(θ[1], sqrt(2*θ[1])*h/θ[2])
 f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.jacobian(Σ, [1., 3.])
 ForwardDiff.gradient(f, [1.5, 3.2]) 
 
 # Quelques analyses supplémentaires pour le troubleshooting
@@ -92,7 +93,11 @@ ForwardDiff.jacobian(Σ, [1., 2.])
 ForwardDiff.gradient(f, [1., 2.])
 # Ca fonctionne toujours
 
-MaternCorrelationStructure(1.5, 3.2)
+# Remarque sur les types :
 
-
-
+Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h)
+typeof(ForwardDiff.jacobian(Σ, [1., 3.])) # Matrix{Real} et bug ensuite
+Σ(θ::AbstractVector{<:Real}) = 2^(1-θ[1])/SpecialFunctions.gamma(θ[1]) * BesselK.adbesselkxv.(θ[1], sqrt(2*θ[1])*h/θ[2])
+typeof(ForwardDiff.jacobian(Σ, [1., 3.])) # Matrix{Float64} et pas de bug
+Σ(θ::AbstractVector{<:Real}) = cor.(ExponentialCorrelationStructure(θ...), h)
+typeof(ForwardDiff.jacobian(Σ, [1.])) # Matrix{Float64} et pas de bug
