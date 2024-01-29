@@ -35,17 +35,21 @@ IDFCurves.hessian(pd, data)
 
 u = randn(9)
 Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) # C'est cette opération est problématique. 
-#f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
-f(θ::AbstractVector{<:Real}) = log(1/det(Σ(θ))) - u'/Σ(θ)*u
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+#f(θ::AbstractVector{<:Real}) = log(1/det(Σ(θ))) - u'/Σ(θ)*u
 ForwardDiff.jacobian(Σ, [1., 3.])
 ForwardDiff.gradient(f, [1.5, 3.2]) # fonctionne si on commente cette ligne
 
 # Si on remplace la ligne problématique par sa valeur pour une copule Matern, ça fonctionne :
 
 using BesselK, SpecialFunctions
-g(ν::Real, ρ::Real) = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv.(ν, sqrt(2*ν)*h/ρ)
-f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(g(θ...)), u)
-ForwardDiff.gradient(f, [1, 1])
+Σ(ν::Real, ρ::Real) = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv.(ν, sqrt(2*ν)*h/ρ)
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ...)), u)
+ForwardDiff.gradient(f, [1.5, 3.2]) 
+# ou
+Σ(θ::AbstractVector{<:Real}) = 2^(1-θ[1])/SpecialFunctions.gamma(θ[1]) * BesselK.adbesselkxv.(θ[1], sqrt(2*θ[1])*h/θ[2])
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.gradient(f, [1.5, 3.2]) 
 
 # Quelques analyses supplémentaires pour le troubleshooting
 
@@ -72,11 +76,23 @@ ForwardDiff.derivative(Σ, 1.)
 ForwardDiff.derivative(f, 1.)
 # Ca fonctionne pour la corrélation exponentielle
 
+# Si on vectorise pour la corrélation exponentielle :
+u = randn(9)
+Σ(θ::AbstractVector{<:Real}) = cor.(ExponentialCorrelationStructure(θ...), h) # C'est cette opération est problématique. 
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.jacobian(Σ, [1.])
+ForwardDiff.gradient(f, [1.])
+# Ca fonctionne toujours
 
+# Si on transforme la fonction pour qu'elle soit vraiment à 2 variables :
+u = randn(9)
+Σ(θ::AbstractVector{<:Real}) = cor.(ExponentialCorrelationStructure(θ[1]*θ[2]), h) # C'est cette opération est problématique. 
+f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+ForwardDiff.jacobian(Σ, [1., 2.])
+ForwardDiff.gradient(f, [1., 2.])
+# Ca fonctionne toujours
 
-
-
-
+MaternCorrelationStructure(1.5, 3.2)
 
 
 
