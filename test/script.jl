@@ -65,7 +65,19 @@ ForwardDiff.derivative(f, 1)
 
 
 
+d = ForwardDiff.Dual(1)
+ExponentialCorrelationStructure(d)  # ne fonctionne pas
 
+
+struct ExpCorrStruct{T<:Real} <: AbstractCorrelationStructure
+    θ::T
+    function ExpCorrStruct(θ::T) where {T<:Real} 
+        @assert θ > 0 "exponential correlogram parameter must be positive"        
+        return new{T}(θ)
+    end
+end
+
+ExpCorrStruct(d)  # ça fonctionne
 
 
 
