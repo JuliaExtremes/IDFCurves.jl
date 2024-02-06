@@ -57,10 +57,7 @@ params(C::MaternCorrelationStructure) = (C.ν, C.ρ)
 
 function cor(C::MaternCorrelationStructure, d::Real)
     @assert d ≥ 0 "distance must be non-negative."
-
-    if d ≈ 0
-        c = 1.
-    else
+    
         ν, ρ = params(C)
 
         z = sqrt(2*ν)*d/ρ
@@ -68,33 +65,24 @@ function cor(C::MaternCorrelationStructure, d::Real)
         # c = 2^(1-ν)/SpecialFunctions.gamma(ν) *z^ν* Bessels.besselk(ν, z)  # with Bessels.jl (not compatible with automatic differentiation)
         c = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv(ν, z)  # with Bessels.jl (not compatible with automatic differentiation), the term z^ν is included in adbesselkxv
 
-    end
-
     return c
 end
 
 
-function cor(C::AbstractCorrelationStructure, h::AbstractMatrix{<:Real})
-    @assert issymmetric(h)
+# function cor(C::AbstractCorrelationStructure, h::AbstractMatrix{<:Real})
+#     @assert issymmetric(h)
 
-    M = Matrix{Float64}(I, size(h))
+#     M = Matrix{Float64}(I, size(h))
 
-    for i in 1:size(h,1)
-        for j in 1:size(h,2)
-            (i ≤ j) ? M[i,j] = cor(C, h[i,j]) : continue
-        end
-    end
+#     for i in 1:size(h,1)
+#         for j in 1:size(h,2)
+#             (i ≤ j) ? M[i,j] = cor(C, h[i,j]) : continue
+#         end
+#     end
 
-    return PDMat(Symmetric(M))
+#     return PDMat(Symmetric(M))
 
-end
-
-
-
-
-
-
-
+# end
 
 
 
@@ -106,37 +94,3 @@ end
     #     (sg*sg*(2^(1-nu))/_gamma(nu))*adbesselkxv(nu, arg)
     #   end
 
-
-    struct TestCorrelationStructure{T<:Real} <: AbstractCorrelationStructure
-        ν::T
-        ρ::T
-        TestCorrelationStructure{T}(ν::T, ρ::T) where {T<:Real} = new{T}(ν, ρ)
-    end
-    
-    function TestCorrelationStructure(ν::T, ρ::T) where {T<:Real} 
-        @assert ν > 0 "First test parameter ν must be positive"   
-        @assert ρ >0 "Second test parameter ρ must be positive"  
-        return TestCorrelationStructure{T}(ν, ρ)
-    end
-
-    TestCorrelationStructure(ν::Real, ρ::Real) = TestCorrelationStructure(promote(ν, ρ)...)
-    TestCorrelationStructure(ν::Integer, ρ::Integer) = TestCorrelationStructure(float(ν), float(ρ))
-    
-    Base.Broadcast.broadcastable(obj::TestCorrelationStructure) = Ref(obj)
-    
-    params(C::TestCorrelationStructure) = (C.ν, C.ρ)
-    
-    function cor(C::TestCorrelationStructure, d::Real)
-        @assert d ≥ 0 "distance must be non-negative."
-
-        if d ≈ 0
-            c = 1.
-        else
-            ν, ρ = params(C)
-
-            c = exp(-d/(ν * ρ))
-
-        end
-
-        return c
-    end
