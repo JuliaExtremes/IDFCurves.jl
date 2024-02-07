@@ -30,12 +30,22 @@ pd = IDFCurves.fit_mle(model, data, 1, initialvalues)
 # Ça fonctionne avec la différention automatique !
 IDFCurves.hessian(pd, data)
 
-
 # # Les lignes de code suivantes peuvent être exécutées et produisent le résultat escompté :
 # u = randn(9)
 # Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) 
 # f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
 # ForwardDiff.hessian(f, [1.5, 3.2]) 
+
+
+struct ExpCorrStruct{T<:Real} <: AbstractCorrelationStructure
+    θ::T
+    function ExpCorrStruct(θ::T) where {T<:Real} 
+        @assert θ > 0 "exponential correlogram parameter must be positive"        
+        return new{T}(θ)
+    end
+end
+
+ExpCorrStruct(d)  # ça fonctionne
 
 
 # # Par contre on peut reproduire le bug en faisant la chose suivante :
