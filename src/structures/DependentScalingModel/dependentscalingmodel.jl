@@ -29,24 +29,13 @@ function getmarginalmodel(pd::DependentScalingModel)
     return pd.marginal
 end
 
-# function getcorrelogramtype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
-#     return T₂
-# end
 function getcorrelogramtype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
-    if T₂ <: MaternCorrelationStructure
-        return  MaternCorrelationStructure
-    elseif T₂ <: ExponentialCorrelationStructure
-        return ExponentialCorrelationStructure
-    else
-        return T₂
-    end
+    return eval(nameof(T₂))
 end
 
 function getcorrelogram(pd::DependentScalingModel)
     return pd.correlogram
 end
-
-
 
 function construct_model(obj::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, θ::DenseVector{<:Real})
     # TODO Verify number of parameter with the model
