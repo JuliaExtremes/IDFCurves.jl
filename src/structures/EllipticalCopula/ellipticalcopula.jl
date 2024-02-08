@@ -7,12 +7,16 @@ end
 
 ## GaussianCopula
 
+# struct GaussianCopula <: EllipticalCopula
+#     cormatrix::PDMat
+#     GaussianCopula(Σ::AbstractMatrix{<:Real}) = new(PDMat(Σ))
+# end
+
 struct GaussianCopula <: EllipticalCopula
     cormatrix::PDMat
-     
     GaussianCopula(Σ::AbstractMatrix{<:Real}) = new(PDMat(Σ))
-
 end
+
 
 
 function logpdf(C::GaussianCopula, u::AbstractVector{<:Real})
