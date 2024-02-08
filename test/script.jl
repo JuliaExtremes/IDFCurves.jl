@@ -1,15 +1,15 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff
+using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
 tags = names(df)[2:10]
 durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+h = IDFCurves.logdist(durations)
 duration_dict = Dict(zip(tags, durations))
     
 data = IDFdata(df, "Year", duration_dict)
-
 
 
 # dGEV sans copule
@@ -27,46 +27,14 @@ initialvalues = [20, 5, .04, .76, .07, 1., 1.]
 
 pd = IDFCurves.fit_mle(model, data, 1, initialvalues)
 
-# Ça ne fonctionne pas avec la différention automatique
+# Ça fonctionne avec la différention automatique !
 IDFCurves.hessian(pd, data)
 
-
-# Le problème provient dans la cascade du calcul de la logpdf avec la copule. Voici une version simplifiée du problème :
-
-u = randn(9)
-Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) # C'est cette opération est problématique. 
-f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
-ForwardDiff.jacobian(Σ, [1., 3.])
-ForwardDiff.gradient(f, [1., 3.])
-
-# Si on remplace la ligne problématique par sa valeur pour une copule Matern, ça fonctionne :
-
-using BesselK, SpecialFunctions
-g(ν::Real, ρ::Real) = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv.(ν, sqrt(2*ν)*h/ρ)
-f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(g(θ...)), ones(9))
-ForwardDiff.gradient(f, [1, 1])
-
-# Quelques analyses supplémentaires pour le troubleshooting
-
-# Ça ne fonctionne pas non plus pour le 1er paramètre de Matern
-u = randn(9)
-Σ(θ) = cor.(MaternCorrelationStructure(θ, 2.), h)
-f(θ::Real) = logpdf(MvNormal(Σ(θ)), u)
-ForwardDiff.derivative(Σ, 1)
-ForwardDiff.derivative(f, 1)
-
-# Ça ne fonctionne pas non plus pour le 2e paramètre de Matern
-u = randn(9)
-Σ(θ) = cor.(MaternCorrelationStructure(1., θ), h)
-f(θ::Real) = logpdf(MvNormal(Σ(θ)), u)
-ForwardDiff.derivative(Σ, 1)
-ForwardDiff.derivative(f, 1)
-
-
-
-
-d = ForwardDiff.Dual(1)
-ExponentialCorrelationStructure(d)  # ne fonctionne pas
+# # Les lignes de code suivantes peuvent être exécutées et produisent le résultat escompté :
+# u = randn(9)
+# Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) 
+# f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
+# ForwardDiff.hessian(f, [1.5, 3.2]) 
 
 
 struct ExpCorrStruct{T<:Real} <: AbstractCorrelationStructure
@@ -80,8 +48,23 @@ end
 ExpCorrStruct(d)  # ça fonctionne
 
 
+# # Par contre on peut reproduire le bug en faisant la chose suivante :
+# initial_model = IDFCurves.construct_model(DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}, data, 24, [20, 5, .04, .76, .07, 1., 1.])
+# create_model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(typeof(initial_model), data, 24, θ)
+# fobj(θ::DenseVector{<:Real}) = -loglikelihood(create_model(θ), data)
+# H = ForwardDiff.hessian(fobj, [20, 5, .04, .76, .07, 1., 1.])
 
 
+# # Le bug a l'air causé par le fait que le type renvoyé par "typeof(initial_model)" fait intervenir MaternCorrelationStructure{Float64},
+# # et donc on ne peut plus remplacer θ par des ForwardDiff.Dual
+# typeof(initial_model)
 
+# # ici on n'observe pas de bug :
+# create_model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}, data, 24, θ)
+# fobj(θ::DenseVector{<:Real}) = -loglikelihood(create_model(θ), data)
+# H = ForwardDiff.hessian(fobj, [20, 5, .04, .76, .07, 1., 1.])
 
+# # on veut donc que la fonction getcorrelogramtype() renvoie MaternCorrelationStructure et pas MaternCorrelationStructure{Float64} 
+# # D'où la transformation effectuée qui a éliminé le bug.
 
+# typeof(initial_model)

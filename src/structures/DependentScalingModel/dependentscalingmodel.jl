@@ -1,16 +1,8 @@
 
-# struct DependentScalingModel{T₁<:AbstractScalingModel, T₂<:AbstractCorrelationStructure, T₃}
-#     marginal::T₁
-#     correlogram::T₂
-#     copula::T₃
-#     DependentScalingModel(T₁, T₂, T₃::Type{<:EllipticalCopula}) = new{T₁, T₂, T₃}(T₁, T₂, T₃)
-# end
-
-
 struct DependentScalingModel{T₁<:AbstractScalingModel, T₂<:AbstractCorrelationStructure, T₃}
     marginal::T₁
     correlogram::T₂
-    DependentScalingModel(x,y,T₃::Type{<:EllipticalCopula}) = new{typeof(x), typeof(y), T₃}(x,y)
+    DependentScalingModel(m, c, T₃::Type{<:EllipticalCopula}) = new{typeof(m), typeof(c), T₃}(m,c)
 end
 
 Base.Broadcast.broadcastable(obj::DependentScalingModel) = Ref(obj)
@@ -37,8 +29,17 @@ function getmarginalmodel(pd::DependentScalingModel)
     return pd.marginal
 end
 
+# function getcorrelogramtype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
+#     return T₂
+# end
 function getcorrelogramtype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
-    return T₂
+    if T₂ <: MaternCorrelationStructure
+        return  MaternCorrelationStructure
+    elseif T₂ <: ExponentialCorrelationStructure
+        return ExponentialCorrelationStructure
+    else
+        return T₂
+    end
 end
 
 function getcorrelogram(pd::DependentScalingModel)

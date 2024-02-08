@@ -1,11 +1,11 @@
 
 abstract type AbstractCorrelationStructure end
 
-struct ExponentialCorrelationStructure <: AbstractCorrelationStructure
-    θ::Float64
-    function ExponentialCorrelationStructure(θ::Real)
-        @assert θ > 0 "exponential correlogram parameter must be positive"        
-        return new(float(θ))
+struct ExponentialCorrelationStructure{T<:Real} <: AbstractCorrelationStructure
+    θ::T
+    function ExponentialCorrelationStructure(θ::T) where {T<:Real}
+        @assert θ > 0 "exponential correlogram parameter must be positive"     
+        return new{T}(θ)
     end
 end
 
@@ -57,10 +57,7 @@ params(C::MaternCorrelationStructure) = (C.ν, C.ρ)
 
 function cor(C::MaternCorrelationStructure, d::Real)
     @assert d ≥ 0 "distance must be non-negative."
-
-    if d ≈ 0
-        c = 1.
-    else
+    
         ν, ρ = params(C)
 
         z = sqrt(2*ν)*d/ρ
@@ -68,33 +65,24 @@ function cor(C::MaternCorrelationStructure, d::Real)
         # c = 2^(1-ν)/SpecialFunctions.gamma(ν) *z^ν* Bessels.besselk(ν, z)  # with Bessels.jl (not compatible with automatic differentiation)
         c = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv(ν, z)  # with Bessels.jl (not compatible with automatic differentiation), the term z^ν is included in adbesselkxv
 
-    end
-
     return c
 end
 
 
-function cor(C::AbstractCorrelationStructure, h::AbstractMatrix{<:Real})
-    @assert issymmetric(h)
+# function cor(C::AbstractCorrelationStructure, h::AbstractMatrix{<:Real})
+#     @assert issymmetric(h)
 
-    M = Matrix{Float64}(I, size(h))
+#     M = Matrix{Float64}(I, size(h))
 
-    for i in 1:size(h,1)
-        for j in 1:size(h,2)
-            (i ≤ j) ? M[i,j] = cor(C, h[i,j]) : continue
-        end
-    end
+#     for i in 1:size(h,1)
+#         for j in 1:size(h,2)
+#             (i ≤ j) ? M[i,j] = cor(C, h[i,j]) : continue
+#         end
+#     end
 
-    return PDMat(Symmetric(M))
+#     return PDMat(Symmetric(M))
 
-end
-
-
-
-
-
-
-
+# end
 
 
 
@@ -105,3 +93,4 @@ end
     #     arg = sqrt(2*nu)*dist/rho
     #     (sg*sg*(2^(1-nu))/_gamma(nu))*adbesselkxv(nu, arg)
     #   end
+
