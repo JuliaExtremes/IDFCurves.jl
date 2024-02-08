@@ -1,22 +1,27 @@
 
-struct DependentScalingModel{T₁<:AbstractScalingModel, T₂<:EllipticalCopula}
+struct DependentScalingModel{T₁<:AbstractScalingModel, T₂<:AbstractCorrelationStructure, T₃}
     marginal::T₁
-    copula::T₂
+    correlogram::T₂
+    DependentScalingModel(m, c, T₃::Type{<:EllipticalCopula}) = new{typeof(m), typeof(c), T₃}(m,c)
 end
 
 Base.Broadcast.broadcastable(obj::DependentScalingModel) = Ref(obj)
 
 
 
-function getcopulatype(obj::Type{DependentScalingModel{T₁, T₂}}) where {T₁,T₂}
-    return T₂
+function getcopulatype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
+    return T₃
 end
 
-function getcopula(pd::DependentScalingModel)
-    return pd.copula
+function getcopulatype(pd::DependentScalingModel{T₁, T₂, T₃}) where {T₁, T₂, T₃}
+    return T₃
 end
 
-function getmarginaltype(obj::Type{DependentScalingModel{T₁, T₂}}) where {T₁,T₂}
+# function getcopula(pd::DependentScalingModel)
+#     return pd.copula
+# end
+
+function getmarginaltype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
     return T₁
 end
 
@@ -24,21 +29,51 @@ function getmarginalmodel(pd::DependentScalingModel)
     return pd.marginal
 end
 
+function getcorrelogramtype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
+    return eval(nameof(T₂))
+end
+
+function getcorrelogram(pd::DependentScalingModel)
+    return pd.correlogram
+end
+
+function construct_model(obj::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, θ::DenseVector{<:Real})
+    # TODO Verify number of parameter with the model
+
+    durations = getduration.(data, gettag(data))
+    h = IDFCurves.logdist(durations) 
+
+    scaling_model = IDFCurves.getmarginaltype(obj)
+    copula_model = IDFCurves.getcopulatype(obj)
+    correlogram_model = IDFCurves.getcorrelogramtype(obj)
+
+    sm = scaling_model(d₀, IDFCurves.map_to_param_space(scaling_model, θ[1:5])...)
+    Σ = correlogram_model(exp(θ[6]), exp(θ[7]))   #TODO make it general for other corelogram
+
+    return DependentScalingModel(sm, Σ, copula_model)
+    
+end
+
+
+
 function loglikelihood(pd::DependentScalingModel, data)
 
     tags = gettag(data)
     idx = getyear(data, tags[1]) #TODO Check for missing data (assumes that all years are present for each duration)
     d = getduration.(data, tags)
+    h = IDFCurves.logdist(d) 
 
     y = getdata.(data, tags, idx')
 
     # Marginal loglikelihood
     ll = loglikelihood(getmarginalmodel(pd), data)
 
-    # Copula loglikelihood #TODO Check for other type of elliptical copula
+    Σ = cor.(getcorrelogram(pd), h)
+    C = IDFCurves.getcopulatype(pd)(Σ) #TODO Make it general for TCopula
+
     u = cdf.(getmarginalmodel(pd), d, y)
     for c in eachcol(u)
-        ll += IDFCurves.logpdf(getcopula(pd), c)
+        ll += IDFCurves.logpdf(C, c)
     end
 
     return ll
@@ -48,18 +83,9 @@ end
 
 function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real})
 
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations) #TODO: Include the covariogram and the distance in the struct
+    θ₀ = [IDFCurves.map_to_real_space(IDFCurves.getmarginaltype(pd), initialvalues[1:5])..., log(initialvalues[6]), log(initialvalues[7])]
 
-    scaling_model = IDFCurves.getmarginaltype(pd)
-    copula_model = IDFCurves.getcopulatype(pd)
-
-    θ₀ = [IDFCurves.map_to_real_space(scaling_model, initialvalues[1:5])..., log(initialvalues[6])]
-
-    model(θ::DenseVector{<:Real}) = DependentScalingModel(
-        scaling_model(d₀::Real, IDFCurves.map_to_param_space(scaling_model, θ[1:5])...),
-        copula_model(exp.(-h./exp(θ[6]))) # TODO: other covariogram
-    )
+    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, data, d₀, θ)
 
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
 
@@ -83,20 +109,11 @@ function hessian(pd::DependentScalingModel, data::IDFdata)
     durations = getduration.(data, gettag(data))
     h = IDFCurves.logdist(durations)
 
-    c = IDFCurves.getcormatrix(getcopula(pd))
-    ρ̂ = -h[1,2]/log(c[1,2])
-
-    θ̂ = [params(getmarginalmodel(pd))..., ρ̂]
+    θ̂ = [params(getmarginalmodel(pd))..., params(getcorrelogram(pd))...]
 
     d₀ = duration(getmarginalmodel(pd))
 
-    scaling_model = typeof(getmarginalmodel(pd))
-    copula_model = typeof(getcopula(pd))
-
-    model(θ::DenseVector{<:Real}) = DependentScalingModel(
-        scaling_model(d₀::Real, θ[1:5]...),
-        copula_model(exp.(-h./θ[6]))
-    )
+    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(typeof(pd), data, d₀, θ)
 
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
 

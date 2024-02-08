@@ -1,9 +1,11 @@
 module IDFCurves
 
 using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim, PDMats, SpecialFunctions
+import BesselK
 
 import Base: exponent, rand
 import Distributions: cdf, dof, location, loglikelihood, logpdf, params, quantile, rand, scale, shape
+import Statistics.cor
 
 
 include("structures.jl")
@@ -24,10 +26,15 @@ export
     cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape,
 
     DependentScalingModel,
-    getcopula, getmarginalmodel,
+    getcopulatype, getmarginalmodel, getcorrelogram,
 
     EllipticalCopula,
     GaussianCopula, TCopula,
+
+    AbstractCorrelationStructure,
+    cor,
+
+    ExponentialCorrelationStructure, MaternCorrelationStructure,
 
     #plots
     qqplot, qqplotci
