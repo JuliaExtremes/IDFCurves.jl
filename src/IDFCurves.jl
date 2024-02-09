@@ -23,6 +23,7 @@ export
     AbstractScalingModel,
 
     dGEV,
+    SimpleScaling,
     cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape,
 
     DependentScalingModel,
