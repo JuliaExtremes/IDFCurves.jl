@@ -90,7 +90,7 @@ Compute with the Delta method the quantile of level `p` variance for the duratio
 """
 function quantilevar(fd::AbstractScalingModel, data::IDFdata, d::Real, p::Real)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
+    @assert d>0 "the duration should be positive."
 
     d₀ = duration(fd)
     θ̂ = collect(params(fd))
