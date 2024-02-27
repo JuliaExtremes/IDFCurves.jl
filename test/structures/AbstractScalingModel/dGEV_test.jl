@@ -10,13 +10,6 @@
     @test all([params(pd)...] .≈ [100, 1, 0, .8, 5])
 end
 
-@testset "cdf(::dGEV)" begin
-    pd = dGEV(1, 100, 1, 0, .8, 5)
-
-    @test cdf(pd, 1, 100) ≈ cdf(GeneralizedExtremeValue(100, 1 , 0), 100)
-    @test cdf(pd, 1, [100, 200]) ≈ cdf.(GeneralizedExtremeValue(100, 1 , 0), [100, 200])
-end
-
 @testset "getdistribution(::dGEV)" begin
     pd = dGEV(60, 100, 1, 0, .8, 5)
     
@@ -26,6 +19,27 @@ end
     @test scale(md) ≈ 0.4331051048132165
     @test shape(md) ≈ 0.
     
+end
+
+@testset "map_to_param_space(::Type{<:dGEV}, θ)" begin
+    
+    θ = [1., 0., 0., 0., 0.]
+    @test IDFCurves.map_to_param_space(dGEV, θ) ≈ [1., 1., 0., .5, 1.]
+end
+
+@testset "Base.show(io, dGEV)" begin
+    # print dGEV does not throw
+    pd = dGEV(60, 100, 1, 0, .8, 5)
+    buffer = IOBuffer()
+    @test_logs Base.show(buffer, pd)
+
+end
+
+@testset "cdf(::dGEV)" begin
+    pd = dGEV(1, 100, 1, 0, .8, 5)
+
+    @test cdf(pd, 1, 100) ≈ cdf(GeneralizedExtremeValue(100, 1 , 0), 100)
+    @test cdf(pd, 1, [100, 200]) ≈ cdf.(GeneralizedExtremeValue(100, 1 , 0), [100, 200])
 end
 
 @testset "loglikelihood(::dGEV)" begin
@@ -38,12 +52,6 @@ end
     ll = sum(logpdf.(GeneralizedExtremeValue(sqrt(2),sqrt(2),.1), y₁)) + sum(logpdf.(GeneralizedExtremeValue(1,1,.1), y₃))
 
     @test loglikelihood(pd, data) ≈ ll
-end
-
-@testset "map_to_param_space(::Type{<:dGEV}, θ)" begin
-    
-    θ = [1., 0., 0., 0., 0.]
-    @test IDFCurves.map_to_param_space(dGEV, θ) ≈ [1., 1., 0., .5, 1.]
 end
 
 @testset "quantile(::dGEV)" begin
@@ -96,18 +104,6 @@ end
 
 end
 
-@testset "Base.show(io, dGEV)" begin
-    # print dGEV does not throw
-    pd = dGEV(60, 100, 1, 0, .8, 5)
-    buffer = IOBuffer()
-    @test_logs Base.show(buffer, pd)
-
-end
-
-## Fit 
-
-
-
 df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
     
 tags = names(df)[2:10]
@@ -146,4 +142,3 @@ data = IDFdata(df, "Year", duration_dict)
     end
     
 end
-

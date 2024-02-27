@@ -12,11 +12,22 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 
+# Simple scaling sans copule
+
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
+
+H = IDFCurves.hessian(fm, data)
+Hmoins1 = inv(H)
+params_conf_intervals = [(params(fm)[i] - quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i]), params(fm)[i] + quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i])) for i in 1:4]
+
+
 # dGEV sans copule
 
-fm = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .07])
+fm = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .7])
 
-IDFCurves.hessian(fm, data)
+H = IDFCurves.hessian(fm, data)
+Hmoins1 = inv(H)
+params_conf_intervals = [(params(fm)[i] - quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i]), params(fm)[i] + quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i])) for i in 1:5]
 
 
 # dGEV avec copule et structure de covariance de Matern
