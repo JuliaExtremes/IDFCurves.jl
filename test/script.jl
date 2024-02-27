@@ -38,44 +38,9 @@ initialvalues = [20, 5, .04, .76, .07, 1., 1.]
 
 pd = IDFCurves.fit_mle(model, data, 1, initialvalues)
 
-# Ça fonctionne avec la différention automatique !
-IDFCurves.hessian(pd, data)
+# Tests sur l'initialisation :
 
-# # Les lignes de code suivantes peuvent être exécutées et produisent le résultat escompté :
-# u = randn(9)
-# Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) 
-# f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
-# ForwardDiff.hessian(f, [1.5, 3.2]) 
-
-
-struct ExpCorrStruct{T<:Real} <: AbstractCorrelationStructure
-    θ::T
-    function ExpCorrStruct(θ::T) where {T<:Real} 
-        @assert θ > 0 "exponential correlogram parameter must be positive"        
-        return new{T}(θ)
-    end
-end
-
-ExpCorrStruct(d)  # ça fonctionne
-
-
-# # Par contre on peut reproduire le bug en faisant la chose suivante :
-# initial_model = IDFCurves.construct_model(DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}, data, 24, [20, 5, .04, .76, .07, 1., 1.])
-# create_model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(typeof(initial_model), data, 24, θ)
-# fobj(θ::DenseVector{<:Real}) = -loglikelihood(create_model(θ), data)
-# H = ForwardDiff.hessian(fobj, [20, 5, .04, .76, .07, 1., 1.])
-
-
-# # Le bug a l'air causé par le fait que le type renvoyé par "typeof(initial_model)" fait intervenir MaternCorrelationStructure{Float64},
-# # et donc on ne peut plus remplacer θ par des ForwardDiff.Dual
-# typeof(initial_model)
-
-# # ici on n'observe pas de bug :
-# create_model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}, data, 24, θ)
-# fobj(θ::DenseVector{<:Real}) = -loglikelihood(create_model(θ), data)
-# H = ForwardDiff.hessian(fobj, [20, 5, .04, .76, .07, 1., 1.])
-
-# # on veut donc que la fonction getcorrelogramtype() renvoie MaternCorrelationStructure et pas MaternCorrelationStructure{Float64} 
-# # D'où la transformation effectuée qui a éliminé le bug.
-
-# typeof(initial_model)
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76]) # renvoie résultats
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie erreur
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) # renvoie résultat où ξ=0
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 0.0001, .76]) # renvoie même résultat que le premier

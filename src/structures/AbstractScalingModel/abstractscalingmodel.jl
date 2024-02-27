@@ -176,8 +176,12 @@ end
 
 function fit_mle_gradient_free(pd_type::Type{<:AbstractScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
 
-    θ₀ = IDFCurves.map_to_real_space(pd_type,initialvalues)
+    if initialvalues[3] == 0.0 # the shape parameter can't be initalized at 0.0
+        initialvalues[3] = 0.0001
+    end
 
+    θ₀ = IDFCurves.map_to_real_space(pd_type,initialvalues)
+    
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(pd_type(d₀, map_to_param_space(pd_type, θ)...), data)
 
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
@@ -198,6 +202,10 @@ end
 
 
 function fit_mle(pd_type::Type{<:AbstractScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
+
+    if initialvalues[3] == 0.0 # the shape parameter can't be initalized at 0.0
+        initialvalues[3] = 0.0001
+    end
 
     θ₀ = IDFCurves.map_to_real_space(pd_type,initialvalues)
 
