@@ -17,24 +17,29 @@ Koutsoyiannis, D., Kozonis, D. and Manetas, A. (1998).
 A mathematical framework for studying rainfall intensity-duration-frequency relationships,
 *Journal of Hydrology*, 206(1-2), 118-135, https://doi.org/10.1016/S0022-1694(98)00097-3.
 """
-struct dGEV <: AbstractScalingModel
-    d₀::Real # reference duration
-    μ₀::Real 
-    σ₀::Real
-    ξ::Real
-    α::Real # duration exponent (defining slope of the IDF curve)
-    δ::Real # duration offset (defining curvature of the IDF curve)
-
-    function dGEV(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real)
-        
-        @assert δ ≥ 0 "Duration offset must be non-negative"
-        @assert 0 < α ≤ 1 "Duration exponent must be between 0 and 1"
-        @assert σ₀ > 0 "Scale must be positive"
-        
-        return new(d₀, μ₀, σ₀, ξ, α, δ)
-        
-    end
+struct dGEV{T<:Real} <: AbstractScalingModel
+    d₀::T # reference duration
+    μ₀::T 
+    σ₀::T
+    ξ::T
+    α::T # duration exponent (defining slope of the IDF curve)
+    δ::T # duration offset (defining curvature of the IDF curve)
+    dGEV{T}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real} = new{T}(d₀, μ₀, σ₀, ξ, α, δ)
 end
+
+
+
+function dGEV(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+        
+    @assert 0 < α ≤ 1 "Scaling exponent must be between 0 and 1"
+    @assert σ₀ > 0 "Scale must be positive"
+    @assert δ ≥ 0 "Duration offset must be non-negative"
+        
+    return dGEV{T}(d₀, μ₀, σ₀, ξ, α, δ)
+        
+end
+
+dGEV(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real) = dGEV(promote(d₀, μ₀, σ₀, ξ, α, δ)...)
 
 Base.Broadcast.broadcastable(obj::dGEV) = Ref(obj)
 
@@ -130,8 +135,9 @@ Override of the show function for the objects of type dGEV.
 
 """
 function Base.show(io::IO, obj::dGEV)
-    println(io, "dGEV(d₀ = ", duration(obj),
-        ", μ₀ = ", round(location(obj), digits=4),
+    println(io, 
+        typeof(obj), "(",
+        "μ₀ = ", round(location(obj), digits=4),
         ", σ₀ = ", round(scale(obj), digits=4),
         ", ξ = ", round(shape(obj), digits=4),
         ", α = ", round(exponent(obj), digits=4),

@@ -77,7 +77,9 @@ function hessian(fd::AbstractScalingModel, data::IDFdata)
     d₀ = duration(fd)
     θ̂ = collect(params(fd))
 
-    fobj(θ) = -loglikelihood(typeof(fd)(d₀, θ...), data)
+    T = eval(nameof(typeof(fd)))
+
+    fobj(θ) = -loglikelihood(T(d₀, θ...), data)
 
     H = Hermitian(ForwardDiff.hessian(fobj, θ̂))
 
@@ -97,8 +99,10 @@ function quantilevar(fd::AbstractScalingModel, data::IDFdata, d::Real, p::Real)
 
     H = IDFCurves.hessian(fd, data)
 
+    T = eval(nameof(typeof(fd)))
+
     # quantile function
-    g(θ::DenseVector{<:Real}) = quantile(typeof(fd)(d₀, θ...), d, p)
+    g(θ::DenseVector{<:Real}) = quantile(T(d₀, θ...), d, p)
 
     # gradient
     ∇ = ForwardDiff.gradient(g, θ̂)
