@@ -83,6 +83,10 @@ end
 
 function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real})
 
+    if initialvalues[3] == 0.0 # the shape parameter can't be initalized at 0.0
+        initialvalues[3] = 0.0001
+    end
+
     θ₀ = [IDFCurves.map_to_real_space(IDFCurves.getmarginaltype(pd), initialvalues[1:5])..., log(initialvalues[6]), log(initialvalues[7])]
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, data, d₀, θ)

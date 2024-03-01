@@ -115,12 +115,16 @@ data = IDFdata(df, "Year", duration_dict)
 @testset "fit_mle(::dGEV)" begin
 
     fd = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [20, 5, .04, .76, .07])
-
     @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
+    fd2 = IDFCurves.fit_mle_gradient_free(dGEV, data, 1, [20, 5, .0, .76, .07])
+    @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
+    @test shape(fd2) != 0.0
 
     fd = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .07])
-
     @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
+    fd2 = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .0, .76, .07])
+    @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
+    @test shape(fd2) != 0.0
 
     @testset "hessian(::dGEV, data)" begin
     
