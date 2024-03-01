@@ -123,7 +123,9 @@ Override of the show function for the objects of type SimpleScaling.
 
 """
 function Base.show(io::IO, obj::SimpleScaling)
-    println(io, "SimpleScaling(d₀ = ", duration(obj),
+    println(io, 
+        typeof(obj), "(",
+        "d₀ = ", duration(obj),
         ", μ₀ = ", round(location(obj), digits=4),
         ", σ₀ = ", round(scale(obj), digits=4),
         ", ξ = ", round(shape(obj), digits=4),
