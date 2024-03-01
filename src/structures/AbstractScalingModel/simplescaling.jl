@@ -17,22 +17,25 @@ Koutsoyiannis, D., Kozonis, D. and Manetas, A. (1998).
 A mathematical framework for studying rainfall intensity-duration-frequency relationships,
 *Journal of Hydrology*, 206(1-2), 118-135, https://doi.org/10.1016/S0022-1694(98)00097-3.
 """
-struct SimpleScaling <: AbstractScalingModel
-    d₀::Real # reference duration
-    μ₀::Real 
-    σ₀::Real
-    ξ::Real
-    α::Real # scaling exponent (defining slope of the IDF curve)
-
-    function SimpleScaling(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real)
-        
-        @assert 0 < α ≤ 1 "Scaling exponent must be between 0 and 1"
-        @assert σ₀ > 0 "Scale must be positive"
-        
-        return new(d₀, μ₀, σ₀, ξ, α)
-        
-    end
+struct SimpleScaling{T<:Real} <: AbstractScalingModel
+    d₀::T # reference duration
+    μ₀::T 
+    σ₀::T
+    ξ::T
+    α::T # scaling exponent (defining slope of the IDF curve)
+    SimpleScaling{T}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T<:Real} = new{T}(d₀, μ₀, σ₀, ξ, α)
 end
+
+function SimpleScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T <: Real}
+        
+    @assert 0 < α ≤ 1 "Scaling exponent must be between 0 and 1"
+    @assert σ₀ > 0 "Scale must be positive"
+        
+    return SimpleScaling{T}(d₀, μ₀, σ₀, ξ, α)
+        
+end
+
+SimpleScaling(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real) = SimpleScaling(promote(d₀, μ₀, σ₀, ξ, α)...)
 
 Base.Broadcast.broadcastable(obj::SimpleScaling) = Ref(obj)
 
