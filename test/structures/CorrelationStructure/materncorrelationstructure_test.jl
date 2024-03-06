@@ -1,22 +1,5 @@
-
-
-@testset "AbstractCorrelationStructure" begin
-
-    @testset "ExponentialCorrelationStructure contructor" begin
-        @test params(ExponentialCorrelationStructure(1)) ≈ (1.0)
-        @test_throws AssertionError ExponentialCorrelationStructure(-1)
-    end
+@testset "MaternCorrelationStructure" begin
     
-    @testset "cor(::ExponentialCorrelationStructure)" begin
-        C = ExponentialCorrelationStructure(1)    
-    
-        @test_throws AssertionError cor(C,-1)
-        @test cor(C,1) ≈ exp(-1)
-        @test cor.(C,[1, 2]) ≈ exp.(-[1, 2])
-    end
-
-
-
     @testset "MaternCorrelationStructure construction" begin
         @test_throws "AssertionError" MaternCorrelationStructure(-1., 2.)
         @test_throws "AssertionError" MaternCorrelationStructure(1., -2.)
@@ -42,5 +25,5 @@
         @test cor(C, d) ≈ c
         
     end
-    
+
 end

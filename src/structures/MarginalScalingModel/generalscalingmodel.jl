@@ -1,7 +1,7 @@
 """
-    dGEV(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real)
+    GeneralScaling(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real)
 
-Construct a dGEV distribution type.
+Construct a GeneralScaling distribution type.
 
 ## Details
 
@@ -17,74 +17,74 @@ Koutsoyiannis, D., Kozonis, D. and Manetas, A. (1998).
 A mathematical framework for studying rainfall intensity-duration-frequency relationships,
 *Journal of Hydrology*, 206(1-2), 118-135, https://doi.org/10.1016/S0022-1694(98)00097-3.
 """
-struct dGEV{T<:Real} <: AbstractScalingModel
+struct GeneralScaling{T<:Real} <: MarginalScalingModel
     d₀::T # reference duration
     μ₀::T 
     σ₀::T
     ξ::T
     α::T # duration exponent (defining slope of the IDF curve)
     δ::T # duration offset (defining curvature of the IDF curve)
-    dGEV{T}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real} = new{T}(d₀, μ₀, σ₀, ξ, α, δ)
+    GeneralScaling{T}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real} = new{T}(d₀, μ₀, σ₀, ξ, α, δ)
 end
 
 
 
-function dGEV(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+function GeneralScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
         
     @assert 0 < α ≤ 1 "Scaling exponent must be between 0 and 1"
     @assert σ₀ > 0 "Scale must be positive"
     @assert δ ≥ 0 "Duration offset must be non-negative"
         
-    return dGEV{T}(d₀, μ₀, σ₀, ξ, α, δ)
+    return GeneralScaling{T}(d₀, μ₀, σ₀, ξ, α, δ)
         
 end
 
-dGEV(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real) = dGEV(promote(d₀, μ₀, σ₀, ξ, α, δ)...)
+GeneralScaling(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real) = GeneralScaling(promote(d₀, μ₀, σ₀, ξ, α, δ)...)
 
-Base.Broadcast.broadcastable(obj::dGEV) = Ref(obj)
+Base.Broadcast.broadcastable(obj::GeneralScaling) = Ref(obj)
 
 
 ### Parameters
 
 """
-    duration(pd::dGEV)
+    duration(pd::GeneralScaling)
 
 Return the reference duration.
 """
-duration(pd::dGEV) = pd.d₀
+duration(pd::GeneralScaling) = pd.d₀
 
 """
-    exponent(pd::dGEV)
+    exponent(pd::GeneralScaling)
 
 Return the duration exponent.
 """
-exponent(pd::dGEV) = pd.α
+exponent(pd::GeneralScaling) = pd.α
 
-location(pd::dGEV) = pd.μ₀
+location(pd::GeneralScaling) = pd.μ₀
 
 """
-    offset(pd::dGEV)
+    offset(pd::GeneralScaling)
 
 Return the duration offset
 """
-offset(pd::dGEV) = pd.δ
+offset(pd::GeneralScaling) = pd.δ
 
-params(pd::dGEV) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
+params(pd::GeneralScaling) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
 
-scale(pd::dGEV) = pd.σ₀
+scale(pd::GeneralScaling) = pd.σ₀
 
-shape(pd::dGEV) = pd.ξ
+shape(pd::GeneralScaling) = pd.ξ
 
 
 
 ### Methods
 
 """
-    getdistribution(pd::dGEV, d::Real)
+    getdistribution(pd::GeneralScaling, d::Real)
 
 Return the marginal GEV distribution for duration `d`.
 """
-function getdistribution(pd::dGEV, d::Real)
+function getdistribution(pd::GeneralScaling, d::Real)
     
     μ₀ = location(pd)
     σ₀ = scale(pd)
@@ -105,11 +105,11 @@ function getdistribution(pd::dGEV, d::Real)
 end
 
 """
-    map_to_param_space(::Type{<:dGEV}, θ)
+    map_to_param_space(::Type{<:GeneralScaling}, θ)
 
-Map the parameters from the real hypercube to the dGEV parameter space.
+Map the parameters from the real hypercube to the GeneralScaling parameter space.
 """
-function map_to_param_space(::Type{<:dGEV}, θ::AbstractVector{<:Real})
+function map_to_param_space(::Type{<:GeneralScaling}, θ::AbstractVector{<:Real})
     @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
 
     return [θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4]), exp(θ[5])]
@@ -117,11 +117,11 @@ function map_to_param_space(::Type{<:dGEV}, θ::AbstractVector{<:Real})
 end
 
 """
-    map_to_real_space(::Type{<:dGEV}, θ)
+    map_to_real_space(::Type{<:GeneralScaling}, θ)
 
-Map the parameters from the dGEV parameter spave to the real hypercube.
+Map the parameters from the GeneralScaling parameter spave to the real hypercube.
 """
-function map_to_real_space(::Type{<:dGEV}, θ::AbstractVector{<:Real})
+function map_to_real_space(::Type{<:GeneralScaling}, θ::AbstractVector{<:Real})
     @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
 
     return [θ[1], log(θ[2]), logit(θ[3]+.5), logit(θ[4]), log(θ[5])]
@@ -129,12 +129,12 @@ function map_to_real_space(::Type{<:dGEV}, θ::AbstractVector{<:Real})
 end
 
 """
-    Base.show(io::IO, obj::dGEV)
+    Base.show(io::IO, obj::GeneralScaling)
 
-Override of the show function for the objects of type dGEV.
+Override of the show function for the objects of type GeneralScaling.
 
 """
-function Base.show(io::IO, obj::dGEV)
+function Base.show(io::IO, obj::GeneralScaling)
     println(io, 
         typeof(obj), "(",
         "μ₀ = ", round(location(obj), digits=4),

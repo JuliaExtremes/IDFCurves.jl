@@ -2,7 +2,7 @@
 @testset "DependentScalingModel construction" begin
     
     d = [0. 1.; 1. 0.]
-    pd = dGEV(1, 1, 1, 0, .8, .5)
+    pd = GeneralScaling(1, 1, 1, 0, .8, .5)
     Σ = MaternCorrelationStructure(10., 1.)
     C = GaussianCopula
 
@@ -15,9 +15,9 @@
 end
 
 @testset "get type of DependentScalingModel" begin
-    obj = DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}
+    obj = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
 
-    @test IDFCurves.getmarginaltype(obj) == dGEV
+    @test IDFCurves.getmarginaltype(obj) == GeneralScaling
     @test IDFCurves.getcopulatype(obj) == GaussianCopula
     @test IDFCurves.getcorrelogramtype(obj) == MaternCorrelationStructure
 
@@ -36,7 +36,7 @@ end
 
     data = IDFdata(tags, d1, d2, d3)
 
-    mm = dGEV(1, 0, 1, 0, .8, .5)
+    mm = GeneralScaling(1, 0, 1, 0, .8, .5)
 
     Σ = MaternCorrelationStructure(1., 1.)
     h = IDFCurves.logdist(durations)
