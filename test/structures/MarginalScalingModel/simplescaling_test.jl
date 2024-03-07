@@ -9,6 +9,7 @@
         @test exponent(pd) ≈ .8 
         @test duration(pd) == 2
         @test all([params(pd)...] .≈ [100, 1, 0.1, .8])
+        @test params_number(SimpleScaling) == 4
     end
 
     @testset "getdistribution(::SimpleScaling)" begin

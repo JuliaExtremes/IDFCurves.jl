@@ -9,6 +9,7 @@
         @test offset(pd) == 5
         @test duration(pd) == 60
         @test all([params(pd)...] .≈ [100, 1, 0, .8, 5])
+        @test params_number(GeneralScaling) == 5
     end
 
     @testset "getdistribution(::GeneralScaling)" begin

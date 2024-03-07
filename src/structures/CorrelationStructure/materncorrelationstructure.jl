@@ -18,6 +18,8 @@ Base.Broadcast.broadcastable(obj::MaternCorrelationStructure) = Ref(obj)
 
 params(C::MaternCorrelationStructure) = (C.ν, C.ρ)
 
+params_number(::Type{<:MaternCorrelationStructure}) = 2
+
 function cor(C::MaternCorrelationStructure, d::Real)
     @assert d ≥ 0 "distance must be non-negative."
     

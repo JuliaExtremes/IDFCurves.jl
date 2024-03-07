@@ -7,8 +7,8 @@
         C = MaternCorrelationStructure(1, 2)
 
         @test all(params(C) .≈ (1., 2.))
-
         @test typeof(params(C)) == Tuple{Float64, Float64}
+        @test params_number(MaternCorrelationStructure) == 2
         
     end
 

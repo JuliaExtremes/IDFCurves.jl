@@ -10,6 +10,8 @@ Base.Broadcast.broadcastable(obj::ExponentialCorrelationStructure) = Ref(obj)
 
 params(C::ExponentialCorrelationStructure) = (C.θ)
 
+params_number(::Type{<:ExponentialCorrelationStructure}) = 1
+
 function cor(C::ExponentialCorrelationStructure, d::Real)
     @assert d ≥ 0 "distance must be non-negative."
 

@@ -3,6 +3,7 @@
     @testset "ExponentialCorrelationStructure contructor" begin
         @test params(ExponentialCorrelationStructure(1)) ≈ (1.0)
         @test_throws AssertionError ExponentialCorrelationStructure(-1)
+        @test params_number(ExponentialCorrelationStructure) == 1
     end
     
     @testset "cor(::ExponentialCorrelationStructure)" begin
