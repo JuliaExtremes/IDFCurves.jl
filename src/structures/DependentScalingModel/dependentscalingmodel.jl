@@ -1,5 +1,5 @@
 
-struct DependentScalingModel{T₁<:AbstractScalingModel, T₂<:AbstractCorrelationStructure, T₃}
+struct DependentScalingModel{T₁<:MarginalScalingModel, T₂<:CorrelationStructure, T₃}
     marginal::T₁
     correlogram::T₂
     DependentScalingModel(m, c, T₃::Type{<:EllipticalCopula}) = new{typeof(m), typeof(c), T₃}(m,c)

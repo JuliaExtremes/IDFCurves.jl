@@ -1,17 +1,17 @@
-abstract type AbstractScalingModel <: ContinuousMultivariateDistribution end
+abstract type MarginalScalingModel <: ContinuousMultivariateDistribution end
 
-include("simplescaling.jl")
-include("dGEV.jl")
+include("simplescalingmodel.jl")
+include("generalscalingmodel.jl")
 
 
 ### Methods
 
 """
-    cdf(pd::AbstractScalingModel, d::Real, x::Real)
+    cdf(pd::MarginalScalingModel, d::Real, x::Real)
 
 Return the cdf of the marginal distribution for duration `d` of the model `pd` evaluated at `x`.
 """
-function cdf(pd::AbstractScalingModel, d::Real, x::Real)
+function cdf(pd::MarginalScalingModel, d::Real, x::Real)
 
     margdist = IDFCurves.getdistribution(pd, d)
     return cdf(margdist, x)
@@ -19,11 +19,11 @@ function cdf(pd::AbstractScalingModel, d::Real, x::Real)
 end
 
 """
-    cdf(pd::AbstractScalingModel, d::Real, x::AbstractVector{<:Real})
+    cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real})
 
 Return the vector of the cdf of the marginal distribution for duration `d` of the model `pd` evaluated at every point in vector `x`.
 """
-function cdf(pd::AbstractScalingModel, d::Real, x::AbstractVector{<:Real})
+function cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real})
 
     margdist = IDFCurves.getdistribution(pd, d)
     return cdf.(margdist, x)
@@ -31,11 +31,11 @@ function cdf(pd::AbstractScalingModel, d::Real, x::AbstractVector{<:Real})
 end
 
 """
-    loglikelihood(pd::AbstractScalingModel, data::IDFdata)
+    loglikelihood(pd::MarginalScalingModel, data::IDFdata)
 
  Return the loglikelihood of the parameters in `pd` as a function of `data``    
 """
-function loglikelihood(pd::AbstractScalingModel, data::IDFdata)
+function loglikelihood(pd::MarginalScalingModel, data::IDFdata)
     
     ll = 0.
 
@@ -52,11 +52,11 @@ function loglikelihood(pd::AbstractScalingModel, data::IDFdata)
 end
 
 """
-    quantile(pd::AbstractScalingModel, d::Real, p::Real)
+    quantile(pd::MarginalScalingModel, d::Real, p::Real)
 
 Compute the quantile of level `p` for the duration `d` of the scaling model `pd`. 
 """
-function quantile(pd::AbstractScalingModel, d::Real, p::Real)
+function quantile(pd::MarginalScalingModel, d::Real, p::Real)
     @assert 0<p<1 "The quantile level p must be in (0,1)."
     @assert d>0 "The duration must be positive."
 
@@ -68,11 +68,11 @@ end
 
 """
 
-    hessian(fd::AbstractScalingModel, data::IDFdata)
+    hessian(fd::MarginalScalingModel, data::IDFdata)
 
 Compute the Hessian matrix of the loglikelihood of the fitted scaling model `pd` associated with the IDF data `data`.
 """
-function hessian(fd::AbstractScalingModel, data::IDFdata)
+function hessian(fd::MarginalScalingModel, data::IDFdata)
 
     d₀ = duration(fd)
     θ̂ = collect(params(fd))
@@ -86,11 +86,11 @@ function hessian(fd::AbstractScalingModel, data::IDFdata)
 end
 
 """
-    quantilevar(fd::AbstractScalingModel, data::IDFdata, d::Real, p::Real)
+    quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
 
 Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.      
 """
-function quantilevar(fd::AbstractScalingModel, data::IDFdata, d::Real, p::Real)
+function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration should be positive."
 
@@ -116,11 +116,11 @@ function quantilevar(fd::AbstractScalingModel, data::IDFdata, d::Real, p::Real)
 end
 
 """
-    quantilecint(fd::AbstractScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+    quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
 """
-function quantilecint(fd::AbstractScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration sould be positive."
     @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
@@ -137,7 +137,7 @@ end
 
 
 """
-    rand(pd::AbstractScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
+    rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
 
 Generate a random sample of size `n` for duration vector `d` from the scaling model `pd`.
     
@@ -145,7 +145,7 @@ Generate a random sample of size `n` for duration vector `d` from the scaling mo
 
 Duration tags and time vector can be provided with the keyword argument `tags` and `x` respectively. 
 """
-function rand(pd::AbstractScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
+function rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
     
     m = length(d)
     
@@ -178,7 +178,7 @@ end
 ### Fit
 
 
-function fit_mle_gradient_free(pd_type::Type{<:AbstractScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
+function fit_mle_gradient_free(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
 
     if initialvalues[3] == 0.0 # the shape parameter can't be initalized at 0.0
         initialvalues[3] = 0.0001
@@ -205,7 +205,7 @@ function fit_mle_gradient_free(pd_type::Type{<:AbstractScalingModel}, data::IDFd
 end
 
 
-function fit_mle(pd_type::Type{<:AbstractScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
+function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
 
     if initialvalues[3] == 0.0 # the shape parameter can't be initalized at 0.0
         initialvalues[3] = 0.0001

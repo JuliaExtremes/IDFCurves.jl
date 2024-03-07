@@ -17,7 +17,7 @@ Koutsoyiannis, D., Kozonis, D. and Manetas, A. (1998).
 A mathematical framework for studying rainfall intensity-duration-frequency relationships,
 *Journal of Hydrology*, 206(1-2), 118-135, https://doi.org/10.1016/S0022-1694(98)00097-3.
 """
-struct SimpleScaling{T<:Real} <: AbstractScalingModel
+struct SimpleScaling{T<:Real} <: MarginalScalingModel
     d₀::T # reference duration
     μ₀::T 
     σ₀::T
