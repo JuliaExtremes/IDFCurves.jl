@@ -28,6 +28,12 @@
         @test IDFCurves.map_to_param_space(GeneralScaling, θ) ≈ [1., 1., 0., .5, 1.]
     end
 
+    @testset "map_to_real_space(::Type{<:GeneralScaling}, θ)" begin
+        
+        θ = [1., 1., 0., .5, 1.]
+        @test IDFCurves.map_to_real_space(GeneralScaling, θ) ≈ [1., 0., 0., 0., 0.]
+    end
+
     @testset "Base.show(io, GeneralScaling)" begin
         # print GeneralScaling does not throw
         pd = GeneralScaling(60, 100, 1, 0, .8, 5)

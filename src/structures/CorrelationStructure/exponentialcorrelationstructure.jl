@@ -17,3 +17,28 @@ function cor(C::ExponentialCorrelationStructure, d::Real)
 
     return exp(-d/ρ)
 end
+
+
+"""
+    map_to_param_space(::Type{<:ExponentialCorrelationStructure}, θ)
+
+Map the parameter(s) from the real space to the ExponentialCorrelationStructure parameter space.
+"""
+function map_to_param_space(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
+    @assert length(θ) == 1 "The parameter vector length must be 1 for an exponential correlation structure."
+
+    return [exp(θ[1])]
+
+end
+
+"""
+    map_to_real_space(::Type{<:ExponentialCorrelationStructure}, θ)
+
+Map the parameter(s) from the ExponentialCorrelationStructure parameter space to the real space.
+"""
+function map_to_real_space(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
+    @assert length(θ) == 1 "The parameter vector length must be 1 for an exponential correlation structure."
+
+    return [log(θ[1])]
+
+end

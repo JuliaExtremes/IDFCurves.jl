@@ -28,6 +28,12 @@
         @test IDFCurves.map_to_param_space(SimpleScaling, θ) ≈ [1., 1., 0., .5]
     end
 
+    @testset "map_to_real_space(::Type{<:SimpleScaling}, θ)" begin
+        
+        θ = [1., 1., 0., .5]
+        @test IDFCurves.map_to_real_space(SimpleScaling, θ) ≈ [1., 0., 0., 0.]
+    end
+
     @testset "Base.show(io, SimpleScaling)" begin
         # print dGEV does not throw
         pd = SimpleScaling(1, 100, 1, 0, .8)
