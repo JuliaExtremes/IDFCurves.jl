@@ -17,10 +17,6 @@ function getcopulatype(pd::DependentScalingModel{T₁, T₂, T₃}) where {T₁,
     return T₃
 end
 
-# function getcopula(pd::DependentScalingModel)
-#     return pd.copula
-# end
-
 function getmarginaltype(obj::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
     return T₁
 end
@@ -47,7 +43,7 @@ function construct_model(obj::Type{<:DependentScalingModel}, data::IDFdata, d₀
     copula_model = IDFCurves.getcopulatype(obj)
     correlogram_model = IDFCurves.getcorrelogramtype(obj)
 
-    sm = scaling_model(d₀, IDFCurves.map_to_param_space(scaling_model, θ[1:5])...)
+    sm = scaling_model(d₀, IDFCurves.map_to_param_space(scaling_model, θ[1:5])...) #TODO make it general for other marginal scaling models
     Σ = correlogram_model(exp(θ[6]), exp(θ[7]))   #TODO make it general for other corelogram
 
     return DependentScalingModel(sm, Σ, copula_model)
@@ -87,7 +83,8 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
         initialvalues[3] = 0.0001
     end
 
-    θ₀ = [IDFCurves.map_to_real_space(IDFCurves.getmarginaltype(pd), initialvalues[1:5])..., log(initialvalues[6]), log(initialvalues[7])]
+    θ₀ = [IDFCurves.map_to_real_space(IDFCurves.getmarginaltype(pd), initialvalues[1:5])..., log(initialvalues[6]), log(initialvalues[7])] 
+    #TODO make it general for other marginals caling models and correlation structure
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, data, d₀, θ)
 
