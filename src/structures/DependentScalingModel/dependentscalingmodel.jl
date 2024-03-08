@@ -33,24 +33,6 @@ function getcorrelogram(pd::DependentScalingModel)
     return pd.correlogram
 end
 
-function construct_model(obj::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, θ::DenseVector{<:Real})
-    # TODO Verify number of parameter with the model
-
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations) 
-
-    scaling_model = IDFCurves.getmarginaltype(obj)
-    copula_model = IDFCurves.getcopulatype(obj)
-    correlogram_model = IDFCurves.getcorrelogramtype(obj)
-
-    sm = scaling_model(d₀, IDFCurves.map_to_param_space(scaling_model, θ[1:5])...) #TODO make it general for other marginal scaling models
-    Σ = correlogram_model(exp(θ[6]), exp(θ[7]))   #TODO make it general for other corelogram
-
-    return DependentScalingModel(sm, Σ, copula_model)
-    
-end
-
-
 
 function loglikelihood(pd::DependentScalingModel, data)
 
@@ -74,6 +56,26 @@ function loglikelihood(pd::DependentScalingModel, data)
 
     return ll
 
+end
+
+
+function construct_model(obj::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, θ::DenseVector{<:Real})
+
+    scaling_model = IDFCurves.getmarginaltype(obj)
+    copula_model = IDFCurves.getcopulatype(obj)
+    correlogram_model = IDFCurves.getcorrelogramtype(obj)
+
+    k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
+    @assert length(θ) == k_marginal + k_correlation "Length of θ ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
+
+    durations = getduration.(data, gettag(data))
+    h = IDFCurves.logdist(durations) 
+
+    sm = scaling_model(d₀, IDFCurves.map_to_param_space(scaling_model, θ[1:k_marginal])...)
+    Σ = correlogram_model(IDFCurves.map_to_param_space(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])...)
+
+    return DependentScalingModel(sm, Σ, copula_model)
+    
 end
 
 
