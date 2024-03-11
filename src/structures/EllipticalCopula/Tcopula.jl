@@ -6,11 +6,11 @@ struct TCopula <: EllipticalCopula
 
 end
 
-function getcormatrix(obj::EllipticalCopula)
+function getcormatrix(obj::TCopula)
     return obj.cormatrix
 end
 
-function dof(C::EllipticalCopula)
+function dof(C::TCopula)
     return C.df
 end
 
