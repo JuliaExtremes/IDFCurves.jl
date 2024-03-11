@@ -18,6 +18,11 @@ data = IDFdata(df, "Year", duration_dict)
 abstract_model = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, TCopula}
 model = IDFCurves.construct_model(abstract_model, data, 1, [IDFCurves.map_to_real_space(SimpleScaling, [20, 5, .04, .76]); [0., 0.]])
 
+abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
+params(getmarginalmodel(fd))
+params(getcorrelogram(fd))
+
 # Copule de Student :
 
 struct StudentCopula{df} <: EllipticalCopula

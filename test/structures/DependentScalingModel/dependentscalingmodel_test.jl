@@ -48,6 +48,8 @@
         # TODO: Verify this value
         @test loglikelihood(pd, data) ≈ -7.090619315218428
 
+        # TODO : tests for other marginal model, correlation structure, and copula type.
+
     end
 
     @testset "fitting a dependent scaling model" begin
@@ -83,7 +85,21 @@
         end
 
         @testset "fit_mle(::DependentScalingModel)" begin
-            #TODO
+
+            abstract_model = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
+            @test_throws AssertionError IDFCurves.fit_mle(abstract_model, data, 1, [0, 1, -0.1, .76, 1])
+
+            fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76, 1])
+            @test [params(getmarginalmodel(fd))...] ≈ [17.026, 5.0642, -0.0116, 0.68445] rtol = .1
+            @test [params(getcorrelogram(fd))...] ≈ [4.2134] rtol = .1
+            fd2 = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .0, .76, 1])
+            @test shape(getmarginalmodel(fd2)) != 0.0
+
+            abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+            fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
+            @test [params(getmarginalmodel(fd))...] ≈ [20.0113, 5.7805, -0.0243, 0.7685, 0.0714] rtol = .1
+            @test [params(getcorrelogram(fd))...] ≈ [1.0056, 2.2939] rtol = .1
+
         end
 
         @testset "hessian(::DependentScalingModel)" begin
