@@ -38,17 +38,16 @@
         data = IDFdata(tags, d1, d2, d3)
 
         mm = GeneralScaling(1, 0, 1, 0, .8, .5)
-
         Σ = MaternCorrelationStructure(1., 1.)
-        h = IDFCurves.logdist(durations)
-        C = GaussianCopula(cor.(Σ, h))
-
         pd = DependentScalingModel(mm, Σ, GaussianCopula)
-
-        # TODO: Verify this value
         @test loglikelihood(pd, data) ≈ -7.090619315218428
+        pd = DependentScalingModel(mm, Σ, TCopula{10})
+        @test loglikelihood(pd, data) ≈ -7.2149300395481
 
-        # TODO : tests for other marginal model, correlation structure, and copula type.
+        mm = SimpleScaling(1, 0, 1, 0, .8)
+        Σ = ExponentialCorrelationStructure(1.)
+        pd = DependentScalingModel(mm, Σ, TCopula{3})
+        @test loglikelihood(pd, data) ≈ -6.980377452138165
 
     end
 
@@ -74,11 +73,11 @@
 
             @test_throws AssertionError IDFCurves.construct_model(abstract_model, data, 1, [0.,0.,0.,0.,0.,0.,0.,0.])
 
-            abstract_model = DependentScalingModel{GeneralScaling, ExponentialCorrelationStructure, TCopula}
+            abstract_model = DependentScalingModel{GeneralScaling, ExponentialCorrelationStructure, TCopula{1}}
             model = IDFCurves.construct_model(abstract_model, data, 1, [IDFCurves.map_to_real_space(GeneralScaling, [20, 5, .04, .76,.7]); [0.0]])
             @test typeof(getmarginalmodel(model)) <: GeneralScaling
             @test all( [params(getmarginalmodel(model))...] .≈ [20, 5, .04, .76, .7] )
-            @test IDFCurves.getcopulatype(model) == TCopula
+            @test IDFCurves.getcopulatype(model) == TCopula{1}
             @test typeof(getcorrelogram(model)) <: ExponentialCorrelationStructure
             @test all( [params(getcorrelogram(model))...] .≈ [1.] )
 
@@ -99,6 +98,8 @@
             fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
             @test [params(getmarginalmodel(fd))...] ≈ [20.0113, 5.7805, -0.0243, 0.7685, 0.0714] rtol = .1
             @test [params(getcorrelogram(fd))...] ≈ [1.0056, 2.2939] rtol = .1
+
+            #TODO test when identity copula. test when xi is initialized close to 0
 
         end
 

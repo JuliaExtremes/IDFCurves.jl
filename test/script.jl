@@ -23,6 +23,9 @@ fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
 params(getmarginalmodel(fd))
 params(getcorrelogram(fd))
 
+abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, TCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
+
 # Copule de Student :
 
 struct StudentCopula{df} <: EllipticalCopula
@@ -56,4 +59,5 @@ cop_type([1 0; 0 1])
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76]) # renvoie résultats
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie erreur
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) # renvoie résultat où ξ=0
-fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 0.0001, .76]) # renvoie même résultat que le premier
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) # renvoie résultat où ξ=0
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e6*eps(), .76]) # renvoie même résultat que le premier

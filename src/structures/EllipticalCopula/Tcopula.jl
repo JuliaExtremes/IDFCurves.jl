@@ -1,17 +1,27 @@
-struct TCopula <: EllipticalCopula
-    df::Real
+struct TCopula{df} <: EllipticalCopula
     cormatrix::PDMat
-     
-    TCopula(df::Real, Σ::AbstractMatrix{<:Real}) = new(df, PDMat(Σ))
+
+    function TCopula{df}(cormatrix::AbstractMatrix{<:Real}) where df
+        @assert (df isa Integer) "The given number of degrees of freedom must be an integer for the Student copula"
+        new(PDMat(cormatrix))
+    end
 
 end
 
-function getcormatrix(obj::TCopula)
-    return obj.cormatrix
+function TCopula(df::Integer, cormatrix::AbstractMatrix{<:Real})
+    TCopula{df}(cormatrix)
 end
 
-function dof(C::TCopula)
-    return C.df
+function dof(C::TCopula{df}) where df
+    return df
+end
+
+function dof(Ctype::Type{TCopula{df}}) where df
+    return df
+end
+
+function getcormatrix(C::TCopula)
+    return C.cormatrix
 end
 
 function logpdf(C::TCopula, u::AbstractVector{<:Real})
