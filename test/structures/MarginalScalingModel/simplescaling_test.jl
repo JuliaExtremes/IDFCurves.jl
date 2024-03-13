@@ -9,6 +9,7 @@
         @test exponent(pd) ≈ .8 
         @test duration(pd) == 2
         @test all([params(pd)...] .≈ [100, 1, 0.1, .8])
+        @test params_number(SimpleScaling) == 4
     end
 
     @testset "getdistribution(::SimpleScaling)" begin
@@ -26,6 +27,12 @@
         
         θ = [1., 0., 0., 0.]
         @test IDFCurves.map_to_param_space(SimpleScaling, θ) ≈ [1., 1., 0., .5]
+    end
+
+    @testset "map_to_real_space(::Type{<:SimpleScaling}, θ)" begin
+        
+        θ = [1., 1., 0., .5]
+        @test IDFCurves.map_to_real_space(SimpleScaling, θ) ≈ [1., 0., 0., 0.]
     end
 
     @testset "Base.show(io, SimpleScaling)" begin
@@ -105,27 +112,32 @@
 
     end
 
-    df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
-        
-    tags = names(df)[2:10]
-    durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
-    duration_dict = Dict(zip(tags, durations))
-            
-    data = IDFdata(df, "Year", duration_dict)
+    @testset "fitting a simple scaling model" begin
 
-    @testset "fit_mle(::SimpleScaling)" begin
+        df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
+        
+        tags = names(df)[2:10]
+        durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+        duration_dict = Dict(zip(tags, durations))
+                
+        data = IDFdata(df, "Year", duration_dict)
 
         fd = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, .04, .76])
-        @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=.1
-        fd2 = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, .0, .76])
-        @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
-        @test shape(fd2) != 0.0
 
-        fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
-        @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=.1
-        fd2 = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .0, .76])
-        @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
-        @test shape(fd2) != 0.0
+        @testset "fit_mle(::SimpleScaling)" begin
+
+            @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=.1
+            fd2 = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, .0, .76])
+            @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
+            @test shape(fd2) != 0.0
+
+            fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
+            @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=.1
+            fd2 = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .0, .76])
+            @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
+            @test shape(fd2) != 0.0
+
+        end
 
         @testset "hessian(::SimpleScaling, data)" begin
         

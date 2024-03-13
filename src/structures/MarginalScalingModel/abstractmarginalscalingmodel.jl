@@ -14,7 +14,7 @@ Return the cdf of the marginal distribution for duration `d` of the model `pd` e
 function cdf(pd::MarginalScalingModel, d::Real, x::Real)
 
     margdist = IDFCurves.getdistribution(pd, d)
-    return cdf(margdist, x)
+    return Distributions.cdf(margdist, x)
 
 end
 
@@ -62,7 +62,7 @@ function quantile(pd::MarginalScalingModel, d::Real, p::Real)
 
     marginal = IDFCurves.getdistribution(pd, d)
 
-    return quantile(marginal, p)
+    return Distributions.quantile(marginal, p)
 
 end
 

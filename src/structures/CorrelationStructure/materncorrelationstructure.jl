@@ -18,6 +18,8 @@ Base.Broadcast.broadcastable(obj::MaternCorrelationStructure) = Ref(obj)
 
 params(C::MaternCorrelationStructure) = (C.ν, C.ρ)
 
+params_number(::Type{<:MaternCorrelationStructure}) = 2
+
 function cor(C::MaternCorrelationStructure, d::Real)
     @assert d ≥ 0 "distance must be non-negative."
     
@@ -27,4 +29,28 @@ function cor(C::MaternCorrelationStructure, d::Real)
         c = 2^(1-ν)/SpecialFunctions.gamma(ν) * BesselK.adbesselkxv(ν, z)
 
     return c
+end
+
+"""
+    map_to_param_space(::Type{<:MaternCorrelationStructure}, θ)
+
+Map the parameter(s) from the real space to the MaternCorrelationStructure parameter space.
+"""
+function map_to_param_space(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
+    @assert length(θ) == 2 "The parameter vector length must be 1 for an exponential correlation structure."
+
+    return [exp(θ[1]), exp(θ[2])]
+
+end
+
+"""
+    map_to_real_space(::Type{<:MaternCorrelationStructure}, θ)
+
+Map the parameter(s) from the MaternCorrelationStructure parameter space to the real space.
+"""
+function map_to_real_space(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
+    @assert length(θ) == 2 "The parameter vector length must be 1 for an exponential correlation structure."
+
+    return [log(θ[1]), log(θ[2])]
+
 end

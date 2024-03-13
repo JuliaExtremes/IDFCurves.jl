@@ -58,12 +58,13 @@ exponent(pd::SimpleScaling) = pd.α
 
 location(pd::SimpleScaling) = pd.μ₀
 
-params(pd::SimpleScaling) = (location(pd), scale(pd), shape(pd), exponent(pd))
-
 scale(pd::SimpleScaling) = pd.σ₀
 
 shape(pd::SimpleScaling) = pd.ξ
 
+params(pd::SimpleScaling) = (location(pd), scale(pd), shape(pd), exponent(pd))
+
+params_number(::Type{<:SimpleScaling}) = 4
 
 
 ### Methods

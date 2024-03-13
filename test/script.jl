@@ -1,6 +1,6 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions
+using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
@@ -12,35 +12,52 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 
-# Simple scaling sans copule
 
-fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
+# Redéfinition des méthodes de fitting pour les DependentScalingModels :
 
-H = IDFCurves.hessian(fm, data)
-Hmoins1 = inv(H)
-params_conf_intervals = [(params(fm)[i] - quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i]), params(fm)[i] + quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i])) for i in 1:4]
+abstract_model = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, TCopula}
+model = IDFCurves.construct_model(abstract_model, data, 1, [IDFCurves.map_to_real_space(SimpleScaling, [20, 5, .04, .76]); [0., 0.]])
+
+abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
+params(getmarginalmodel(fd))
+params(getcorrelogram(fd))
+
+abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, TCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
+
+# Copule de Student :
+
+struct StudentCopula{df} <: EllipticalCopula
+    cormatrix::PDMat
+
+    function StudentCopula{df}(cormatrix::AbstractMatrix{<:Real}) where df
+        @assert df isa Integer
+        new(PDMat(cormatrix))
+    end
+
+end
+
+function dof(C::StudentCopula{df}) where df
+    return df
+end
+
+function dof(Ctype::Type{StudentCopula{df}}) where df
+    return df
+end
 
 
-# dGEV sans copule
+cop = StudentCopula{12}([1 0; 0 1])
+cop_type = StudentCopula{7}
+dof(cop) # renvoie 12
+dof(cop_type) # renvoie 7
+dof(StudentCopula) # renvoie une erreur
 
-fm = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .7])
-
-H = IDFCurves.hessian(fm, data)
-Hmoins1 = inv(H)
-params_conf_intervals = [(params(fm)[i] - quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i]), params(fm)[i] + quantile(Normal(0,1), 0.975) * sqrt(Hmoins1[i,i])) for i in 1:5]
-
-
-# dGEV avec copule et structure de covariance de Matern
-
-model = DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}
-
-initialvalues = [20, 5, .04, .76, .07, 1., 1.]
-
-pd = IDFCurves.fit_mle(model, data, 1, initialvalues)
-
+cop_type([1 0; 0 1])
 # Tests sur l'initialisation :
 
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76]) # renvoie résultats
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie erreur
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) # renvoie résultat où ξ=0
-fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 0.0001, .76]) # renvoie même résultat que le premier
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) # renvoie résultat où ξ=0
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e6*eps(), .76]) # renvoie même résultat que le premier

@@ -3,8 +3,8 @@ struct GaussianCopula <: EllipticalCopula
     GaussianCopula(Σ::AbstractMatrix{<:Real}) = new(PDMat(Σ))
 end
 
-function getcormatrix(obj::GaussianCopula)
-    return obj.cormatrix
+function getcormatrix(C::GaussianCopula)
+    return C.cormatrix
 end
 
 function logpdf(C::GaussianCopula, u::AbstractVector{<:Real})

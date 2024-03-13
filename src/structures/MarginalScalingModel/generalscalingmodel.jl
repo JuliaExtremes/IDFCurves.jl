@@ -69,13 +69,13 @@ Return the duration offset
 """
 offset(pd::GeneralScaling) = pd.δ
 
-params(pd::GeneralScaling) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
-
 scale(pd::GeneralScaling) = pd.σ₀
 
 shape(pd::GeneralScaling) = pd.ξ
 
+params(pd::GeneralScaling) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
 
+params_number(::Type{<:GeneralScaling}) = 5
 
 ### Methods
 
