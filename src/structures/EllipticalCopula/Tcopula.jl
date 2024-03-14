@@ -12,6 +12,8 @@ function TCopula(df::Integer, cormatrix::AbstractMatrix{<:Real})
     TCopula{df}(cormatrix)
 end
 
+#TODO Customize error message when TCopula(::AbstractMatrix{<:Real}) is called without specifying df.
+
 function dof(C::TCopula{df}) where df
     return df
 end

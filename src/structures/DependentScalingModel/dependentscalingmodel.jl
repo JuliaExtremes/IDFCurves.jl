@@ -2,12 +2,11 @@
 struct DependentScalingModel{T₁<:MarginalScalingModel, T₂<:CorrelationStructure, T₃}
     marginal::T₁
     correlogram::T₂
-    DependentScalingModel(m, c, T₃::Type{<:EllipticalCopula}) = new{typeof(m), typeof(c), T₃}(m,c)
+    DependentScalingModel(m::MarginalScalingModel, c::CorrelationStructure, T₃::Type{<:EllipticalCopula}) = new{typeof(m), typeof(c), T₃}(m,c)
 end
 
+
 Base.Broadcast.broadcastable(obj::DependentScalingModel) = Ref(obj)
-
-
 
 function getcopulatype(pd::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
     return T₃
@@ -47,7 +46,7 @@ function loglikelihood(pd::DependentScalingModel, data)
     ll = loglikelihood(getmarginalmodel(pd), data)
 
     Σ = cor.(getcorrelogram(pd), h)
-    C = IDFCurves.getcopulatype(pd)(Σ) #TODO Make it general for TCopula
+    C = IDFCurves.getcopulatype(pd)(Σ)
 
     u = cdf.(getmarginalmodel(pd), d, y)
     for c in eachcol(u)
@@ -88,6 +87,7 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
     scaling_model = IDFCurves.getmarginaltype(pd)
     correlogram_model = IDFCurves.getcorrelogramtype(pd)
     k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
+    @assert length(initialvalues) == k_marginal + k_correlation "Length of the initial vector of parameters ("*string(length(initialvalues))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
     θ₀ = [IDFCurves.map_to_real_space(scaling_model, initialvalues[1:k_marginal])..., 
             IDFCurves.map_to_real_space(correlogram_model, initialvalues[(k_marginal+1):(k_marginal+k_correlation)])...] 
 
