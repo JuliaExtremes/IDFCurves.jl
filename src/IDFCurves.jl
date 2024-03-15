@@ -30,10 +30,10 @@ export
     getcopulatype, getmarginalmodel, getcorrelogram, fit_mle,
 
     EllipticalCopula,
-    GaussianCopula, TCopula,
+    GaussianCopula, TCopula, IdentityCopula,
 
     CorrelationStructure,
-    ExponentialCorrelationStructure, MaternCorrelationStructure,
+    ExponentialCorrelationStructure, MaternCorrelationStructure, UncorrelatedStructure,
     cor,
 
     #plots

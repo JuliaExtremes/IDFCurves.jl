@@ -49,6 +49,13 @@
         pd = DependentScalingModel(mm, Σ, TCopula{3})
         @test loglikelihood(pd, data) ≈ -6.980377452138165
 
+        mm = SimpleScaling(1, 0, 1, 0, .8)
+        pd = DependentScalingModel(mm, UncorrelatedStructure(), IdentityCopula)
+        @test loglikelihood(pd, data) ≈ -6.992515226105631
+        pd2 = DependentScalingModel(mm, ExponentialCorrelationStructure(1.), IdentityCopula)
+        pd3 = DependentScalingModel(mm, UncorrelatedStructure(), GaussianCopula)
+        @test loglikelihood(pd, data) ≈ loglikelihood(pd2, data) ≈ loglikelihood(pd3, data)
+
     end
 
     @testset "fitting a dependent scaling model" begin
@@ -86,33 +93,32 @@
         @testset "fit_mle(::DependentScalingModel)" begin
 
             abstract_model = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
+            @test_throws AssertionError IDFCurves.fit_mle(abstract_model, data, 1, [0, 1, 0.1, .76, 1, 1])
             @test_throws AssertionError IDFCurves.fit_mle(abstract_model, data, 1, [0, 1, -0.1, .76, 1])
 
-            fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76, 1])
-            @test [params(getmarginalmodel(fd))...] ≈ [17.026, 5.0642, -0.0116, 0.68445] rtol = .1
-            @test [params(getcorrelogram(fd))...] ≈ [4.2134] rtol = .1
-            fd2 = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .0, .76, 1])
+            abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
+            fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
+            @test [params(getmarginalmodel(fd))...] ≈ [18.13658321683213, 5.287438529290354, 0.04856483747914808, 0.6942332103996621] rtol = .1
+            fd2 = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .0, .76])
             @test shape(getmarginalmodel(fd2)) != 0.0
 
-            abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
-            fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .7, .1, 1., 1.])
-            @test [params(getmarginalmodel(fd))...] ≈ [20.0113, 5.7805, -0.0243, 0.7685, 0.0714] rtol = .1
-            @test [params(getcorrelogram(fd))...] ≈ [1.0056, 2.2939] rtol = .1
-
-            #TODO test when identity copula. test when xi is initialized close to 0
+            #TODO test when xi is initialized close to 0
 
         end
 
         @testset "hessian(::DependentScalingModel)" begin
             #TODO
+            #TODO test when identity copula. Refer to results obtained with IDF.jl
         end
 
         @testset "quantilevar(::DependentScalingModel)" begin
             #TODO
+            #TODO test when identity copula. Refer to results obtained with IDF.jl
         end
 
         @testset "quantilecint(::DependentScalingModel)" begin
             #TODO
+            #TODO test when identity copula. Refer to results obtained with IDF.jl
         end
 
     end

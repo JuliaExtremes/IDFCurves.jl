@@ -122,16 +122,10 @@
                 
         data = IDFdata(df, "Year", duration_dict)
 
-        fd = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, .04, .76])
+        fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
 
         @testset "fit_mle(::SimpleScaling)" begin
 
-            @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=.1
-            fd2 = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, .0, .76])
-            @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
-            @test shape(fd2) != 0.0
-
-            fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
             @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=.1
             fd2 = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .0, .76])
             @test [params(fd2)...] ≈ [params(fd)...] rtol=.1

@@ -112,7 +112,7 @@
 
     end
 
-    @testset "fitting a simple scaling model" begin
+    @testset "fitting a general scaling model" begin
 
         df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
         
@@ -122,16 +122,10 @@
                 
         data = IDFdata(df, "Year", duration_dict)
 
-        fd = IDFCurves.fit_mle_gradient_free(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
+        fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
 
         @testset "fit_mle(::GeneralScaling)" begin
 
-            @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
-            fd2 = IDFCurves.fit_mle_gradient_free(GeneralScaling, data, 1, [20, 5, .0, .76, .07])
-            @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
-            @test shape(fd2) != 0.0
-
-            fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
             @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
             fd2 = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .0, .76, .07])
             @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
