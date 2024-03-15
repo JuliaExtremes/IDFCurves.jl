@@ -139,12 +139,12 @@ Compute the Hessian matrix of the DependentScalingModel distribution `pd` associ
 """
 function hessian(pd::DependentScalingModel, data::IDFdata)
 
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations)
+    scaling_model = IDFCurves.getmarginalmodel(pd)
+    correlogram_model = IDFCurves.getcorrelogram(pd)
 
-    θ̂ = [params(getmarginalmodel(pd))..., params(getcorrelogram(pd))...]
-
-    d₀ = duration(getmarginalmodel(pd))
+    θ̂ = [IDFCurves.map_to_real_space(typeof(scaling_model), [params(scaling_model)...])..., 
+            IDFCurves.map_to_real_space(typeof(correlogram_model), [params(correlogram_model)...])...] #TODO for now bug
+    d₀ = duration(scaling_model)
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(typeof(pd), data, d₀, θ)
 

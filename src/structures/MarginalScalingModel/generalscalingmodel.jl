@@ -137,6 +137,7 @@ Override of the show function for the objects of type GeneralScaling.
 function Base.show(io::IO, obj::GeneralScaling)
     println(io, 
         typeof(obj), "(",
+        "d₀ = ", duration(obj),
         "μ₀ = ", round(location(obj), digits=4),
         ", σ₀ = ", round(scale(obj), digits=4),
         ", ξ = ", round(shape(obj), digits=4),
