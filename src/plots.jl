@@ -25,7 +25,7 @@ end
 
 Quantile-Quantile plot from ExtendedExtremes.jl
 """
-function qqplot(pd::dGEV, data::IDFdata, d::Real)
+function qqplot(pd::MarginalScalingModel, data::IDFdata, d::Real)
     @assert d>0 "duration must be positive."
 
     marginal = getdistribution(pd, d)
@@ -36,13 +36,13 @@ function qqplot(pd::dGEV, data::IDFdata, d::Real)
 end
 
 """
-    qqplotci(fm::dGEV, α::Real=.05)
+    qqplotci(fm::MarginalScalingModel, α::Real=.05)
 
 Quantile-Quantile plot along with the confidence/credible interval of level `1-α`.
 ```
  
 """
-function qqplotci(fd::dGEV, data::IDFdata, d::Real, α::Real=.05)
+function qqplotci(fd::MarginalScalingModel, data::IDFdata, d::Real, α::Real=.05)
     @assert d>0 "duration must be positive."
     @assert 0 < α < 1 "the level should be in (0,1)." 
 

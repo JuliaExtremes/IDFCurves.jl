@@ -63,6 +63,17 @@
             @test getyear(data, tag) == df[:, :Year]
             @test getdata(data, tag) ≈ df[:, tag]
         end
+
+        # toy dataframe to check how missing data is handled :
+
+        durations = [1., 2.]
+        tags = ["firstduration", "secondduration"]
+        duration_dict = Dict(zip(tags, durations))
+        df = DataFrame(Year = [2020, 2021, 2022], firstduration = [2, missing, 3], secondduration = [3, 1, missing])
+
+        data = IDFdata(df, "Year", duration_dict)
+        @test getdata(data, "firstduration") ≈ [2., 3.]
+        @test getdata(data, "secondduration") ≈ [3., 1.]
     
     end
     

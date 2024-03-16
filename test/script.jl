@@ -1,6 +1,6 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions
+using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
@@ -12,59 +12,60 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 
-# dGEV sans copule
+# Modèle marginal comme un DependentScalingModel
 
-fm = IDFCurves.fit_mle(dGEV, data, 1, [20, 5, .04, .76, .07])
+# test constructeur
+pd = DependentScalingModel(SimpleScaling(1, 20, 5, .0, .76), UncorrelatedStructure(), IdentityCopula)
+#pd = DependentScalingModel(SimpleScaling(1, 20, 5, .0, .76), UncorrelatedStructure())
+#pd = DependentScalingModel(SimpleScaling(1, 20, 5, .0, .76), IdentityCopula)
+#pd = DependentScalingModel(SimpleScaling(1, 20, 5, .0, .76))
+# the three last commented lines : would be nice if gave same result than first line ?
 
-IDFCurves.hessian(fm, data)
+# test logpdf
+loglikelihood(pd, data)
+loglikelihood(SimpleScaling(1, 20, 5, .0, .76), data) # same result - good
 
+IDFCurves.fit_mle(DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}, data, 1, [20, 5, .0, .76])
+IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .0, .76]) # same result - good
 
-# dGEV avec copule et structure de covariance de Matern
+mm = SimpleScaling(1, 0, 1, 0, .8)
+Σ = ExponentialCorrelationStructure(1.)
+pd = DependentScalingModel(mm, Σ, TCopula)
+loglikelihood(pd, data)
 
-model = DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}
-
-initialvalues = [20, 5, .04, .76, .07, 1., 1.]
-
-pd = IDFCurves.fit_mle(model, data, 1, initialvalues)
-
-# Ça fonctionne avec la différention automatique !
-IDFCurves.hessian(pd, data)
-
-# # Les lignes de code suivantes peuvent être exécutées et produisent le résultat escompté :
-# u = randn(9)
-# Σ(θ::AbstractVector{<:Real}) = cor.(MaternCorrelationStructure(θ...), h) 
-# f(θ::AbstractVector{<:Real}) = logpdf(MvNormal(Σ(θ)), u)
-# ForwardDiff.hessian(f, [1.5, 3.2]) 
-
-
-struct ExpCorrStruct{T<:Real} <: AbstractCorrelationStructure
-    θ::T
-    function ExpCorrStruct(θ::T) where {T<:Real} 
-        @assert θ > 0 "exponential correlogram parameter must be positive"        
-        return new{T}(θ)
-    end
-end
-
-ExpCorrStruct(d)  # ça fonctionne
+abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
 
 
-# # Par contre on peut reproduire le bug en faisant la chose suivante :
-# initial_model = IDFCurves.construct_model(DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}, data, 24, [20, 5, .04, .76, .07, 1., 1.])
-# create_model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(typeof(initial_model), data, 24, θ)
-# fobj(θ::DenseVector{<:Real}) = -loglikelihood(create_model(θ), data)
-# H = ForwardDiff.hessian(fobj, [20, 5, .04, .76, .07, 1., 1.])
+fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76,])
+#fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76,1])
+IDFCurves.hessian(fd, data) 
+
+abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76,])
+IDFCurves.hessian(fd, data) # bug
+# TODO make sure that this hessian is the same as above
 
 
-# # Le bug a l'air causé par le fait que le type renvoyé par "typeof(initial_model)" fait intervenir MaternCorrelationStructure{Float64},
-# # et donc on ne peut plus remplacer θ par des ForwardDiff.Dual
-# typeof(initial_model)
+# Tests sur l'initialisation :
 
-# # ici on n'observe pas de bug :
-# create_model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(DependentScalingModel{dGEV, MaternCorrelationStructure, GaussianCopula}, data, 24, θ)
-# fobj(θ::DenseVector{<:Real}) = -loglikelihood(create_model(θ), data)
-# H = ForwardDiff.hessian(fobj, [20, 5, .04, .76, .07, 1., 1.])
+fm = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, .0, .76])
+fm = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, .04, .76])
+fm = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) 
+fm = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) 
+fm = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) 
+fm = IDFCurves.fit_mle_gradient_free(SimpleScaling, data, 1, [20, 5, 1e6*eps(), .76]) 
 
-# # on veut donc que la fonction getcorrelogramtype() renvoie MaternCorrelationStructure et pas MaternCorrelationStructure{Float64} 
-# # D'où la transformation effectuée qui a éliminé le bug.
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76]) # renvoie résultats
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie erreur
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) # renvoie résultat où ξ=0
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) # renvoie résultat où ξ=0
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e6*eps(), .76]) # renvoie même résultat que le premier
 
-# typeof(initial_model)
+Distributions.score(GeneralizedExtremeValue(0,1,0))
+
+abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, 2*eps(), .7, .1, 1., 1.])
+params(getmarginalmodel(fd))
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, 1000*eps(), .7, .1, 1., 1.])
+params(getmarginalmodel(fd))
