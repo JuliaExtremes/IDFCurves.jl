@@ -1,7 +1,7 @@
 include(joinpath("structures", "idfdata.jl"))
-include(joinpath("structures",  "AbstractScalingModel" ,"abstractscalingmodel.jl"))
-include(joinpath("structures",  "EllipticalCopula" ,"ellipticalcopula.jl"))
-include(joinpath("structures",  "AbstractCorrelationStructure" ,"abstractcorrelationstructure.jl"))
+include(joinpath("structures",  "MarginalScalingModel" ,"abstractmarginalscalingmodel.jl"))
+include(joinpath("structures",  "EllipticalCopula" ,"abstractellipticalcopula.jl"))
+include(joinpath("structures",  "CorrelationStructure" ,"abstractcorrelationstructure.jl"))
 include(joinpath("structures",  "DependentScalingModel" ,"dependentscalingmodel.jl"))
 
 

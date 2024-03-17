@@ -20,21 +20,21 @@ export
     IDFdata,
     getdata, getduration, gettag, getyear,
 
-    AbstractScalingModel,
+    MarginalScalingModel,
 
-    dGEV,
-    cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape,
+    SimpleScaling,
+    GeneralScaling,
+    cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
 
     DependentScalingModel,
-    getcopulatype, getmarginalmodel, getcorrelogram,
+    getcopulatype, getmarginalmodel, getcorrelogram, fit_mle,
 
     EllipticalCopula,
-    GaussianCopula, TCopula,
+    GaussianCopula, TCopula, IdentityCopula,
 
-    AbstractCorrelationStructure,
+    CorrelationStructure,
+    ExponentialCorrelationStructure, MaternCorrelationStructure, UncorrelatedStructure,
     cor,
-
-    ExponentialCorrelationStructure, MaternCorrelationStructure,
 
     #plots
     qqplot, qqplotci

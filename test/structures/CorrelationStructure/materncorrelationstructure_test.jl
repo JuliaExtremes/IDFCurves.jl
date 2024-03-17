@@ -1,22 +1,5 @@
-
-
-@testset "AbstractCorrelationStructure" begin
-
-    @testset "ExponentialCorrelationStructure contructor" begin
-        @test params(ExponentialCorrelationStructure(1)) ≈ (1.0)
-        @test_throws AssertionError ExponentialCorrelationStructure(-1)
-    end
+@testset "MaternCorrelationStructure" begin
     
-    @testset "cor(::ExponentialCorrelationStructure)" begin
-        C = ExponentialCorrelationStructure(1)    
-    
-        @test_throws AssertionError cor(C,-1)
-        @test cor(C,1) ≈ exp(-1)
-        @test cor.(C,[1, 2]) ≈ exp.(-[1, 2])
-    end
-
-
-
     @testset "MaternCorrelationStructure construction" begin
         @test_throws "AssertionError" MaternCorrelationStructure(-1., 2.)
         @test_throws "AssertionError" MaternCorrelationStructure(1., -2.)
@@ -24,8 +7,8 @@
         C = MaternCorrelationStructure(1, 2)
 
         @test all(params(C) .≈ (1., 2.))
-
         @test typeof(params(C)) == Tuple{Float64, Float64}
+        @test params_number(MaternCorrelationStructure) == 2
         
     end
 
@@ -42,5 +25,17 @@
         @test cor(C, d) ≈ c
         
     end
-    
+
+    @testset "map_to_param_space(::Type{<:MaternCorrelationStructure}, θ)" begin
+        
+        θ = [0., -1.]
+        @test IDFCurves.map_to_param_space(MaternCorrelationStructure, θ) ≈ [1., exp(-1)]
+    end
+
+    @testset "map_to_real_space(::Type{<:MaternCorrelationStructure}, θ)" begin
+        
+        θ = [1., 2.]
+        @test IDFCurves.map_to_real_space(MaternCorrelationStructure, θ) ≈ [0., log(2)]
+    end
+
 end
