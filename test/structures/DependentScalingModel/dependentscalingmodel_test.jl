@@ -1,4 +1,13 @@
 @testset "DependentScaling" begin
+
+    @testset "get subtypes of DependentScalingModel" begin
+        obj_type = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
+
+        @test IDFCurves.getmarginaltype(obj_type) == SimpleScaling
+        @test IDFCurves.getcopulatype(obj_type) == GaussianCopula
+        @test IDFCurves.getcorrelogramtype(obj_type) == ExponentialCorrelationStructure
+
+    end
     
     @testset "DependentScalingModel construction" begin
         
@@ -13,14 +22,7 @@
         @test getcopulatype(dm) == C
         @test getcorrelogram(dm) == Σ
 
-    end
-
-    @testset "get type of DependentScalingModel" begin
-        obj = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
-
-        @test IDFCurves.getmarginaltype(obj) == GeneralScaling
-        @test IDFCurves.getcopulatype(obj) == GaussianCopula
-        @test IDFCurves.getcorrelogramtype(obj) == MaternCorrelationStructure
+        @test IDFCurves.getabstracttype(dm) == DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
 
     end
 
