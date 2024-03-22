@@ -17,7 +17,7 @@ function getcopulatype(pd::DependentScalingModel{T₁, T₂, T₃}) where {T₁,
 end
 
 function getmarginaltype(pd::Type{DependentScalingModel{T₁, T₂, T₃}}) where {T₁, T₂, T₃}
-    return T₁
+    return eval(nameof(T₁))
 end
 
 function getmarginalmodel(pd::DependentScalingModel)
@@ -30,6 +30,11 @@ end
 
 function getcorrelogram(pd::DependentScalingModel)
     return pd.correlogram
+end
+
+function getabstracttype(pd::DependentScalingModel)
+    T = typeof(pd)
+    return DependentScalingModel{getmarginaltype(T), getcorrelogramtype(T), getcopulatype(T)}
 end
 
 
@@ -146,7 +151,7 @@ function hessian(pd::DependentScalingModel, data::IDFdata)
             IDFCurves.map_to_real_space(typeof(correlogram_model), [params(correlogram_model)...])...] #TODO for now bug
     d₀ = duration(scaling_model)
 
-    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(typeof(pd), data, d₀, θ)
+    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(getabstracttype(pd), data, d₀, θ)
 
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
 

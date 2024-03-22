@@ -21,29 +21,16 @@ pd = DependentScalingModel(SimpleScaling(1, 20, 5, .0, .76), UncorrelatedStructu
 #pd = DependentScalingModel(SimpleScaling(1, 20, 5, .0, .76))
 # the three last commented lines : would be nice if gave same result than first line ?
 
-# test logpdf
-loglikelihood(pd, data)
-loglikelihood(SimpleScaling(1, 20, 5, .0, .76), data) # same result - good
 
-IDFCurves.fit_mle(DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}, data, 1, [20, 5, .0, .76])
-IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .0, .76]) # same result - good
-
-mm = SimpleScaling(1, 0, 1, 0, .8)
-Σ = ExponentialCorrelationStructure(1.)
-pd = DependentScalingModel(mm, Σ, TCopula)
-loglikelihood(pd, data)
-
-abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
-fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
-
-
-fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76,])
+fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
 #fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76,1])
 IDFCurves.hessian(fd, data) 
 
-abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, GaussianCopula}
-fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76,])
+abstract_model = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76,1])
 IDFCurves.hessian(fd, data) # bug
+
+SimpleScaling(1,20, 5, .04, .76)
 # TODO make sure that this hessian is the same as above
 
 
