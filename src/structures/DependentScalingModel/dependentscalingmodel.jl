@@ -32,11 +32,26 @@ function getcorrelogram(pd::DependentScalingModel)
     return pd.correlogram
 end
 
+"""
+    duration(pd::DependentScalingModel)
+
+Return the reference duration.
+"""
+duration(pd::DependentScalingModel) = duration(getmarginalmodel(pd))
+
+function params(pd::DependentScalingModel) 
+
+    scaling_model = getmarginalmodel(pd)
+    cor_model = getcorrelogram(pd)
+    return (params(scaling_model)..., params(cor_model)...)
+
+end
+
+
 function getabstracttype(pd::DependentScalingModel)
     T = typeof(pd)
     return DependentScalingModel{getmarginaltype(T), getcorrelogramtype(T), getcopulatype(T)}
 end
-
 
 function loglikelihood(pd::DependentScalingModel, data)
 
@@ -62,8 +77,12 @@ function loglikelihood(pd::DependentScalingModel, data)
 
 end
 
+"""
+    construct_model(::Type{<:DependentScalingModel}, d₀, θ)
 
-function construct_model(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, θ::DenseVector{<:Real})
+Construct a DependentScalingModel from a set of transformed parameters θ in the real space.
+"""
+function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::DenseVector{<:Real})
 
     scaling_model = IDFCurves.getmarginaltype(pd)
     copula_model = IDFCurves.getcopulatype(pd)
@@ -72,14 +91,27 @@ function construct_model(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀:
     k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
     @assert length(θ) == k_marginal + k_correlation "Length of θ ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
 
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations) 
-
-    sm = scaling_model(d₀, IDFCurves.map_to_param_space(scaling_model, θ[1:k_marginal])...)
-    Σ = correlogram_model(IDFCurves.map_to_param_space(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])...)
+    sm = IDFCurves.construct_model(scaling_model, d₀, θ[1:k_marginal])
+    Σ = IDFCurves.construct_model(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])
 
     return DependentScalingModel(sm, Σ, copula_model)
     
+end
+
+"""
+    map_to_real_space(::Type{<:DependentScalingModel}, θ)
+
+Map the parameters from the DependentScalingModel parameter space to the real space.
+"""
+function map_to_real_space(pd::Type{<:DependentScalingModel}, θ::AbstractVector{<:Real})
+    scaling_model = IDFCurves.getmarginaltype(pd)
+    correlogram_model = IDFCurves.getcorrelogramtype(pd)
+    k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
+    @assert length(θ) == k_marginal + k_correlation "Length of the parameter vector ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
+
+    return [IDFCurves.map_to_real_space(scaling_model, θ[1:k_marginal])..., 
+                IDFCurves.map_to_real_space(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])...]
+
 end
 
 
@@ -89,14 +121,9 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
         initialvalues[3] = 0.0001
     end
 
-    scaling_model = IDFCurves.getmarginaltype(pd)
-    correlogram_model = IDFCurves.getcorrelogramtype(pd)
-    k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
-    @assert length(initialvalues) == k_marginal + k_correlation "Length of the initial vector of parameters ("*string(length(initialvalues))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
-    θ₀ = [IDFCurves.map_to_real_space(scaling_model, initialvalues[1:k_marginal])..., 
-            IDFCurves.map_to_real_space(correlogram_model, initialvalues[(k_marginal+1):(k_marginal+k_correlation)])...] 
+    θ₀ = map_to_real_space(pd, initialvalues)
 
-    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, data, d₀, θ)
+    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
@@ -144,16 +171,11 @@ Compute the Hessian matrix of the DependentScalingModel distribution `pd` associ
 """
 function hessian(pd::DependentScalingModel, data::IDFdata)
 
-    scaling_model = IDFCurves.getmarginalmodel(pd)
-    correlogram_model = IDFCurves.getcorrelogram(pd)
-
-    θ̂ = [IDFCurves.map_to_real_space(typeof(scaling_model), [params(scaling_model)...])..., 
-            IDFCurves.map_to_real_space(typeof(correlogram_model), [params(correlogram_model)...])...] #TODO for now bug
-    d₀ = duration(scaling_model)
-
-    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(getabstracttype(pd), data, d₀, θ)
-
-    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
+    T = getabstracttype(pd)
+    d₀ = duration(pd)
+    θ̂ = collect(params(pd))
+    
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(IDFCurves.construct_model(T, d₀, map_to_real_space(T, θ)), data)
 
     H = ForwardDiff.hessian(fobj, θ̂)
 

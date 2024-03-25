@@ -22,14 +22,14 @@ end
 
 
 """
-    map_to_param_space(::Type{<:ExponentialCorrelationStructure}, θ)
+    construct_model(::Type{<:ExponentialCorrelationStructure, θ)
 
-Map the parameter(s) from the real space to the ExponentialCorrelationStructure parameter space.
+Construct an ExponentialCorrelationStructure from a set of transformed parameters θ in the real space.
 """
-function map_to_param_space(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
     @assert length(θ) == 1 "The parameter vector length must be 1 for an exponential correlation structure."
 
-    return [exp(θ[1])]
+    return ExponentialCorrelationStructure(exp(θ[1]))
 
 end
 
