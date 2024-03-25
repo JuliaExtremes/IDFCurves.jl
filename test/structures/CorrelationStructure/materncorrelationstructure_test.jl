@@ -26,10 +26,16 @@
         
     end
 
-    @testset "map_to_param_space(::Type{<:MaternCorrelationStructure}, θ)" begin
+    @testset "construct_model(::Type{<:MaternCorrelationStructure}, θ)" begin
+
+        θ = [0.]
+        @test_throws AssertionError IDFCurves.construct_model(MaternCorrelationStructure, θ)
         
-        θ = [0., -1.]
-        @test IDFCurves.map_to_param_space(MaternCorrelationStructure, θ) ≈ [1., exp(-1)]
+        θ = [0.,0.]
+        cor_struct = IDFCurves.construct_model(MaternCorrelationStructure, θ)
+        @test cor_struct isa MaternCorrelationStructure
+        @test all([params(cor_struct)...] .≈  [1.,1.])
+        
     end
 
     @testset "map_to_real_space(::Type{<:MaternCorrelationStructure}, θ)" begin

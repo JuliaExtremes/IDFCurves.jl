@@ -32,14 +32,14 @@ function cor(C::MaternCorrelationStructure, d::Real)
 end
 
 """
-    map_to_param_space(::Type{<:MaternCorrelationStructure}, θ)
+    construct_model(::Type{<:MaternCorrelationStructure, θ)
 
-Map the parameter(s) from the real space to the MaternCorrelationStructure parameter space.
+Construct an MaternCorrelationStructure from a set of transformed parameters θ in the real space.
 """
-function map_to_param_space(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
-    @assert length(θ) == 2 "The parameter vector length must be 1 for an exponential correlation structure."
+function construct_model(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
+    @assert length(θ) == 2 "The parameter vector length must be 1 for a Matern correlation structure."
 
-    return [exp(θ[1]), exp(θ[2])]
+    return MaternCorrelationStructure(exp(θ[1]), exp(θ[2]))
 
 end
 

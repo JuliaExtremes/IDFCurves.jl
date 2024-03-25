@@ -105,14 +105,14 @@ function getdistribution(pd::GeneralScaling, d::Real)
 end
 
 """
-    map_to_param_space(::Type{<:GeneralScaling}, θ)
+    construct_model(::Type{<:GeneralScaling}, d₀, θ)
 
-Map the parameters from the real hypercube to the GeneralScaling parameter space.
+Construct a GeneralScaling marginal model from a set of transformed parameters θ in the real space.
 """
-function map_to_param_space(::Type{<:GeneralScaling}, θ::AbstractVector{<:Real})
-    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
-
-    return [θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4]), exp(θ[5])]
+function construct_model(::Type{<:GeneralScaling}, d₀::Real, θ::AbstractVector{<:Real})
+    @assert length(θ) == 5 "The parameter vector length must be 4. Verify that the reference duration is not included."
+    
+    return GeneralScaling(d₀, θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4]), exp(θ[5]))
 
 end
 

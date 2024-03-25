@@ -94,21 +94,21 @@ function getdistribution(pd::SimpleScaling, d::Real)
 end
 
 """
-    map_to_param_space(::Type{<:SimpleScaling}, θ)
+    construct_model(::Type{<:SimpleScaling}, θ)
 
-Map the parameters from the real hypercube to the SimpleScaling parameter space.
+Construct a SimpleScaling marginal model from a set of transformed parameters θ in the real space.
 """
-function map_to_param_space(::Type{<:SimpleScaling}, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector{<:Real})
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
 
-    return [θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4])]
+    return SimpleScaling(d₀, θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4]))
 
 end
 
 """
     map_to_real_space(::Type{<:SimpleScaling}, θ)
 
-Map the parameters from the SimpleScaling parameter spave to the real hypercube.
+Map the parameters from the SimpleScaling parameter space to the real space.
 """
 function map_to_real_space(::Type{<:SimpleScaling}, θ::AbstractVector{<:Real})
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."

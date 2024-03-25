@@ -11,7 +11,6 @@
     
     @testset "DependentScalingModel construction" begin
         
-        d = [0. 1.; 1. 0.]
         pd = GeneralScaling(1, 1, 1, 0, .8, .5)
         Σ = MaternCorrelationStructure(10., 1.)
         C = GaussianCopula
@@ -21,8 +20,11 @@
         @test getmarginalmodel(dm) == pd
         @test getcopulatype(dm) == C
         @test getcorrelogram(dm) == Σ
+        @test duration(dm) == 1
+        @test all([params(dm)...] .≈ [1, 1, 0, .8, .5, 10., 1.])
 
         @test IDFCurves.getabstracttype(dm) == DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+        
 
     end
 
@@ -73,17 +75,17 @@
         @testset "construct_model(Type{<:DependentScalingModel})" begin
 
             abstract_model = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}
-            model = IDFCurves.construct_model(abstract_model, data, 1, [IDFCurves.map_to_real_space(SimpleScaling, [20, 5, .04, .76]); [0., 0.]])
+            model = IDFCurves.construct_model(abstract_model, 1, [IDFCurves.map_to_real_space(SimpleScaling, [20, 5, .04, .76]); [0., 0.]])
             @test typeof(getmarginalmodel(model)) <: SimpleScaling
             @test all( [params(getmarginalmodel(model))...] .≈ [20, 5, .04, .76] )
             @test IDFCurves.getcopulatype(model) == GaussianCopula
             @test typeof(getcorrelogram(model)) <: MaternCorrelationStructure
             @test all( [params(getcorrelogram(model))...] .≈ [1., 1.] )
 
-            @test_throws AssertionError IDFCurves.construct_model(abstract_model, data, 1, [0.,0.,0.,0.,0.,0.,0.,0.])
+            @test_throws AssertionError IDFCurves.construct_model(abstract_model, 1, [0.,0.,0.,0.,0.,0.,0.,0.])
 
             abstract_model = DependentScalingModel{GeneralScaling, ExponentialCorrelationStructure, TCopula{1}}
-            model = IDFCurves.construct_model(abstract_model, data, 1, [IDFCurves.map_to_real_space(GeneralScaling, [20, 5, .04, .76,.7]); [0.0]])
+            model = IDFCurves.construct_model(abstract_model, 1, [IDFCurves.map_to_real_space(GeneralScaling, [20, 5, .04, .76,.7]); [0.0]])
             @test typeof(getmarginalmodel(model)) <: GeneralScaling
             @test all( [params(getmarginalmodel(model))...] .≈ [20, 5, .04, .76, .7] )
             @test IDFCurves.getcopulatype(model) == TCopula{1}
@@ -91,6 +93,9 @@
             @test all( [params(getcorrelogram(model))...] .≈ [1.] )
 
         end
+
+        abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
+        fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
 
         @testset "fit_mle(::DependentScalingModel)" begin
 
@@ -109,8 +114,21 @@
         end
 
         @testset "hessian(::DependentScalingModel)" begin
-            #TODO
-            #TODO test when identity copula. Refer to results obtained with IDF.jl
+
+            pd = GeneralScaling(1, 1, 1, 0, .8, .5)
+            Σ = MaternCorrelationStructure(10., 1.)
+            C = GaussianCopula
+            dm = DependentScalingModel(pd, Σ, C)
+
+            H = IDFCurves.hessian(dm, data)
+            @test size(H,1) == 7
+            
+            H = IDFCurves.hessian(fd,data)
+            @test H ≈ [24.2687  -12.2383    49.9538    -66.4114;
+                -12.2383   41.7471    17.8326    -56.9225;
+                49.9538   17.8326  1364.59      695.963;
+                -66.4114  -56.9225   695.963   25166.9] rtol=.05
+
         end
 
         @testset "quantilevar(::DependentScalingModel)" begin

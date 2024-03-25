@@ -14,10 +14,16 @@
         @test cor.(C,[1, 2]) ≈ exp.(-[1, 2])
     end
 
-    @testset "map_to_param_space(::Type{<:ExponentialCorrelationStructure}, θ)" begin
+    @testset "construct_model(::Type{<:ExponentialCorrelationStructure}, θ)" begin
+
+        θ = [0., 0.]
+        @test_throws AssertionError IDFCurves.construct_model(ExponentialCorrelationStructure, θ)
         
         θ = [0.]
-        @test IDFCurves.map_to_param_space(ExponentialCorrelationStructure, θ) ≈ [1.]
+        cor_struct = IDFCurves.construct_model(ExponentialCorrelationStructure, θ)
+        @test cor_struct isa ExponentialCorrelationStructure
+        @test all([params(cor_struct)...] .≈  [1.])
+        
     end
 
     @testset "map_to_real_space(::Type{<:ExponentialCorrelationStructure}, θ)" begin

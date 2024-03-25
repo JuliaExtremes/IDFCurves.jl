@@ -79,7 +79,7 @@ function hessian(fd::MarginalScalingModel, data::IDFdata)
 
     T = eval(nameof(typeof(fd)))
 
-    fobj(θ) = -loglikelihood(T(d₀, θ...), data)
+    fobj(θ) = -loglikelihood(construct_model(T,d₀,map_to_real_space(T,θ)), data)
 
     H = Hermitian(ForwardDiff.hessian(fobj, θ̂))
 

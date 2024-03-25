@@ -23,10 +23,17 @@
         
     end
 
-    @testset "map_to_param_space(::Type{<:SimpleScaling}, θ)" begin
+    @testset "construct_model(::Type{<:SimpleScaling}, θ)" begin
+
+        θ = [1., 0., 0.]
+        @test_throws AssertionError IDFCurves.construct_model(SimpleScaling, 1, θ)
         
         θ = [1., 0., 0., 0.]
-        @test IDFCurves.map_to_param_space(SimpleScaling, θ) ≈ [1., 1., 0., .5]
+        pd = IDFCurves.construct_model(SimpleScaling, 1, θ)
+        @test pd isa SimpleScaling
+        @test duration(pd) == 1
+        @test all([params(pd)...] .≈  [1., 1., 0., .5])
+
     end
 
     @testset "map_to_real_space(::Type{<:SimpleScaling}, θ)" begin
