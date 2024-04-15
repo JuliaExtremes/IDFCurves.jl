@@ -105,7 +105,7 @@
 
             abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
             fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
-            @test [params(getmarginalmodel(fd))...] ≈ [18.13658321683213, 5.287438529290354, 0.04856483747914808, 0.6942332103996621] rtol = .1
+            @test [params(getmarginalmodel(fd))...] ≈ [18.13658321683213, 5.287438529290354, 0.04856483747914808, 0.6942332103996621] rtol = .01
             fd2 = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .0, .76])
             @test shape(getmarginalmodel(fd2)) != 0.0
 
@@ -127,18 +127,30 @@
             @test H ≈ [24.2687  -12.2383    49.9538    -66.4114;
                 -12.2383   41.7471    17.8326    -56.9225;
                 49.9538   17.8326  1364.59      695.963;
-                -66.4114  -56.9225   695.963   25166.9] rtol=.05
+                -66.4114  -56.9225   695.963   25166.9] rtol=.01
 
         end
 
+
         @testset "quantilevar(::DependentScalingModel)" begin
-            #TODO
-            #TODO test when identity copula. Refer to results obtained with IDF.jl
+
+            @test_throws AssertionError IDFCurves.quantilevar(fd, data, 0, 0.99)
+            @test_throws AssertionError IDFCurves.quantilevar(fd, data, 1, 1)
+
+            @test IDFCurves.quantilevar(fd, data, 1, 0.99) ≈ 3.573835142617284 rtol=.01
+
         end
 
         @testset "quantilecint(::DependentScalingModel)" begin
-            #TODO
-            #TODO test when identity copula. Refer to results obtained with IDF.jl
+
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 0, 0.99, 0.95)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 1, 0.95)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 0.99, 0)
+
+            q_cint = IDFCurves.quantilecint(fd, data, 1, 0.99, 0.05)
+            @test Distributions.mean(q_cint) ≈ IDFCurves.quantile( IDFCurves.getmarginalmodel(fd), 1, 0.99)
+            @test all( q_cint .≈ [41.68545615870751, 49.09591917590525] ) 
+            
         end
 
     end

@@ -189,31 +189,57 @@ end
 
 Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted model `pd` on the IDFdata `data`.      
 """
+# function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
+#     @assert 0<p<1 "the quantile level sould be in (0,1)."
+#     @assert d>0 "the duration should be positive."
+
+#     durations = getduration.(data, gettag(data))
+#     h = IDFCurves.logdist(durations)
+
+#     c = IDFCurves.getcormatrix(getcopula(pd))
+#     ρ̂ = -h[1,2]/log(c[1,2])
+
+#     scaling_model = typeof(IDFCurves.getmarginalmodel(pd))
+
+#     θ̂ = [collect(params(getmarginalmodel(pd))) ; ρ̂]
+#     d₀ = duration(getmarginalmodel(pd))
+
+#     H = hessian(pd, data)
+
+#     # quantile function
+#     g(θ::DenseVector{<:Real}) = quantile( scaling_model(d₀, θ[1:5]...), d, p)
+
+#     # gradient
+#     # ∇ = [ForwardDiff.gradient(g, θ̂)..., 0.]
+#     ∇ = ForwardDiff.gradient(g, θ̂)
+
+#     # Approximate variance computed with the delta method
+#     u = H\∇
+#     v = dot(∇, u)
+
+#     return v
+
+# end
 function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
+    @assert d>0 "the duration should be positive."
 
-    durations = getduration.(data, gettag(data))
-    h = IDFCurves.logdist(durations)
+    T = getabstracttype(pd)
 
-    c = IDFCurves.getcormatrix(getcopula(pd))
-    ρ̂ = -h[1,2]/log(c[1,2])
-
-    scaling_model = typeof(IDFCurves.getmarginalmodel(pd))
-
-    θ̂ = [collect(params(getmarginalmodel(pd))) ; ρ̂]
+    θ̂ = collect(params(pd))
     d₀ = duration(getmarginalmodel(pd))
 
-    H = hessian(pd, data)
-
     # quantile function
-    g(θ::DenseVector{<:Real}) = quantile( scaling_model(d₀, θ[1:5]...), d, p)
+    function g(θ::DenseVector{<:Real}) 
+        model = IDFCurves.construct_model(T, d₀, map_to_real_space(T, θ))
+        return quantile( getmarginalmodel(model), d, p)
+    end
 
     # gradient
-    # ∇ = [ForwardDiff.gradient(g, θ̂)..., 0.]
     ∇ = ForwardDiff.gradient(g, θ̂)
 
     # Approximate variance computed with the delta method
+    H = hessian(pd, data)
     u = H\∇
     v = dot(∇, u)
 
@@ -226,14 +252,14 @@ end
 """
     quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
 
-Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `p` for the duration `d`.
 """
 function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration sould be positive."
     @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
 
-    q̂ = quantile(IDFCurves.getmarginalmodel(pd), d, p)
+    q̂ = quantile( IDFCurves.getmarginalmodel(pd), d, p )
     v = quantilevar(pd, data, d, p)
 
     if v > 0
