@@ -28,6 +28,17 @@
 
     end
 
+    @testset "quantile(::DependentScalingModel)" begin
+        pd = GeneralScaling(1, 1, 1, 0, .8, .5)
+        Σ = MaternCorrelationStructure(10., 1.)
+        C = GaussianCopula
+
+        dm = DependentScalingModel(pd, Σ, C)
+        
+        @test quantile(dm, 2, .9) ≈ quantile(pd, 2, .9)
+        
+    end
+
     @testset "loglikelihood(::DependentScalingModel)" begin
         
         tags = ["1h", "2h"]

@@ -53,6 +53,20 @@ function getabstracttype(pd::DependentScalingModel)
     return DependentScalingModel{getmarginaltype(T), getcorrelogramtype(T), getcopulatype(T)}
 end
 
+
+"""
+    quantile(pd::DependentScalingModel, d::Real, p::Real)
+
+Compute the quantile of level `p` for the duration `d` of the scaling model `pd`. 
+"""
+function quantile(pd::DependentScalingModel, d::Real, p::Real)
+    @assert 0<p<1 "The quantile level p must be in (0,1)."
+    @assert d>0 "The duration must be positive."
+
+    return quantile( getmarginalmodel(pd), d, p)
+
+end
+
 function loglikelihood(pd::DependentScalingModel, data)
 
     tags = gettag(data)
@@ -189,37 +203,6 @@ end
 
 Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted model `pd` on the IDFdata `data`.      
 """
-# function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
-#     @assert 0<p<1 "the quantile level sould be in (0,1)."
-#     @assert d>0 "the duration should be positive."
-
-#     durations = getduration.(data, gettag(data))
-#     h = IDFCurves.logdist(durations)
-
-#     c = IDFCurves.getcormatrix(getcopula(pd))
-#     ρ̂ = -h[1,2]/log(c[1,2])
-
-#     scaling_model = typeof(IDFCurves.getmarginalmodel(pd))
-
-#     θ̂ = [collect(params(getmarginalmodel(pd))) ; ρ̂]
-#     d₀ = duration(getmarginalmodel(pd))
-
-#     H = hessian(pd, data)
-
-#     # quantile function
-#     g(θ::DenseVector{<:Real}) = quantile( scaling_model(d₀, θ[1:5]...), d, p)
-
-#     # gradient
-#     # ∇ = [ForwardDiff.gradient(g, θ̂)..., 0.]
-#     ∇ = ForwardDiff.gradient(g, θ̂)
-
-#     # Approximate variance computed with the delta method
-#     u = H\∇
-#     v = dot(∇, u)
-
-#     return v
-
-# end
 function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration should be positive."
@@ -232,7 +215,7 @@ function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
     # quantile function
     function g(θ::DenseVector{<:Real}) 
         model = IDFCurves.construct_model(T, d₀, map_to_real_space(T, θ))
-        return quantile( getmarginalmodel(model), d, p)
+        return quantile(model, d, p)
     end
 
     # gradient
@@ -259,7 +242,7 @@ function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real
     @assert d>0 "the duration sould be positive."
     @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
 
-    q̂ = quantile( IDFCurves.getmarginalmodel(pd), d, p )
+    q̂ = quantile(pd, d, p )
     v = quantilevar(pd, data, d, p)
 
     if v > 0
