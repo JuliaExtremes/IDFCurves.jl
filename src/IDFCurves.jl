@@ -37,6 +37,6 @@ export
     cor,
 
     #plots
-    qqplot, qqplotci
+    qqplot, qqplotci, plotIDFCurves
 
 end
