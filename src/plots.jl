@@ -123,8 +123,14 @@ end
 Les fonctions suivantes servent à représenter les courbes IDF à partir d'un modèle de scaling.
 """
 
+"""
+    get_durations_labels(durations::Vector{<:Real})
+
+Returns a vector of labels (String) based on a vector of durations.
+The returned vector contains the labels whiwh will appear on the x-axis wwhen plotting the IDF curve.
+
+"""
 function get_durations_labels(durations::Vector{<:Real})
-    """Returns a vector of strings that wll be the labels given to the durations on the x-axis of the plotted IDF curve"""
 
     durations = sort(durations)
     durations_lower_1h = durations[durations .< 1]
@@ -154,7 +160,116 @@ function get_durations_labels(durations::Vector{<:Real})
     
 end
 
+
+"""
+get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, durations_range::Vector{<:Real})
+
+Returns the layers associated to the IDF curves based on the given mode, for each return period in T_values.
+"""
+function get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, durations_range::Vector{<:Real})
+
+    data_return_levels = crossjoin( DataFrame(T = T_values),  DataFrame(d = durations_range) )
+    transform!(data_return_levels, [:T, :d] => ((x,y) -> quantile.(Ref(model), y, 1 .- 1 ./ x)) => :return_level)
+
+    layers = []
+    for T in reverse(T_values)
+        data = data_return_levels[data_return_levels[:,:T] .== T, :]
+        push!(layers, layer(data, x = :d, y = :return_level, color = :T, Geom.line()))
+    end
+
+    return layers
+
+end
+
+
+"""
+plotIDFCurves(model::DependentScalingModel; ...)
+
+Pots the IDF curves based on the given model. Durations and return periods may be chosen by the user but have default values.
+"""
 function plotIDFCurves(model::DependentScalingModel; 
+        T_values::Vector{<:Real}=[2,5,10,25,50,100],
+        durations::Vector{<:Real}=[1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24],
+        d_min::Union{Real, Nothing} = nothing,
+        d_max::Union{Real, Nothing} = nothing,
+        y_ticks::Union{Vector{<:Real}, Nothing} = nothing,
+        palette::Union{Vector{<:Any}, Nothing} = nothing)
+
+    if isnothing(d_min)
+        d_min = minimum(durations)
+    end
+    if isnothing(d_max)
+        d_max = maximum(durations)
+    end
+    durations = [ [d_min] ; durations[d_min .< durations .&& durations .< d_max] ; [d_max ]]
+
+    T_values = sort(T_values)
+    durations = sort(durations)
+    
+    d_step = d_min/10
+    layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max))
+
+    labels = get_durations_labels(durations)
+    f_label(x) = labels[durations .≈ exp(x)][1]
+    palette = [Scale.color_continuous().f((2*i-1)/(2*length(T_values))) for i in eachindex(T_values)]
+
+    if isnothing(y_ticks)
+        y_ticks = range(log(.9 * quantile(model, d_max, 1 - 1 / T_values[1])), log(1.1 * quantile(model, d_min, 1 - 1 / T_values[end])), 6)
+    end
+
+    p = plot(layers..., Scale.x_log(labels = f_label), Scale.y_log(labels = y -> "$(round(exp(y)))"),
+        Scale.color_discrete_manual(palette...),
+        Guide.xticks(ticks = log.(durations)),
+        Guide.yticks(ticks = y_ticks),
+        Guide.xlabel("Rainfall duration"),
+        Guide.ylabel("Rainfall intensity (mm/h)"),
+        Guide.colorkey(title="Return period T (years)"),
+        Theme(line_width = 1.5pt, point_size = 4pt, major_label_font_size = 15pt, 
+            key_label_font_size = 12pt, key_title_font_size  =15pt, minor_label_font_size = 12pt)
+        )
+
+    return p
+
+end
+
+
+"""
+get_layers_pointwise_estimations(model::DependentScalingModel, T_values::Vector{<:Real}, durations::Vector{<:Real})
+
+Returns the layers associated to pointwise estimations of the return levels at the differents durations, for every return period in T_values.
+"""
+function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real})
+
+    data_return_levels = DataFrame(T = Float64[], d = Float64[], return_level = Float64[])
+    for d in durations
+        try # if the duration is not in the data, then it is skipped
+            fm = Extremes.gevfit(getdata(data, gettag(data,d)))
+            for T in T_values
+                push!(data_return_levels, [T, d, quantile(fm, 1 - 1/T)[1]])
+            end
+        catch e
+            continue
+        end
+    end
+
+    layers = []
+    for T in reverse(T_values)
+        data = data_return_levels[data_return_levels[:,:T] .== T, :]
+        push!(layers, layer(data, x = :d, y = :return_level, color = :T, shape=[Shape.xcross], Geom.point()))
+    end
+
+    return layers
+
+end
+
+
+"""
+plotIDFCurves(model::DependentScalingModel; ...)
+
+Pots the IDF curves based on the given model. Pointwise estimations are added (crosses) to illustrate the fitting.
+Durations and return periods may be chosen by the user but have default values.
+"""
+function plotIDFCurves(model::DependentScalingModel, data::IDFdata; 
         T_values::Vector{<:Real}=[2,5,10,25,50,100],
         durations::Vector{<:Real}=[1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24],
         d_min::Union{Real, Nothing} = nothing,
@@ -169,38 +284,32 @@ function plotIDFCurves(model::DependentScalingModel;
     end
     durations = [ [d_min] ; durations[d_min .< durations .&& durations .< d_max] ; [d_max ]]
 
-    d_step = d_min/10
-
     T_values = sort(T_values)
     durations = sort(durations)
-
-    data_return_levels = crossjoin( DataFrame(T = T_values),  DataFrame(d = d_min:d_step:d_max) )
-    transform!(data_return_levels, [:T, :d] => ((x,y) -> quantile.(Ref(model), y, 1 .- 1 ./ x)) => :return_level)
-
-    layers = []
-    for T in reverse(T_values)
-        data = data_return_levels[data_return_levels[:,:T] .== T, :]
-        push!(layers, layer(data, x = :d, y = :return_level, color = :T, Geom.line()))
-    end
+    
+    d_step = d_min/10
+    layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max))
+    
+    append!(layers, get_layers_pointwise_estimations(data, T_values, durations))
 
     labels = get_durations_labels(durations)
     f_label(x) = labels[durations .≈ exp(x)][1]
     palette = [Scale.color_continuous().f((2*i-1)/(2*length(T_values))) for i in eachindex(T_values)]
 
     if isnothing(y_ticks)
-    y_ticks = range(log(minimum(data_return_levels[:,:return_level])), log(maximum(data_return_levels[:,:return_level])), 6)
+        y_ticks = range(log(.9 * quantile(model, d_max, 1 - 1 / T_values[1])), log(1.1 * quantile(model, d_min, 1 - 1 / T_values[end])), 6)
     end
 
     p = plot(layers..., Scale.x_log(labels = f_label), Scale.y_log(labels = y -> "$(round(exp(y)))"),
-    Scale.color_discrete_manual(palette...),
-    Guide.xticks(ticks = log.(durations)),
-    Guide.yticks(ticks = y_ticks),
-    Guide.xlabel("Rainfall duration"),
-    Guide.ylabel("Rainfall intensity (mm/h)"),
-    Guide.colorkey(title="Return period T (years)"),
-    Theme(line_width = 1.5pt, point_size = 4pt, major_label_font_size = 15pt, 
-        key_label_font_size = 12pt, key_title_font_size  =15pt, minor_label_font_size = 12pt)
-    )
+        Scale.color_discrete_manual(palette...),
+        Guide.xticks(ticks = log.(durations)),
+        Guide.yticks(ticks = y_ticks),
+        Guide.xlabel("Rainfall duration"),
+        Guide.ylabel("Rainfall intensity (mm/h)"),
+        Guide.colorkey(title="Return period T (years)"),
+        Theme(line_width = 1.5pt, point_size = 4pt, major_label_font_size = 15pt, 
+            key_label_font_size = 12pt, key_title_font_size  =15pt, minor_label_font_size = 12pt)
+        )
 
     return p
 
