@@ -12,6 +12,18 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 
+
+# courant
+
+
+abstract_model = DependentScalingModel{GeneralScaling, UncorrelatedStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76, 0.1]) 
+
+plotIDFCurves(fd, data)
+plotIDFCurves(fd, data, show_confidence_intervals = true)
+plotIDFCurves(fd, data, show_confidence_intervals = true, T_values=[2,5,100], d_min = 1/60, d_max = 12)
+
+
 # Tests sur l'estimation
 
 # On ne peut pas utiliser la différentitation automatique avec une copule de Student
@@ -25,10 +37,13 @@ IDFCurves.hessian(fd, data) # bug # Crée bug
 # Tests sur l'initialisation :
 
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76]) # renvoie résultats
-fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie erreur
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie meme resultat que le premier
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) # renvoie résultat où ξ=0
-fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) # renvoie résultat où ξ=0
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) # renvoie erreur
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e6*eps(), .76]) # renvoie même résultat que le premier
+
+
+# Jonathan :
 
 Distributions.score(GeneralizedExtremeValue(0,1,0))
 
