@@ -131,7 +131,7 @@ end
 
 function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real})
 
-    if initialvalues[3] == 0.0 # the shape parameter can't be initalized at 0.0
+    if abs(initialvalues[3]) < 0.0001 # the shape parameter can't be initalized at 0.0
         initialvalues[3] = 0.0001
     end
 
@@ -160,6 +160,7 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
     res = nothing
     try 
         res = Optim.optimize(fobj, grad_fobj, hessian_fobj, θ₀)
+        @assert Optim.converged(res)
     catch e
         println("Gradient-descent algorithm could not converge - trying gradient-free optimization")
         res = Optim.optimize(fobj, θ₀)
