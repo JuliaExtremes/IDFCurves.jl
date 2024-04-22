@@ -13,15 +13,19 @@ data = IDFdata(df, "Year", duration_dict)
 
 
 
-# courant
+# courant (initialisation automatique)
+
+IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
+IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .0]) # δ stays at 0
+IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .00000001]) # ok
 
 
-abstract_model = DependentScalingModel{GeneralScaling, UncorrelatedStructure, GaussianCopula}
-fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76, 0.1]) 
 
-plotIDFCurves(fd, data)
-plotIDFCurves(fd, data, show_confidence_intervals = true)
-plotIDFCurves(fd, data, show_confidence_intervals = true, T_values=[2,5,100], d_min = 1/60, d_max = 12)
+pd = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}
+IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 1, 1]) # tout se passe bien
+IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, .1, .1]) # descente de gradient ne fonctionne pas, optim avec gradient OK
+IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, .01, .01]) # pas OK : on ne trouve pas l'EMV !
+
 
 
 # Tests sur l'estimation
@@ -33,7 +37,6 @@ fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76]) # Passe à l'
 IDFCurves.hessian(fd, data) # bug # Crée bug 
 
 
-
 # Tests sur l'initialisation :
 
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76]) # renvoie résultats
@@ -41,7 +44,7 @@ fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie 
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) # renvoie résultat où ξ=0
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) # renvoie erreur
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e6*eps(), .76]) # renvoie même résultat que le premier
-
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 0., .76]) # renvoie même résultat que le premier
 
 # Jonathan :
 
