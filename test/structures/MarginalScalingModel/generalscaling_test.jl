@@ -129,6 +129,17 @@
                 
         data = IDFdata(df, "Year", duration_dict)
 
+        @testset "initialize(::GeneralScaling)" begin
+            
+            init_vector = initialize(GeneralScaling, data, 1)
+            @test length(init_vector) == 5
+            @test init_vector[5] ≈ 0.
+
+            init_vector_SS = initialize(SimpleScaling, data, 1)
+            @test init_vector[1:4] ≈ init_vector_SS
+            
+        end
+
         fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
 
         @testset "fit_mle(::GeneralScaling)" begin

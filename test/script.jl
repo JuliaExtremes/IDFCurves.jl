@@ -10,15 +10,20 @@ h = IDFCurves.logdist(durations)
 duration_dict = Dict(zip(tags, durations))
     
 data = IDFdata(df, "Year", duration_dict)
-
+getyear(data, "5min")
 
 
 # courant (initialisation automatique)
 
+d₀ = 24
+
+initialize(SimpleScaling, data, d₀)
+initialize(GeneralScaling, data, d₀)
+initialize(GeneralScaling, data, 1)
+
 IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
 IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .0]) # δ stays at 0
 IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .00000001]) # ok
-
 
 
 pd = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}

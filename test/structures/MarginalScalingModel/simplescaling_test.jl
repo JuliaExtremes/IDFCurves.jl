@@ -129,6 +129,18 @@
                 
         data = IDFdata(df, "Year", duration_dict)
 
+        @testset "initialize(::SimpleScaling)" begin
+            
+            init_vector = initialize(SimpleScaling, data, 24)
+            @test length(init_vector) == 4
+            @test init_vector ≈ [1.82042, 0.50181, 0.0, 0.7257] rtol=.1
+
+            init_vector2 = initialize(SimpleScaling, data, 1)
+            @test init_vector2[4] ≈ init_vector[4] 
+            @test log(init_vector2[1]) ≈ log(24)*init_vector2[4] + log(init_vector[1])
+
+        end
+
         fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
 
         @testset "fit_mle(::SimpleScaling)" begin
