@@ -133,7 +133,7 @@
             
             init_vector = initialize(GeneralScaling, data, 1)
             @test length(init_vector) == 5
-            @test init_vector[5] ≈ 0.
+            @test init_vector[5] ≈ 0.001
 
             init_vector_SS = initialize(SimpleScaling, data, 1)
             @test init_vector[1:4] ≈ init_vector_SS
