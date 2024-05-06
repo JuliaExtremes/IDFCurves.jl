@@ -177,3 +177,35 @@ function Base.show(io::IO, obj::IDFdata)
         println(io, prefix, tag, ": ", typeof(getdata(obj, tag)), "[", length(getdata(obj,tag)), "]" )
     end
 end
+
+
+"""
+    getKendalldata(obj::IDFdata)
+
+Computes the Kendall tau for each pair of durations for which obj contains data,
+    and returns them in a DataFrame
+
+"""
+function getKendalldata(obj::IDFdata)
+
+    df_kendall = DataFrame(distance = Float64[], kendall = Float64[])
+    
+    for c in combinations(gettag(obj),2)
+    
+        d₁ = getduration(obj, c[1])
+        d₂ = getduration(obj, c[2])
+        
+        h = IDFCurves.logdist(d₁, d₂)
+        
+        y₁ = getdata(obj, c[1])
+        y₂ = getdata(obj, c[2])
+        
+        τ = corkendall(y₁, y₂)
+        
+        push!(df_kendall, [h, τ])
+        
+    end
+
+    return df_kendall
+
+end
