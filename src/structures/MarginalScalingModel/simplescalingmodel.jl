@@ -143,7 +143,7 @@ The initialization is done by fitting a Gumbel distribution independently for ea
 """
 function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
     
-    # étape 1 : on obtient les paramètres Gumbel séparément pour chaque durée.
+    # step 1 : computing Gumbel parameters separately for each duration
     log_μ_values = Dict{String, Real}()
     log_σ_values = Dict{String, Real}()
     duration_tags = gettag(data)
@@ -153,7 +153,7 @@ function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
         log_σ_values[tag] = fm.θ̂[2]
     end
 
-    # étape 2 : on calcule μ_d₀, σ_d₀ et α par régression
+    # step 2 : computing μ_d₀, σ_d₀ et α using regression
     regression_data = DataFrame(is_μ_value = Bool[], is_σ_value = Bool[], log_d = Float64[], param_value = Float64[])
     for tag in duration_tags
         push!(regression_data, [true, false, log(getduration(data, tag) / d₀), log_μ_values[tag]])

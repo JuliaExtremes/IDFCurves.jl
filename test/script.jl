@@ -1,6 +1,6 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats
+using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats, GeoStats
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
@@ -15,22 +15,32 @@ getyear(data, "5min")
 
 # courant (initialisation automatique)
 
-d₀ = 24
 
-initialize(SimpleScaling, data, d₀)
-initialize(GeneralScaling, data, d₀)
-initialize(GeneralScaling, data, 1)
+initialize(ExponentialCorrelationStructure, data)
 
-IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
-IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .0]) # δ stays at 0
-IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .00000001]) # ok
 
+initialize(MaternCorrelationStructure, data)
+
+pd = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 1]) # tout se passe bien
+
+collect(params(fd))
+collect(params(getcorrelogram(fd)))
+
+ρ(h) = cor( getcorrelogram(fd), h)
+
+layer1 = layer(ρ, 0, 6, Theme(default_color = "red"))
+layer2 = layer(kendall_data, x=:distance, y=:kendall)
+plot(layer1, layer2)
 
 pd = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}
-IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 1, 1]) # tout se passe bien
-IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, .1, .1]) # descente de gradient ne fonctionne pas, optim avec gradient OK
-IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, .01, .01]) # pas OK : on ne trouve pas l'EMV !
+fd = IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 1, 1]) # tout se passe bien
 
+ρ(h) = cor( getcorrelogram(fd), h)
+
+layer1 = layer(ρ, 0, 6, Theme(default_color = "red"))
+layer2 = layer(kendall_data, x=:distance, y=:kendall)
+plot(layer1, layer2)
 
 
 # Tests sur l'estimation
