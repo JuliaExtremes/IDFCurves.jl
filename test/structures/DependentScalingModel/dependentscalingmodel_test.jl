@@ -118,21 +118,36 @@
         end
 
         abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
+        init_vector = initialize(abstract_model, data, 1)
         fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
 
-        @testset "fit_mle(::DependentScalingModel)" begin
+        @testset "fit_mle(::DependentScalingModel, data, d₀, initialvalues)" begin
 
             abstract_model = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
             @test_throws AssertionError IDFCurves.fit_mle(abstract_model, data, 1, [0, 1, 0.1, .76, 1, 1])
             @test_throws AssertionError IDFCurves.fit_mle(abstract_model, data, 1, [0, 1, -0.1, .76, 1])
 
-            abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
-            fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
             @test [params(getmarginalmodel(fd))...] ≈ [18.13658321683213, 5.287438529290354, 0.04856483747914808, 0.6942332103996621] rtol = .01
+
+            abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
             fd2 = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .0, .76])
             @test shape(getmarginalmodel(fd2)) != 0.0
+            init_vector = initialize(abstract_model, data, 1)
 
             #TODO test when xi is initialized close to 0
+
+        end
+
+        @testset "fit_mle(::DependentScalingModel, data, d₀s)" begin
+
+            abstract_model = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
+
+            init_vector = initialize(abstract_model, data, 1)
+
+            fd3 = IDFCurves.fit_mle(abstract_model, data, 1, init_vector)
+            fd4 = IDFCurves.fit_mle(abstract_model, data, 1)
+
+            @test [params(getmarginalmodel(fd3))...] ≈ [params(getmarginalmodel(fd4))...]
 
         end
 

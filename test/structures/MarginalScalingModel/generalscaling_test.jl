@@ -140,12 +140,19 @@
 
         fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
 
-        @testset "fit_mle(::GeneralScaling)" begin
+        @testset "fit_mle(::GeneralScaling, data, d₀, initialvalues)" begin
 
             @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
             fd2 = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .0, .76, .07])
             @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
             @test shape(fd2) != 0.0
+
+        end
+
+        @testset "fit_mle(::GeneralScaling, data, d₀)" begin
+
+            fd3 = IDFCurves.fit_mle(GeneralScaling, data, 1)
+            @test [params(fd3)...] ≈ [params(fd)...] rtol=.1
 
         end
 

@@ -193,6 +193,18 @@ function initialize(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real
     return [init_scaling_params ; init_corr_params]
 end
 
+"""
+    fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real)
+
+Fits a DependentScalingModel of type pd to the data using automatic initialization.
+"""
+function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real)
+
+    initialvalues = initialize(pd, data, d₀)
+
+    return fit_mle(pd, data, d₀, initialvalues)
+
+end
 
 """
 
