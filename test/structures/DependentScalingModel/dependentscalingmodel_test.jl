@@ -76,12 +76,24 @@
     @testset "fitting a dependent scaling model" begin
 
         df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
-            
         tags = names(df)[2:10]
         durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
         duration_dict = Dict(zip(tags, durations))
-                
         data = IDFdata(df, "Year", duration_dict)
+
+        @testset "initialize(Type{<:DependentScalingModel}, data, d₀)" begin
+            
+            abstract_model = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}
+
+            init_vector = initialize(abstract_model, data, 1)
+            init_scaling_model = initialize(SimpleScaling, data, 1)
+            init_corr_structure = initialize(MaternCorrelationStructure, data)
+
+            @test length(init_vector) == length(init_scaling_model) + length(init_corr_structure)
+            @test all( init_vector[1:length(init_scaling_model)] .≈ init_scaling_model )
+            @test all( init_vector[(length(init_scaling_model)+1):end] .≈ init_corr_structure )
+
+        end
 
         @testset "construct_model(Type{<:DependentScalingModel})" begin
 

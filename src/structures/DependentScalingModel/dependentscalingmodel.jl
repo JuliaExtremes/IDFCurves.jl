@@ -162,7 +162,6 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
         res = Optim.optimize(fobj, grad_fobj, hessian_fobj, θ₀)
         @assert Optim.converged(res)
     catch e
-        println("Gradient-descent algorithm could not converge - trying gradient-free optimization")
         res = Optim.optimize(fobj, θ₀)
     end
 
@@ -175,6 +174,23 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
 
     return model(θ̂)
 
+end
+
+"""
+    initialize(::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real)
+
+Initialize a vector of parameters for the DependentScalingmodel adapted to the data.
+The initialization is done independently for the marginal scaling model and the correlation structure.
+"""
+function initialize(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real)
+
+    scaling_model = IDFCurves.getmarginaltype(pd)
+    correlogram_model = IDFCurves.getcorrelogramtype(pd)
+
+    init_scaling_params = initialize(scaling_model, data, d₀)
+    init_corr_params = initialize(correlogram_model, data)
+
+    return [init_scaling_params ; init_corr_params]
 end
 
 

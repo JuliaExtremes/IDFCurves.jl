@@ -21,8 +21,10 @@ initialize(ExponentialCorrelationStructure, data)
 
 initialize(MaternCorrelationStructure, data)
 
-pd = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
-fd = IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 1]) # tout se passe bien
+kendall_data = IDFCurves.getKendalldata(data)
+
+pd = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 0.1, 1, 1]) # tout se passe bien
 
 collect(params(fd))
 collect(params(getcorrelogram(fd)))

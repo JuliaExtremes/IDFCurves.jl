@@ -183,12 +183,12 @@ end
     getKendalldata(obj::IDFdata)
 
 Computes the Kendall tau for each pair of durations for which obj contains data,
-    and returns them in a DataFrame
+    and returns them in a DataFrame.
 
 """
 function getKendalldata(obj::IDFdata)
 
-    df_kendall = DataFrame(distance = Float64[], kendall = Float64[])
+    df_kendall = DataFrame(tag1 = String[], tag2 = String[], distance = Float64[], kendall = Float64[])
     
     for c in combinations(gettag(obj),2)
     
@@ -202,7 +202,7 @@ function getKendalldata(obj::IDFdata)
         
         τ = corkendall(y₁, y₂)
         
-        push!(df_kendall, [h, τ])
+        push!(df_kendall, [c[1], c[2], h, τ])
         
     end
 

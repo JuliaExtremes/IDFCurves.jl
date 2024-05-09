@@ -46,7 +46,7 @@ function map_to_real_space(::Type{<:ExponentialCorrelationStructure}, θ::Abstra
 end
 
 """
-    initialize(::Type{<:ExponentialCorrelationStructure}, data::IDFdata, d₀::Real)
+    initialize(::Type{<:ExponentialCorrelationStructure}, data::IDFdata)
 
 Initialize a vector of parameters for the ExponentialCorrelationStructure adapted to the data.
 The initialization is done by fitting the correlation function to the Kendall's Tau (measure of correlation) associated to each pair of durations.
@@ -55,6 +55,7 @@ function initialize(::Type{<:ExponentialCorrelationStructure}, data::IDFdata)
 
     # Kendall's Tau for each pair of durations
     kendall_data = IDFCurves.getKendalldata(data)
+    transform!(kendall_data, :kendall => (x -> sin.(pi / 2 .* x)) => :kendall)
 
     # The function to be optimized takes as argument a vector of size 1 containing the value (transformed into real space) of the correlation parameter, 
     # and returns the squared error associated with the approximation of the empirical Kendall's Tau by the theoretical exponential correlation with this parameter.

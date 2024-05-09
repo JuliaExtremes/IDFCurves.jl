@@ -76,6 +76,27 @@
         @test getdata(data, "secondduration") ≈ [3., 1.]
     
     end
+
+    df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
+    tags = names(df)[2:10]
+    durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+    duration_dict = Dict(zip(tags, durations))
+    s = IDFdata(df, "Year", duration_dict)
+
+    @testset "getKendalldata(::IDFdata)" begin
+        
+        kendall_data = IDFCurves.getKendalldata(s)
+
+        @test names(kendall_data) == ["tag1", "tag2", "distance", "kendall"]
+        @test size(kendall_data, 1) ≈ length(gettag(s)) * ( length(gettag(s)) - 1 ) / 2
+
+        row = kendall_data[3,:]
+        d1, d2 = getduration(s, row[:tag1]), getduration(s, row[:tag2])
+        @test row[:distance] ≈ IDFCurves.logdist(d1, d2)
+        y1, y2 = getdata(s, row[:tag1]), getdata(s, row[:tag2])
+        @test row[:kendall] ≈ IDFCurves.corkendall(y1, y2)
+    
+    end
     
 end
 
