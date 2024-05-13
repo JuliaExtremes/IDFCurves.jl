@@ -193,7 +193,7 @@ function hessian(pd::DependentScalingModel, data::IDFdata)
 
     H = ForwardDiff.hessian(fobj, θ̂)
 
-    return H
+    return PDMat(Symmetric(H))
 
 end
 
@@ -218,13 +218,9 @@ function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
         return quantile(model, d, p)
     end
 
-    # gradient
-    ∇ = ForwardDiff.gradient(g, θ̂)
-
-    # Approximate variance computed with the delta method
     H = hessian(pd, data)
-    u = H\∇
-    v = dot(∇, u)
+
+    v = Extremes.delta(g, θ̂, H)
 
     return v
 

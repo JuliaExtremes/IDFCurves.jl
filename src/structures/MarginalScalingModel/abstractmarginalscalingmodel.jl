@@ -81,7 +81,9 @@ function hessian(fd::MarginalScalingModel, data::IDFdata)
 
     fobj(θ) = -loglikelihood(construct_model(T,d₀,map_to_real_space(T,θ)), data)
 
-    H = Hermitian(ForwardDiff.hessian(fobj, θ̂))
+    H = ForwardDiff.hessian(fobj, θ̂)
+
+    return PDMat(Symmetric(H))
 
 end
 
@@ -104,12 +106,7 @@ function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
     # quantile function
     g(θ::DenseVector{<:Real}) = quantile(T(d₀, θ...), d, p)
 
-    # gradient
-    ∇ = ForwardDiff.gradient(g, θ̂)
-
-    # Approximate variance computed with the delta method
-    u = H\∇
-    v = dot(∇, u)
+    v = Extremes.delta(g, θ̂, H)
 
     return v
 
