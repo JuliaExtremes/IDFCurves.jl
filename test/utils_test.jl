@@ -80,3 +80,29 @@ end
     @test IDFCurves.quantile_ad(TDist(5), .6) ≈ 0.26718086570414507
     @test IDFCurves.quantile_ad(TDist(5), .95) ≈ 2.015048373333023
 end
+
+g(θ::DenseVector{<:Real}) = θ[1]^2 + (θ[2] - 1)^2
+θ₀ = [.5, .5]
+
+@testset "compute_derivatives(:Function)" begin
+    grad = [0,0]
+    hess = [0 0 ; 0 0]
+
+    grad_f, hess_f = IDFCurves.compute_derivatives(g)
+
+    grad_f(grad, θ₀)
+    @test all( grad .≈ [1, -1] )
+    hess_f(hess, θ₀)
+    @test all( hess .≈ [2 0 ; 0 2] )
+
+end
+
+@testset "perform_optimization(:Function)" begin
+    
+    θ̂ = IDFCurves.perform_optimization(g, θ₀)
+    @test all( θ̂ .≈ [0, 1] )
+
+    g2(θ::DenseVector{<:Real}) = - θ[1]^2
+    @test_warn "my_message" IDFCurves.perform_optimization(g2, θ₀, warn_message = "my_message")
+
+end

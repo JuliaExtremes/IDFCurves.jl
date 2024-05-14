@@ -118,21 +118,6 @@ function matern(d::Real, ν::T where T, ρ::T where T)
     return c
 
 end
-# function matern(d::Real, ν::Real, ρ::Real)
-#     @assert d ≥ 0 "distance must be non-negative."
-#     @assert ν > 0 "ν must be positive."
-#     @assert ρ > 0 "ρ must be positive."
-
-#     if d ≈ 0.
-#         lc = 0.
-#     else
-#         lc = (1-ν)*log(2) - SpecialFunctions.loggamma(ν) + ν*log(sqrt(2*ν)*d/ρ)+log(SpecialFunctions.besselk(ν,sqrt(2*ν)*d/ρ))
-#     end
-
-#     return exp(lc)
-
-# end
-
 
 """
     logdist(x₁::Real, x₂::Real)
@@ -279,4 +264,63 @@ function quantile_TDist_ltail(pd::TDist, p::Real)
     q = quantile_TDist_rtail(pd, 1-p)
 
     return -q
+end
+
+
+
+"""
+    compute_derivatives(g::function)
+
+Computes and returns the functions associated to the gradient and the hessian of function g. Those functions are compatible with Optim.jl.
+"""
+function compute_derivatives(g::Function)
+
+    function grad_g(G, θ)
+        grad = ForwardDiff.gradient(g, θ)
+        for i in eachindex(G)
+            G[i] = grad[i]
+        end
+    end
+    function hessian_g(H, θ)
+        hess = ForwardDiff.hessian(g, θ)
+        for i in axes(H,1)
+            for j in axes(H,2)
+                H[i,j] = hess[i,j]
+            end
+        end
+    end
+
+    return grad_g, hessian_g
+
+end
+
+"""
+    perform_optimization(fobj::function, θ₀::DenseVector{<:Real}; warn_message::String)
+
+Performs the minimization of fobj, using Optim.jl and the derivatives computed with compute_derivatives(fobj). Returns the minimizer.
+A warning message is sent if optimization does not succeed.
+"""
+function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real}; 
+                        warn_message::String = "Optimization did not succeed. Returning the initial vector.")
+
+    grad_fobj, hessian_fobj = compute_derivatives(fobj)
+
+    # optimization
+    res = nothing
+    try 
+        res = Optim.optimize(fobj, grad_fobj, hessian_fobj, θ₀)
+        @assert Optim.converged(res)
+    catch e
+        res = Optim.optimize(fobj, θ₀)
+    end
+
+    if Optim.converged(res)
+        θ̂ = Optim.minimizer(res)
+    else
+        @warn warn_message
+        θ̂ = θ₀
+    end
+
+    return θ̂
+
 end
