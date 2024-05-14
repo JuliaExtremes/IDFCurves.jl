@@ -1,6 +1,6 @@
 using IDFCurves, Test
 
-using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats
+using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats, GeoStats
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
@@ -10,18 +10,39 @@ h = IDFCurves.logdist(durations)
 duration_dict = Dict(zip(tags, durations))
     
 data = IDFdata(df, "Year", duration_dict)
+getyear(data, "5min")
 
 
+# courant (initialisation automatique)
 
-# courant
+
+initialize(ExponentialCorrelationStructure, data)
 
 
-abstract_model = DependentScalingModel{GeneralScaling, UncorrelatedStructure, GaussianCopula}
-fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76, 0.1]) 
+initialize(MaternCorrelationStructure, data)
 
-plotIDFCurves(fd, data)
-plotIDFCurves(fd, data, show_confidence_intervals = true)
-plotIDFCurves(fd, data, show_confidence_intervals = true, T_values=[2,5,100], d_min = 1/60, d_max = 12)
+kendall_data = IDFCurves.getKendalldata(data)
+
+pd = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 0.1, 1, 1]) # tout se passe bien
+
+collect(params(fd))
+collect(params(getcorrelogram(fd)))
+
+ρ(h) = cor( getcorrelogram(fd), h)
+
+layer1 = layer(ρ, 0, 6, Theme(default_color = "red"))
+layer2 = layer(kendall_data, x=:distance, y=:kendall)
+plot(layer1, layer2)
+
+pd = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}
+fd = IDFCurves.fit_mle(pd, data, 1, [20, 5, .04, .76, 1, 1]) # tout se passe bien
+
+ρ(h) = cor( getcorrelogram(fd), h)
+
+layer1 = layer(ρ, 0, 6, Theme(default_color = "red"))
+layer2 = layer(kendall_data, x=:distance, y=:kendall)
+plot(layer1, layer2)
 
 
 # Tests sur l'estimation
@@ -33,7 +54,6 @@ fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76]) # Passe à l'
 IDFCurves.hessian(fd, data) # bug # Crée bug 
 
 
-
 # Tests sur l'initialisation :
 
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76]) # renvoie résultats
@@ -41,7 +61,7 @@ fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 2*eps(), .76]) # renvoie 
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1000*eps(), .76]) # renvoie résultat où ξ=0
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e5*eps(), .76]) # renvoie erreur
 fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 1e6*eps(), .76]) # renvoie même résultat que le premier
-
+fm = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 0., .76]) # renvoie même résultat que le premier
 
 # Jonathan :
 

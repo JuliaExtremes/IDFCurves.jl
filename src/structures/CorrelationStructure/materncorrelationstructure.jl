@@ -54,3 +54,61 @@ function map_to_real_space(::Type{<:MaternCorrelationStructure}, θ::AbstractVec
     return [log(θ[1]), log(θ[2])]
 
 end
+
+"""
+    initialize(::Type{<:MaternCorrelationStructure}, data::IDFdata)
+
+Initialize a vector of parameters for the MaternCorrelationStructure adapted to the data.
+The initialization is done by fitting the correlation function to the Kendall's Tau (measure of correlation) associated to each pair of durations.
+"""
+function initialize(::Type{<:MaternCorrelationStructure}, data::IDFdata)
+
+    # Kendall's Tau for each pair of durations
+    kendall_data = IDFCurves.getKendalldata(data)
+    transform!(kendall_data, :kendall => (x -> sin.(pi / 2 .* x)) => :kendall)
+
+    # The function to be optimized takes as argument a vector of size 2 containing the values (transformed into real space) of the correlation parameters, 
+    # and returns the squared error associated with the approximation of the empirical Kendall's Tau by the theoretical exponential correlation with these parameters.
+    function MSE_kendall(θ)
+        cor_struct =  construct_model(MaternCorrelationStructure, θ)
+        corrs = [ cor(cor_struct, h) for h in kendall_data[:,:distance] ]
+    
+        return sum( (corrs .- kendall_data[:,:kendall]).^2 )
+    end
+
+    # associated gradient and hessian
+    function grad_MSE_kendall(G, θ)
+        grad = ForwardDiff.gradient(MSE_kendall, θ)
+        for i in eachindex(G)
+            G[i] = grad[i]
+        end
+    end
+    function hessian_MSE_kendall(H, θ)
+        hess = ForwardDiff.hessian(MSE_kendall, θ)
+        for i in axes(H,1)
+            for j in axes(H,2)
+                H[i,j] = hess[i,j]
+            end
+        end
+    end
+
+    # optimization
+    res = nothing
+    try 
+        res = Optim.optimize(MSE_kendall, grad_MSE_kendall, hessian_MSE_kendall, map_to_real_space(MaternCorrelationStructure, [1.,1.]))
+        @assert Optim.converged(res)
+    catch e
+        res = Optim.optimize(MSE_kendall, map_to_real_space(MaternCorrelationStructure, [1.,1.]))
+    end
+
+    if Optim.converged(res)
+        θ̂ = Optim.minimizer(res)
+        init_params = collect( params(construct_model(MaternCorrelationStructure, θ̂)) )
+    else
+        @warn "Automatic initialization did not work as expected for the MaternCorrelationStructure. Initialized parameters are (1,1) as a default."
+        init_params = [1.,1.]
+    end
+
+    return init_params
+
+end

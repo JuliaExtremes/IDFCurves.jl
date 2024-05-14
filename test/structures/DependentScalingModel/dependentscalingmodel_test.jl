@@ -76,12 +76,24 @@
     @testset "fitting a dependent scaling model" begin
 
         df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
-            
         tags = names(df)[2:10]
         durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
         duration_dict = Dict(zip(tags, durations))
-                
         data = IDFdata(df, "Year", duration_dict)
+
+        @testset "initialize(Type{<:DependentScalingModel}, data, d₀)" begin
+            
+            abstract_model = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}
+
+            init_vector = initialize(abstract_model, data, 1)
+            init_scaling_model = initialize(SimpleScaling, data, 1)
+            init_corr_structure = initialize(MaternCorrelationStructure, data)
+
+            @test length(init_vector) == length(init_scaling_model) + length(init_corr_structure)
+            @test all( init_vector[1:length(init_scaling_model)] .≈ init_scaling_model )
+            @test all( init_vector[(length(init_scaling_model)+1):end] .≈ init_corr_structure )
+
+        end
 
         @testset "construct_model(Type{<:DependentScalingModel})" begin
 
@@ -106,21 +118,36 @@
         end
 
         abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
+        init_vector = initialize(abstract_model, data, 1)
         fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
 
-        @testset "fit_mle(::DependentScalingModel)" begin
+        @testset "fit_mle(::DependentScalingModel, data, d₀, initialvalues)" begin
 
             abstract_model = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
             @test_throws AssertionError IDFCurves.fit_mle(abstract_model, data, 1, [0, 1, 0.1, .76, 1, 1])
             @test_throws AssertionError IDFCurves.fit_mle(abstract_model, data, 1, [0, 1, -0.1, .76, 1])
 
-            abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
-            fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
             @test [params(getmarginalmodel(fd))...] ≈ [18.13658321683213, 5.287438529290354, 0.04856483747914808, 0.6942332103996621] rtol = .01
+
+            abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
             fd2 = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .0, .76])
             @test shape(getmarginalmodel(fd2)) != 0.0
+            init_vector = initialize(abstract_model, data, 1)
 
             #TODO test when xi is initialized close to 0
+
+        end
+
+        @testset "fit_mle(::DependentScalingModel, data, d₀s)" begin
+
+            abstract_model = DependentScalingModel{SimpleScaling, ExponentialCorrelationStructure, GaussianCopula}
+
+            init_vector = initialize(abstract_model, data, 1)
+
+            fd3 = IDFCurves.fit_mle(abstract_model, data, 1, init_vector)
+            fd4 = IDFCurves.fit_mle(abstract_model, data, 1)
+
+            @test [params(getmarginalmodel(fd3))...] ≈ [params(getmarginalmodel(fd4))...]
 
         end
 

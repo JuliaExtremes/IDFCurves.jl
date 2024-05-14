@@ -1,6 +1,6 @@
 module IDFCurves
 
-using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim, PDMats, SpecialFunctions, Extremes
+using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim, PDMats, SpecialFunctions, Extremes, Combinatorics, StatsBase
 import BesselK
 
 import Base: exponent, rand
@@ -18,7 +18,7 @@ export
 
     # Variable type
     IDFdata,
-    getdata, getduration, gettag, getyear,
+    getdata, getduration, gettag, getyear, getKendalldata,
 
     MarginalScalingModel,
 
@@ -27,7 +27,7 @@ export
     cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
 
     DependentScalingModel,
-    getcopulatype, getmarginalmodel, getcorrelogram, fit_mle,
+    getcopulatype, getmarginalmodel, getcorrelogram, fit_mle, initialize,
 
     EllipticalCopula,
     GaussianCopula, TCopula, IdentityCopula,

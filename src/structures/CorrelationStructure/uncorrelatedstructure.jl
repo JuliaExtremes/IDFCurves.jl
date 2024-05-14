@@ -37,3 +37,14 @@ function map_to_real_space(::Type{<:UncorrelatedStructure}, θ::AbstractVector{<
     return Float64[]
 
 end
+
+"""
+    initialize(::Type{<:UncorrelatedStructure}, data::IDFdata)
+
+Returs an empty vector.
+"""
+function initialize(::Type{<:UncorrelatedStructure}, data::IDFdata)
+
+    return Float64[]
+
+end

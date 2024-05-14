@@ -44,4 +44,19 @@
         @test IDFCurves.map_to_real_space(MaternCorrelationStructure, θ) ≈ [0., log(2)]
     end
 
+    df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
+    tags = names(df)[2:10]
+    durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+    duration_dict = Dict(zip(tags, durations))
+    data = IDFdata(df, "Year", duration_dict)
+
+    @testset "initialize(::Type{<:MaternCorrelationStructure}, data)" begin
+        
+        init = initialize(MaternCorrelationStructure, data)
+        @test length(init) == 2
+        @test init[1] ≈ 1.0026461842401198
+        @test init[2] ≈ 2.189742232486837
+
+    end
+
 end

@@ -182,3 +182,11 @@ function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Rea
     return getmarginalmodel(fitted_global_model)
 
 end
+
+function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
+
+    fitted_global_model = fit_mle(DependentScalingModel{pd_type, UncorrelatedStructure, IdentityCopula}, data, d₀)
+    
+    return getmarginalmodel(fitted_global_model)
+
+end

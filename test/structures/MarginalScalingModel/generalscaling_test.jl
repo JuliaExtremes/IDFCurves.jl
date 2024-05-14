@@ -122,21 +122,37 @@
     @testset "fitting a general scaling model" begin
 
         df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
-        
         tags = names(df)[2:10]
         durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
         duration_dict = Dict(zip(tags, durations))
-                
         data = IDFdata(df, "Year", duration_dict)
+
+        @testset "initialize(::GeneralScaling)" begin
+            
+            init_vector = initialize(GeneralScaling, data, 1)
+            @test length(init_vector) == 5
+            @test init_vector[5] ≈ 0.001
+
+            init_vector_SS = initialize(SimpleScaling, data, 1)
+            @test init_vector[1:4] ≈ init_vector_SS
+            
+        end
 
         fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
 
-        @testset "fit_mle(::GeneralScaling)" begin
+        @testset "fit_mle(::GeneralScaling, data, d₀, initialvalues)" begin
 
             @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
             fd2 = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .0, .76, .07])
             @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
             @test shape(fd2) != 0.0
+
+        end
+
+        @testset "fit_mle(::GeneralScaling, data, d₀)" begin
+
+            fd3 = IDFCurves.fit_mle(GeneralScaling, data, 1)
+            @test [params(fd3)...] ≈ [params(fd)...] rtol=.1
 
         end
 
