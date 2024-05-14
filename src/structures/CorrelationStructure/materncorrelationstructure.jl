@@ -76,39 +76,10 @@ function initialize(::Type{<:MaternCorrelationStructure}, data::IDFdata)
         return sum( (corrs .- kendall_data[:,:kendall]).^2 )
     end
 
-    # associated gradient and hessian
-    function grad_MSE_kendall(G, θ)
-        grad = ForwardDiff.gradient(MSE_kendall, θ)
-        for i in eachindex(G)
-            G[i] = grad[i]
-        end
-    end
-    function hessian_MSE_kendall(H, θ)
-        hess = ForwardDiff.hessian(MSE_kendall, θ)
-        for i in axes(H,1)
-            for j in axes(H,2)
-                H[i,j] = hess[i,j]
-            end
-        end
-    end
-
     # optimization
-    res = nothing
-    try 
-        res = Optim.optimize(MSE_kendall, grad_MSE_kendall, hessian_MSE_kendall, map_to_real_space(MaternCorrelationStructure, [1.,1.]))
-        @assert Optim.converged(res)
-    catch e
-        res = Optim.optimize(MSE_kendall, map_to_real_space(MaternCorrelationStructure, [1.,1.]))
-    end
+    θ₀ = map_to_real_space(MaternCorrelationStructure, [1.,1.])
+    θ̂ = perform_optimization(MSE_kendall, θ₀, warn_message = "Automatic initialization did not work as expected for the MaternCorrelationStructure. Initialized parameters are (1,1) as a default.")
 
-    if Optim.converged(res)
-        θ̂ = Optim.minimizer(res)
-        init_params = collect( params(construct_model(MaternCorrelationStructure, θ̂)) )
-    else
-        @warn "Automatic initialization did not work as expected for the MaternCorrelationStructure. Initialized parameters are (1,1) as a default."
-        init_params = [1.,1.]
-    end
-
-    return init_params
+    return [params(construct_model(MaternCorrelationStructure, θ̂))...]
 
 end

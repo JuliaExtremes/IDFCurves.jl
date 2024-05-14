@@ -293,3 +293,34 @@ function compute_derivatives(g::Function)
     return grad_g, hessian_g
 
 end
+
+"""
+    perform_optimization(fobj::function, θ₀::DenseVector{<:Real}; warn_message::String)
+
+Performs the minimization of fobj, using Optim.jl and the derivatives computed with compute_derivatives(fobj). Returns the minimizer.
+A warning message is sent if optimization does not succeed.
+"""
+function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real}; 
+                        warn_message::String = "Optimization did not succeed. Returning the initial vector.")
+
+    grad_fobj, hessian_fobj = compute_derivatives(fobj)
+
+    # optimization
+    res = nothing
+    try 
+        res = Optim.optimize(fobj, grad_fobj, hessian_fobj, θ₀)
+        @assert Optim.converged(res)
+    catch e
+        res = Optim.optimize(fobj, θ₀)
+    end
+
+    if Optim.converged(res)
+        θ̂ = Optim.minimizer(res)
+    else
+        @warn warn_message
+        θ̂ = θ₀
+    end
+
+    return θ̂
+
+end
