@@ -141,20 +141,22 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
-    function grad_fobj(G, θ)
-        grad = ForwardDiff.gradient(fobj, θ)
-        for i in eachindex(G)
-            G[i] = grad[i]
-        end
-    end
-    function hessian_fobj(H, θ)
-        hess = ForwardDiff.hessian(fobj, θ)
-        for i in axes(H,1)
-            for j in axes(H,2)
-                H[i,j] = hess[i,j]
-            end
-        end
-    end
+    # function grad_fobj(G, θ)
+    #     grad = ForwardDiff.gradient(fobj, θ)
+    #     for i in eachindex(G)
+    #         G[i] = grad[i]
+    #     end
+    # end
+    # function hessian_fobj(H, θ)
+    #     hess = ForwardDiff.hessian(fobj, θ)
+    #     for i in axes(H,1)
+    #         for j in axes(H,2)
+    #             H[i,j] = hess[i,j]
+    #         end
+    #     end
+    # end
+
+    grad_fobj, hessian_fobj = compute_derivatives(fobj)
 
     # optimization
     res = nothing
