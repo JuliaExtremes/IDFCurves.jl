@@ -12,6 +12,7 @@ include("structures.jl")
 include("utils.jl")
 include("data.jl")
 include("plots.jl")
+include("scalingtest.jl")
 
 
 export
@@ -37,6 +38,9 @@ export
     cor,
 
     #plots
-    qqplot, qqplotci, plotIDFCurves
+    qqplot, qqplotci, plotIDFCurves,
+
+    #test on scaling models
+    scalingtest
 
 end
