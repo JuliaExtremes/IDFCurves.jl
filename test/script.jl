@@ -13,11 +13,27 @@ data = IDFdata(df, "Year", duration_dict)
 getyear(data, "5min")
 
 
-# courant (initialisation automatique)
+# courant
+
+d₀ = 1
+pd = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
+fobj(θ::DenseVector{<:Real}) = -IDFCurves.loglikelihood(model(θ), data)
+θ₀ = IDFCurves.map_to_real_space(pd, [20, 5, .04, .76, 0.1, 1, 1])
+
+@time IDFCurves.perform_optimization(fobj, θ₀)
+
+optimize(fobj, θ₀, GradientDescent(), autodiff = :forward)
+
+@time Optim.optimize(fobj, θ₀, Newton(), autodiff = :forward)
+
+
+
+g2(θ::DenseVector{<:Real}) = - θ[1]^2
+@test_warn "my_message" IDFCurves.perform_optimization(g2, θ₀, warn_message = "my_message")
 
 
 initialize(ExponentialCorrelationStructure, data)
-
 
 initialize(MaternCorrelationStructure, data)
 

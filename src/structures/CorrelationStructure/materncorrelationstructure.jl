@@ -69,7 +69,7 @@ function initialize(::Type{<:MaternCorrelationStructure}, data::IDFdata)
 
     # The function to be optimized takes as argument a vector of size 2 containing the values (transformed into real space) of the correlation parameters, 
     # and returns the squared error associated with the approximation of the empirical Kendall's Tau by the theoretical exponential correlation with these parameters.
-    function MSE_kendall(θ)
+    function MSE_kendall(θ::DenseVector{<:Real})
         cor_struct =  construct_model(MaternCorrelationStructure, θ)
         corrs = [ cor(cor_struct, h) for h in kendall_data[:,:distance] ]
     
