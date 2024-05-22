@@ -66,72 +66,6 @@ function quantile(pd::MarginalScalingModel, d::Real, p::Real)
 
 end
 
-"""
-
-    hessian(fd::MarginalScalingModel, data::IDFdata)
-
-Compute the Hessian matrix of the loglikelihood of the fitted scaling model `pd` associated with the IDF data `data`.
-"""
-function hessian(fd::MarginalScalingModel, data::IDFdata)
-
-    d₀ = duration(fd)
-    θ̂ = collect(params(fd))
-
-    T = eval(nameof(typeof(fd)))
-
-    fobj(θ) = -loglikelihood(construct_model(T,d₀,map_to_real_space(T,θ)), data)
-
-    H = ForwardDiff.hessian(fobj, θ̂)
-
-    return PDMat(Symmetric(H))
-
-end
-
-"""
-    quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
-
-Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.      
-"""
-function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration should be positive."
-
-    d₀ = duration(fd)
-    θ̂ = collect(params(fd))
-
-    H = IDFCurves.hessian(fd, data)
-
-    T = eval(nameof(typeof(fd)))
-
-    # quantile function
-    g(θ::DenseVector{<:Real}) = quantile(T(d₀, θ...), d, p)
-
-    v = Extremes.delta(g, θ̂, H)
-
-    return v
-
-end
-
-"""
-    quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
-
-Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
-"""
-function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
-    @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
-
-    q̂ = quantile(fd, d, p)
-    v = IDFCurves.quantilevar(fd, data, d, p)
-
-   dist = Normal(q̂, sqrt(v))
-
-   return quantile.(dist, [α/2, 1-α/2])
-
-end
-
-
 
 """
     rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
@@ -188,5 +122,39 @@ function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Rea
     fitted_global_model = fit_mle(DependentScalingModel{pd_type, UncorrelatedStructure, IdentityCopula}, data, d₀)
     
     return getmarginalmodel(fitted_global_model)
+
+end
+
+"""
+
+    hessian(fd::MarginalScalingModel, data::IDFdata)
+
+Compute the Hessian matrix of the loglikelihood of the fitted scaling model `fd` associated with the IDF data `data`.
+"""
+function hessian(fd::MarginalScalingModel, data::IDFdata)
+
+    return hessian(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data)
+
+end
+
+"""
+    quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
+
+Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.      
+"""
+function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
+    
+    return quantilevar(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p)
+
+end
+
+"""
+    quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+"""
+function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+    
+    return quantilecint(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, α)
 
 end
