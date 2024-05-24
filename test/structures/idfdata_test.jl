@@ -51,16 +51,6 @@
 
     end
 
-    @testset "selectduration(::IDFdata, d)" begin
-        
-        s3 = IDFCurves.selectduration(s, 24)
-        @test getdata(s3) == Dict("24h" => y[:,3])
-        @test getduration(s3) == Dict("24h" => 24.)
-        @test getyear(s3) == Dict("24h" => years)
-        @test gettag(s3) == ["24h"]
-
-    end
-
     @testset "Base.show(io, IDFdata)" begin
         # print IDFdata does not throw
         buffer = IOBuffer()

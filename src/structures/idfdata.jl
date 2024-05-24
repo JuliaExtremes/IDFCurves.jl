@@ -184,28 +184,6 @@ function excludeduration(data::IDFdata, d::Real)
 end
 
 """
-selectduration(data::IDFdata, d::Real)
-
-Return an IDFdata object containing the original data but only for duration d.
-"""
-function selectduration(data::IDFdata, d::Real)
-
-    new_year = Dict{String, Vector{Int64}}()
-    new_data = Dict{String, Vector{Float64}}()
-    new_duration = Dict{String, Float64}()
-
-    key = gettag(data, d)
-    new_tag = [key]
-
-    new_year[key] = getyear(data, key)
-    new_data[key] = getdata(data, key)
-    new_duration[key] = getduration(data, key)
-
-    IDFdata(new_tag, new_duration, new_year, new_data)
-
-end
-
-"""
     Base.show(io::IO, obj::IDFdata)
 
 Override of the show function for the objects of type IDFdata.

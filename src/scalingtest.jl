@@ -1,16 +1,21 @@
 """
-    scalingtest(fd::Type{<:SimpleScaling}, data::IDFdata;
+    scalingtest(fd::Type{<:MarginalScalingModel}, data::IDFdata;
         d_out::Real = minimum(values(getduration(data))), q::Integer = 100)
 
 Performs the testing procedure in order to state if the model fd may be rejected considering the data. It returns the p-value of the test.
 d_out is the duration to be put in the validation set. By default it will be set to the smallest duration in the data.
 q is the number of eigenvalues to compute when using the Zolotarev approximation for the p-value.
 """
-function scalingtest(pd_type::Type{<:SimpleScaling}, data::IDFdata;
+function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
                     d_out::Real = minimum(values(getduration(data))), q::Integer = 100)
 
     # Parameter estimation
-    train_data = excludeduration(data, d_out)
+    train_data = data
+    try 
+        train_data = excludeduration(data, d_out)
+    catch e 
+        error("The chosen duration for validation is not in the data.")
+    end
     fitted_model = fit_mle(pd_type, train_data, d_out)
 
     # Fisher information matrix (normalized)
@@ -18,7 +23,7 @@ function scalingtest(pd_type::Type{<:SimpleScaling}, data::IDFdata;
     norm_I_Fisher = hess / length(getyear(data, gettag(data,d_out)))
 
     # Test statistic
-    distrib_theo_d_out = getdistribution(fitted_model, d_out) # attention fitted_model doit être un marginalscalingmodel -> à modifier lorsuqe arg sera un DependentScalingModel.
+    distrib_theo_d_out = getdistribution(fitted_model, d_out) # attention fitted_model doit être un marginalscalingmodel -> à modifier lorsque arg sera un DependentScalingModel.
     stat = cvmcriterion(distrib_theo_d_out, getdata(data, gettag(data,d_out)))
 
     # Kernel function ρ
@@ -26,11 +31,12 @@ function scalingtest(pd_type::Type{<:SimpleScaling}, data::IDFdata;
     ρ(u,v) = minimum([u,v]) - u*v + g(u)' * ( norm_I_Fisher \ g(v) )
 
     # Eigenvalues
-    λs = approx_eigenvalues(ρ, q)
+    λs = approx_eigenvalues(ρ, q) # TODO test if error when Fisher Information Matrix sigular ?
 
     # Zolotarev approximation
+    cdf_approx = zolotarev_approx(λs, stat)
 
-    return
+    return 1 - cdf_approx
 end
 
 """
@@ -49,12 +55,12 @@ function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
 end
 
 """
-    get_g(fd::SimpleScaling, d::Float64)
+    get_g(fd::MarginalScalingModel, d::Float64)
 
 Returns the g function that intervenes in the kernel expression.
 The function returns the gradient of the CDF of the model distribution for duration d, evaluated at θ̂ which is the estimated parameter vector
 """
-function get_g(fd::SimpleScaling,  d::Real)
+function get_g(fd::MarginalScalingModel,  d::Real)
 
     pd_type = typeof(fd)
     d₀ = duration(fd)
@@ -92,4 +98,35 @@ function approx_eigenvalues(ρ::Function, q::Integer)
     end
 
     return reverse( (eigvals(Symmetric(K))) )
+end
+
+"""
+zolotarev_approx(λs::Vector{<:Real} , x::Real)
+
+Returns an approximation of the CDF of the sum of the λ_i X_i^2, where the X_i^2 are N(0,1), evaluated at x.
+The approximation is valid for high quantiles only.
+"""
+function zolotarev_approx(λs::Vector{<:Real} , x::Real)
+    
+    @assert length(λs) >= 1 "The vector of λ must contain at elast one element for the Zolotarev approximation to be valid."
+
+    # taking multiplicity into account
+    γs = unique(λs)
+    multiplicities = [count(==(γ), λs) for γ in γs]
+
+    q = length(γs)
+    γ₁ = γs[1]
+    
+    term1 = - sum([ 0.5 * multiplicities[i] * log(1 - γs[i]/γ₁) for i in 2:q])
+    term2 = - log(SpecialFunctions.gamma(0.5 * multiplicities[1]))
+    term3 = (0.5 * multiplicities[1] - 1) * log( x/(2*γ₁) )
+    term4 = - (x/(2*γ₁)) 
+
+    approx_cdf = maximum([1 - exp(term1 + term2 + term3 + term4), 0 ])
+
+    if term2 < term4 && approx_cdf > .95
+        @warn "Zolotarev approximation is outside its validity domain. No conclusion can be made from a small p-value."
+    end
+        
+    return approx_cdf
 end
