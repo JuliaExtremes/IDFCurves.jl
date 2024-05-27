@@ -163,9 +163,9 @@ function gettag(data::IDFdata, d::Real)
 end
 
 """
-excludeduration(data::IDFdata, d::Real)
+    excludeduration(data::IDFdata, d::Real)
 
-Return an IDFdata object containing the original data except for the duration d, which is excluded.
+Remove the data of `data` corresponding to the duration `d`.
 """
 function excludeduration(data::IDFdata, d::Real)
 
