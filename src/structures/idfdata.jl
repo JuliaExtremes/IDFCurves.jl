@@ -22,7 +22,7 @@ end
 """
     IDFdata(df::DataFrame, year_id::String, duration::Dict{String, T} where T<:Real)
 
-Construct a IDFdata sructure from a DataFrame.
+Construct a IDFdata structure from a DataFrame.
 
 ### Details
 
@@ -162,7 +162,26 @@ function gettag(data::IDFdata, d::Real)
 
 end
 
+"""
+    excludeduration(data::IDFdata, d::Real)
 
+Remove the data of `data` corresponding to the duration `d`.
+"""
+function excludeduration(data::IDFdata, d::Real)
+
+    new_year = Dict{String, Vector{Int64}}()
+    new_data = Dict{String, Vector{Float64}}()
+    new_duration = Dict(k => v for (k, v) in getduration(data) if k != gettag(data, d))
+
+    new_tag = collect(keys(new_duration))
+    for key in new_tag
+        new_year[key] = getyear(data, key)
+        new_data[key] = getdata(data, key)
+    end
+
+    return IDFdata(new_tag, new_duration, new_year, new_data)
+
+end
 
 """
     Base.show(io::IO, obj::IDFdata)
