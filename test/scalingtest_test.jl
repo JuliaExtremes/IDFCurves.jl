@@ -75,9 +75,9 @@ data = IDFdata(df, "Year", duration_dict)
 
 @testset "scalingtest()" begin
 
-    @test_throws ErrorException scalingtest(SimpleScaling, data, d_out = 1/60)
+    @test_throws AssertionError scalingtest(SimpleScaling, data, "1min")
     @test scalingtest(SimpleScaling, data) ≈ 3.413181991929193e-6
-    @test scalingtest(GeneralScaling, data, q = 50) >= 0.01
+    @test scalingtest(GeneralScaling, data, "5min", 50) >= 0.01
 
 end
 

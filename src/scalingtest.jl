@@ -6,7 +6,7 @@ Performs the testing procedure in order to state if the model fd may be rejected
 d_out is the duration to be put in the validation set. By default it will be set to the smallest duration in the data.
 q is the number of eigenvalues to compute when using the Zolotarev approximation for the p-value.
 """
-function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; tag_out::String, q::Integer = 100)
+function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, tag_out::String, q::Integer)
 # function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; tag_out::String=String[], q::Integer = 100)
     @assert tag_out in gettag(data) "duration $tag_out does not correspond to an observed duration."
 
@@ -33,29 +33,37 @@ function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; tag_o
     g = get_g(fitted_model, d_out)
     ρ(u,v) = minimum([u,v]) - u*v + g(u)' * ( norm_I_Fisher \ g(v) )
 
-    # Eigenvalues
+    # Approximating the first `q` eigenvalues of the correlation kernel 
     λs = approx_eigenvalues(ρ, q) # TODO test if error when Fisher Information Matrix sigular ?
 
-    # Zolotarev approximation
+    # Zolotarev approximation of the cdf in the tail
     cdf_approx = zolotarev_approx(λs, S)
 
+    # retuning the p-value
     return 1 - cdf_approx
+
 end
 
 
-# function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; q::Integer = 100)
+function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, tag_out::String)
 
-#     d_out = minimum(getduration.(data, gettag(data)))
-#     tag_out = gettag(data, d_out)
+    return scalingtest(pd_type, data, tag_out, 100)
 
-#     return scalingtest(pd_type, data, tag_out = tag_out, q=q)
+end
 
-# end
+function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata)
+
+    d_out = minimum(getduration.(data, gettag(data)))
+    tag_out = gettag(data, d_out)
+
+    return scalingtest(pd_type, data, tag_out, 100)
+
+end
 
 """
     cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
 
-Returns the Cramer - Von Mises criterion associated to the distribution pd compared to the vector of observations x
+Compute the Cramer - Von Mises criterion between the distribution `pd` and the data vector `x`. 
 """
 function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
     x̃ = sort(x)
@@ -95,10 +103,17 @@ function get_g(fd::MarginalScalingModel,  d::Real)
 end
 
 """
-    approx_eigenvalues(ρ::Function, q::Int64)
+    approx_eigenvalues(ρ::Function, q::Integer)
 
-Approximates the q first (biggest) eigenvalues of the kernel ρ by computing the associated symmetric matrix K.
-Returns them in decreasing order.
+Approximate the `q` larger eigenvalues of the correlation kernel `ρ(u, v)`.
+
+## Details
+
+`ρ(u,v)` is a correlation function where  ```0 ≤ u ≤ 1``` and ```0 ≤ v ≤ 1.```
+
+## Reference
+
+Schlesinger, S. (1957). Approximating Eigenvalues and Eigenfunctions of Symmetric Kernels. *Journal of the Society for Industrial and Applied Mathematics*, 5(1), 1–14. http://www.jstor.org/stable/2098687
 """
 function approx_eigenvalues(ρ::Function, q::Integer)
     
@@ -116,8 +131,11 @@ end
 """
 zolotarev_approx(λs::Vector{<:Real} , x::Real)
 
-Returns an approximation of the CDF of the sum of the λ_i X_i^2, where the X_i^2 are N(0,1), evaluated at x.
-The approximation is valid for high quantiles only.
+Return an approximation of the CDF of the sum of the λ_i X_i^2, where the X_i^2 are N(0,1), evaluated at x.
+
+## Detail
+
+The approximation is valid for high quantiles only, larger than .95.
 """
 function zolotarev_approx(λs::Vector{<:Real} , x::Real)
     
