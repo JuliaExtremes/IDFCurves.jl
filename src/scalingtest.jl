@@ -6,25 +6,28 @@ Performs the testing procedure in order to state if the model fd may be rejected
 d_out is the duration to be put in the validation set. By default it will be set to the smallest duration in the data.
 q is the number of eigenvalues to compute when using the Zolotarev approximation for the p-value.
 """
-function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
-                    d_out::Real = minimum(values(getduration(data))), q::Integer = 100)
+function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; tag_out::String, q::Integer = 100)
+# function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; tag_out::String=String[], q::Integer = 100)
+    @assert tag_out in gettag(data) "duration $tag_out does not correspond to an observed duration."
 
-    # Parameter estimation
-    train_data = data
-    try 
-        train_data = excludeduration(data, d_out)
-    catch e 
-        error("The chosen duration for validation is not in the data.")
-    end
+    d_out = getduration(data, tag_out)
+
+    y = getdata(data, tag_out)
+    ℓ = length(y)
+
+    train_data = excludeduration(data, d_out)
+
     fitted_model = fit_mle(pd_type, train_data, d_out)
 
-    # Fisher information matrix (normalized)
-    hess = hessian(fitted_model, train_data)
-    norm_I_Fisher = hess / length(getyear(data, gettag(data,d_out)))
-
     # Test statistic
-    distrib_theo_d_out = getdistribution(fitted_model, d_out) # attention fitted_model doit être un marginalscalingmodel -> à modifier lorsque arg sera un DependentScalingModel.
-    stat = cvmcriterion(distrib_theo_d_out, getdata(data, gettag(data,d_out)))
+    F_θ̂ = getdistribution(fitted_model, d_out) #TODO: Make it general for an eventual DependentScalingModel
+    S = cvmcriterion(F_θ̂, y)
+
+    # Computing the p-value
+
+    # Fisher information matrix (normalized)
+    H = hessian(fitted_model, train_data)
+    norm_I_Fisher = H / ℓ
 
     # Kernel function ρ
     g = get_g(fitted_model, d_out)
@@ -34,10 +37,20 @@ function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
     λs = approx_eigenvalues(ρ, q) # TODO test if error when Fisher Information Matrix sigular ?
 
     # Zolotarev approximation
-    cdf_approx = zolotarev_approx(λs, stat)
+    cdf_approx = zolotarev_approx(λs, S)
 
     return 1 - cdf_approx
 end
+
+
+# function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; q::Integer = 100)
+
+#     d_out = minimum(getduration.(data, gettag(data)))
+#     tag_out = gettag(data, d_out)
+
+#     return scalingtest(pd_type, data, tag_out = tag_out, q=q)
+
+# end
 
 """
     cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
