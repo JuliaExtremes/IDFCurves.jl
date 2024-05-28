@@ -36,50 +36,10 @@ function qqplot(pd::MarginalScalingModel, data::IDFdata, d::Real)
 end
 
 """
-    qqplotci(fm::MarginalScalingModel, α::Real=.05)
+    qqplotci(fm::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
 
-Quantile-Quantile plot along with the confidence/credible interval of level `1-α`.
-```
- 
+Quantile-Quantile plot for the estimated distribution for duration d, along with the confidence interval of level `1-α`.
 """
-function qqplotci(fd::MarginalScalingModel, data::IDFdata, d::Real, α::Real=.05)
-    @assert d>0 "duration must be positive."
-    @assert 0 < α < 1 "the level should be in (0,1)." 
-
-    tag = gettag(data, d)
-
-    y = getdata(data, tag)
-
-    n = length(y)
-    q = sort(y)
-
-    p = (1:n) ./ (n+1)
-
-    q̂ = quantile.(fd, d, p)
-
-    df = DataFrame(Empirical = q, Model = q̂)
-
-    q_inf = Float64[]
-    q_sup = Float64[]
-
-    for pᵢ in p
-        c = quantilecint(fd, data, d, pᵢ)
-        push!(q_inf, c[1])
-        push!(q_sup, c[2])
-    end
-
-    df[:,:Inf] = q_inf
-    df[:,:Sup] = q_sup
-
-    l1 = layer(df, x=:Model, y=:Empirical, Geom.point, Geom.abline(color="black", style=:dash), 
-        Theme(default_color="black", discrete_highlight_color=c->nothing))
-    l2 = layer(df, x=:Model, ymin=:Inf, ymax=:Sup, Geom.ribbon, Theme(lowlight_color=c->"lightgray"))
-    
-    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Theme(background_color="white"))
-end
-
-
-
 function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
     @assert d>0 "duration must be positive."
     @assert 0 < α < 1 "the level should be in (0,1)." 
@@ -115,7 +75,13 @@ function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.0
         Theme(default_color="black", discrete_highlight_color=c->nothing))
     l2 = layer(df, x=:Model, ymin=:Inf, ymax=:Sup, Geom.ribbon, Theme(lowlight_color=c->"lightgray"))
     
-    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Theme(background_color="white"))
+    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Guide.title("QQ-plot with confidence intervals for duration "*tag),
+             Theme(background_color="white"))
+end
+
+function qqplotci(fd::MarginalScalingModel, data::IDFdata, d::Real, α::Real=.05)
+    
+    return qqplotci(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, α)
 end
 
 
@@ -278,7 +244,7 @@ end
 
 
 """
-plotIDFCurves(model::DependentScalingModel; ...)
+plotIDFCurves(model::DependentScalingModel, data::IDFdata; ...)
 
 Plots the IDF curves based on the given model. Pointwise estimations are added (crosses) to illustrate the fitting.
 Durations and return periods may be chosen by the user but have default values.
@@ -328,5 +294,43 @@ function plotIDFCurves(model::DependentScalingModel, data::IDFdata;
         )
 
     return p
+
+end
+
+function plotIDFCurves(marginalmodel::MarginalScalingModel; 
+    T_values::Vector{<:Real}=[2,5,10,25,50,100],
+    durations::Vector{<:Real}=[1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24],
+    d_min::Union{Real, Nothing} = nothing,
+    d_max::Union{Real, Nothing} = nothing,
+    y_ticks::Union{Vector{<:Real}, Nothing} = nothing,
+    palette::Union{Vector{<:Any}, Nothing} = nothing)
+
+    return plotIDFCurves(DependentScalingModel(marginalmodel, UncorrelatedStructure(), IdentityCopula),
+        T_values = T_values,
+        durations = durations,
+        d_min = d_min,
+        d_max = d_max,
+        y_ticks = y_ticks,
+        palette = palette
+    )
+
+end
+
+function plotIDFCurves(marginalmodel::MarginalScalingModel, data::IDFdata; 
+    show_confidence_intervals::Bool = false,
+    T_values::Vector{<:Real}=[2,5,10,25,50,100],
+    durations::Vector{<:Real}=[1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24],
+    d_min::Union{Real, Nothing} = nothing,
+    d_max::Union{Real, Nothing} = nothing,
+    y_ticks::Union{Vector{<:Real}, Nothing} = nothing)
+
+    return plotIDFCurves(DependentScalingModel(marginalmodel, UncorrelatedStructure(), IdentityCopula), data,
+        show_confidence_intervals = show_confidence_intervals,
+        T_values = T_values,
+        durations = durations,
+        d_min = d_min,
+        d_max = d_max,
+        y_ticks = y_ticks
+    )
 
 end
