@@ -1,4 +1,5 @@
-using Documenter, IDFCurves
+using Documenter, Cairo, Fontconfig
+using IDFCurves
 
 CI = get(ENV, "CI", nothing) == "true"
 

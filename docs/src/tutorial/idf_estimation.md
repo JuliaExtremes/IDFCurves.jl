@@ -18,7 +18,7 @@ first(df,5)
 
 Converting the DataFrame in a [`IDFdata`](@ref) structure. A dictionary mapping the tags (String) and the durations (Real) must be first defined:
 
-```@repl montreal
+```@example montreal
 tags = names(df)[2:10]
 durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
 duration_dict = Dict(zip(tags, durations))
@@ -26,7 +26,7 @@ duration_dict = Dict(zip(tags, durations))
 
 The DataFrame can then be converted in a [`IDFdata`](@ref) structure:
 
-```@repl montreal
+```@example montreal
 data = IDFdata(df, "Year", duration_dict)
 ```
 
@@ -62,49 +62,47 @@ fmodel = IDFCurves.fit_mle(GeneralScaling, data, 1)
 
 Plotting the associated IDF curve:
 
-```@repl montreal
-Gadfly.set_default_plot_size(15cm, 8cm)
+```@example montreal
+Gadfly.set_default_plot_size(15cm, 8cm) #hide
 IDFCurves.plotIDFCurves(fmodel)
 ```
 
 The return levels estimated marginally for each duration may be added to the plot for illustration purposes:
 
-```@repl montreal
-Gadfly.set_default_plot_size(15cm, 8cm)
+```@example montreal
+Gadfly.set_default_plot_size(15cm, 8cm) #hide
 IDFCurves.plotIDFCurves(fmodel, data)
 ```
 
 Displaying the model fit (using a qq-plot with confidence intervals) for the 5min, 1h, and 24h durations:
 
-```@repl montreal
-Gadfly.set_default_plot_size(30cm, 8cm)
+```@example montreal
 p5min = qqplotci(fmodel, data, 5/60)
 p1h = qqplotci(fmodel, data, 1)
 p24h = qqplotci(fmodel, data, 24)
-Gadfly.set_default_plot_size(30cm, 8cm)
+Gadfly.set_default_plot_size(30cm, 8cm) #hide
 hstack([p5min, p1h, p24h])
 ```
 
 ## Estimating the general scaling model in combination with a Gaussian copula and the Matern correlation structure
 
 ```@repl montreal
-fmodel2 = IDFCurves.fit_mle(DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}, data, 1)
+fmodel2 = IDFCurves.fit_mle(DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}, data, 1.)
 ```
 
 Plotting the associated IDF curve:c
 
-```@repl montreal
-Gadfly.set_default_plot_size(15cm, 8cm)
+```@example montreal
+Gadfly.set_default_plot_size(15cm, 8cm) #hide
 IDFCurves.plotIDFCurves(fmodel2, data)
 ```
 
 Displaying the model fit (using a qq-plot with confidence intervals) for the 5min, 1h, and 24h durations:
 
-```@repl montreal
-Gadfly.set_default_plot_size(30cm, 8cm)
+```@example montreal
 p5min = qqplotci(fmodel2, data, 5/60)
 p1h = qqplotci(fmodel2, data, 1)
 p24h = qqplotci(fmodel2, data, 24)
-Gadfly.set_default_plot_size(30cm, 8cm)
+Gadfly.set_default_plot_size(30cm, 8cm) #hide
 hstack([p5min, p1h, p24h])
 ```
