@@ -4,8 +4,7 @@ CI = get(ENV, "CI", nothing) == "true"
 
 makedocs(sitename = "IDFCurves.jl",
     format = Documenter.HTML(
-    prettyurls = CI,
-    ),
+        prettyurls = CI, size_threshold_warn=10^8 ,size_threshold=10^9, example_size_threshold=10^9),
     pages = [
         "Tutorial" =>["IDF estimation" => "tutorial/idf_estimation.md"],
         "index.md",
