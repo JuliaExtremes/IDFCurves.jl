@@ -37,6 +37,9 @@
     end
 
     @testset "map_to_real_space(::Type{<:SimpleScaling}, θ)" begin
+
+        @test_throws AssertionError IDFCurves.map_to_real_space(SimpleScaling, [1., 0., 0., 0.5])
+        @test_throws AssertionError IDFCurves.map_to_real_space(SimpleScaling, [1., 1., 0., -0.1])
         
         θ = [1., 1., 0., .5]
         @test IDFCurves.map_to_real_space(SimpleScaling, θ) ≈ [1., 0., 0., 0.]

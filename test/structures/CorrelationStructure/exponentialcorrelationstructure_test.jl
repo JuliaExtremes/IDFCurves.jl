@@ -27,6 +27,8 @@
     end
 
     @testset "map_to_real_space(::Type{<:ExponentialCorrelationStructure}, θ)" begin
+
+        @test_throws AssertionError IDFCurves.map_to_real_space(ExponentialCorrelationStructure, [0.])
         
         θ = [1.]
         @test IDFCurves.map_to_real_space(ExponentialCorrelationStructure, θ) ≈ [0.]

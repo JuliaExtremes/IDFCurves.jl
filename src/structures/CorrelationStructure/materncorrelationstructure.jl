@@ -51,6 +51,9 @@ Map the parameter(s) from the MaternCorrelationStructure parameter space to the 
 function map_to_real_space(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
     @assert length(θ) == 2 "The parameter vector length must be 1 for an exponential correlation structure."
 
+    @assert θ[1] > 0 "Matern correlogram parameter ν must be positive"   
+    @assert θ[2] >0 "Matern correlogram parameter ρ must be positive"
+
     return [log(θ[1]), log(θ[2])]
 
 end

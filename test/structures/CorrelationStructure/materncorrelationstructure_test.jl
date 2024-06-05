@@ -39,6 +39,9 @@
     end
 
     @testset "map_to_real_space(::Type{<:MaternCorrelationStructure}, θ)" begin
+
+        @test_throws AssertionError IDFCurves.map_to_real_space(MaternCorrelationStructure, [-1., 1.])
+        @test_throws AssertionError IDFCurves.map_to_real_space(MaternCorrelationStructure, [1., 0.])
         
         θ = [1., 2.]
         @test IDFCurves.map_to_real_space(MaternCorrelationStructure, θ) ≈ [0., log(2)]

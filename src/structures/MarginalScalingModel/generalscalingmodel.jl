@@ -31,7 +31,7 @@ end
 
 function GeneralScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
         
-    @assert 0 < α ≤ 1 "Scaling exponent must be between 0 and 1"
+    @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
     @assert σ₀ > 0 "Scale must be positive"
     @assert δ ≥ 0 "Duration offset must be non-negative"
         
@@ -123,6 +123,10 @@ Map the parameters from the GeneralScaling parameter spave to the real hypercube
 """
 function map_to_real_space(::Type{<:GeneralScaling}, θ::AbstractVector{<:Real})
     @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
+
+    @assert 0 < θ[4] < 1 "Scaling exponent must be between 0 and 1"
+    @assert θ[2] > 0 "Scale must be positive"
+    @assert θ[5] ≥ 0 "Duration offset must be non-negative"
 
     return [θ[1], log(θ[2]), θ[3], logit(θ[4]), log(θ[5])]
 

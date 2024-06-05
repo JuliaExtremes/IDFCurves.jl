@@ -41,6 +41,8 @@ Map the parameter(s) from the ExponentialCorrelationStructure parameter space to
 function map_to_real_space(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
     @assert length(θ) == 1 "The parameter vector length must be 1 for an exponential correlation structure."
 
+    @assert θ[1] > 0 "exponential correlogram parameter must be positive"  
+
     return [log(θ[1])]
 
 end
