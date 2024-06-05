@@ -166,6 +166,10 @@ function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
     y = Vector(regression_data[:,4])
     regression_res = X \ y
 
-    return [ exp(regression_res[1]), exp(regression_res[2]), 0.,  - regression_res[3] ]
+    return [ exp(regression_res[1]), 
+                maximum([0.001, exp(regression_res[2])]), # avoids possible numerical errors
+                0.,
+                maximum([0.001, minimum([0.999, - regression_res[3]])]) # avoids possible domain errors
+            ]
 
 end

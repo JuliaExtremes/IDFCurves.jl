@@ -69,9 +69,9 @@ function initialize(::Type{<:ExponentialCorrelationStructure}, data::IDFdata)
     end
 
     # optimization
-    θ₀ = map_to_real_space(ExponentialCorrelationStructure, [1.])
+    θ₀ = [0.]
     θ̂ = perform_optimization(MSE_kendall, θ₀, warn_message = "Automatic initialization did not work as expected for the ExponentialCorrelationStructure. Initialized parameter is 1 as a default.")
 
-    return [params(construct_model(ExponentialCorrelationStructure, θ̂))...]
+    return [maximum([0.001, exp(θ̂[1])])] # avoids possible numerical errors
 
 end
