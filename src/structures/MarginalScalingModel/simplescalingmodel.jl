@@ -101,7 +101,7 @@ Construct a SimpleScaling marginal model from a set of transformed parameters θ
 function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector{<:Real})
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
 
-    return SimpleScaling(d₀, θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4]))
+    return SimpleScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]))
 
 end
 
@@ -113,7 +113,7 @@ Map the parameters from the SimpleScaling parameter space to the real space.
 function map_to_real_space(::Type{<:SimpleScaling}, θ::AbstractVector{<:Real})
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
 
-    return [θ[1], log(θ[2]), logit(θ[3]+.5), logit(θ[4])]
+    return [θ[1], log(θ[2]), θ[3], logit(θ[4])]
 
 end
 
@@ -162,7 +162,6 @@ function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
     X = Matrix(regression_data[:,1:3])
     y = Vector(regression_data[:,4])
     regression_res = X \ y
-    [exp(regression_res[1]), exp(regression_res[2]), - regression_res[3]]
 
     return [ exp(regression_res[1]), exp(regression_res[2]), 0.,  - regression_res[3] ]
 
