@@ -117,6 +117,22 @@
 
         end
 
+        @testset "map_to_real_space(Type{<:DependentScalingModel})" begin
+
+            abstract_model = DependentScalingModel{GeneralScaling, MaternCorrelationStructure, GaussianCopula}
+
+            @test_throws AssertionError IDFCurves.map_to_real_space(abstract_model, [0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
+            @test_throws AssertionError IDFCurves.map_to_real_space(abstract_model, [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -1])
+            @test_throws AssertionError IDFCurves.map_to_real_space(abstract_model, [0.5, -1, 0.5, 0.5, 0.5, 0.5, 0.5])
+
+            params_vector = [20, 5, .04, .76, .7, 1., 2.]
+            θ = IDFCurves.map_to_real_space(abstract_model, params_vector)
+            @test all( θ[1:5] .≈ IDFCurves.map_to_real_space(GeneralScaling, params_vector[1:5]) )
+            @test all( θ[6:7] .≈ IDFCurves.map_to_real_space(MaternCorrelationStructure, params_vector[6:7]) )
+
+            
+        end
+
         abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
         init_vector = initialize(abstract_model, data, 1)
         fd = IDFCurves.fit_mle(abstract_model, data, 1, [20, 5, .04, .76])
