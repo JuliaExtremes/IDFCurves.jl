@@ -51,6 +51,9 @@ Map the parameter(s) from the MaternCorrelationStructure parameter space to the 
 function map_to_real_space(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
     @assert length(θ) == 2 "The parameter vector length must be 1 for an exponential correlation structure."
 
+    @assert θ[1] > 0 "Matern correlogram parameter ν must be positive"   
+    @assert θ[2] >0 "Matern correlogram parameter ρ must be positive"
+
     return [log(θ[1]), log(θ[2])]
 
 end
@@ -77,9 +80,10 @@ function initialize(::Type{<:MaternCorrelationStructure}, data::IDFdata)
     end
 
     # optimization
-    θ₀ = map_to_real_space(MaternCorrelationStructure, [1.,1.])
+    θ₀ = [0., 0.]
     θ̂ = perform_optimization(MSE_kendall, θ₀, warn_message = "Automatic initialization did not work as expected for the MaternCorrelationStructure. Initialized parameters are (1,1) as a default.")
 
-    return [params(construct_model(MaternCorrelationStructure, θ̂))...]
-
+    return [maximum([0.001, exp(θ̂[1])]), # avoids possible numerical errors
+            maximum([0.001, exp(θ̂[2])]) # avoids possible numerical errors
+            ]
 end

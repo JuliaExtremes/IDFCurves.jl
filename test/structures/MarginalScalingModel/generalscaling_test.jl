@@ -37,9 +37,14 @@
     end
 
     @testset "map_to_real_space(::Type{<:GeneralScaling}, θ)" begin
+
+        @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., -1, 0., 0.5, 0.1])
+        @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., 1., 0., 0., 0.1])
+        @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., 1., 0., 0.5, -0.1])
         
         θ = [1., 1., 0., .5, 1.]
         @test IDFCurves.map_to_real_space(GeneralScaling, θ) ≈ [1., 0., 0., 0., 0.]
+        
     end
 
     @testset "Base.show(io, GeneralScaling)" begin
