@@ -1,8 +1,8 @@
 
 """
-    godambe(fd::Distribution, y::AbstractVector{<:Real})
+    godambe()
 
-Estimation the Godambe information matrix of the model `fd` according to the data `y`.
+Estimation the Godambe information matrix of the model.
 
 ## Reference
 
@@ -10,6 +10,43 @@ See also [`variability_matrix`](@ref).
 
 Varin, C., Reid, N., & Firth, D. (2011). An overview of composite likelihood methods. *Statistica Sinica*, 21 (1), 5–42.
 
+"""
+function godambe end
+
+"""
+    hessian()
+
+Estimation the sensitivity matrix of the model.
+
+## Reference
+
+See also [`godambe`](@ref) and [`variability_matrix`](@ref).
+
+Varin, C., Reid, N., & Firth, D. (2011). An overview of composite likelihood methods. *Statistica Sinica*, 21 (1), 5–42.
+
+"""
+function hessian end
+
+"""
+    variability_matrix()
+
+Estimate the variability matrix of model.
+
+## Details
+
+See also [`godambe`](@ref).
+
+Varin, C., Reid, N., & Firth, D. (2011). An overview of composite likelihood methods. Statistica Sinica, 21 (1), 5–42.
+"""
+function variability_matrix end
+
+
+
+
+"""
+    godambe(fd::Distribution, y::AbstractVector{<:Real})
+
+Estimation the Godambe information matrix of the model `fd` according to the data `y`.
 """
 function godambe(fd::Distribution, y::AbstractVector{<:Real})
    
@@ -25,13 +62,6 @@ end
     hessian(fd::Distribution, y::AbstractVector{<:Real})
 
 Estimation the sensitivity matrix of the model `fd` according to the data `y`.
-
-## Reference
-
-See also [`godambe`](@ref) and [`variability_matrix`](@ref).
-
-Varin, C., Reid, N., & Firth, D. (2011). An overview of composite likelihood methods. *Statistica Sinica*, 21 (1), 5–42.
-
 """
 function hessian(fd::Distribution, y::AbstractVector{<:Real})
    
@@ -52,12 +82,6 @@ end
     variability_matrix(fd::Distribution, y::AbstractVector{<:Real})
 
 Estimate the variability matrix of model `fd` according to the data `y`.
-
-## Details
-
-See also [`godambe`](@ref).
-
-Varin, C., Reid, N., & Firth, D. (2011). An overview of composite likelihood methods. Statistica Sinica, 21 (1), 5–42.
 """
 function variability_matrix(fd::Distribution, y::AbstractVector{<:Real})
     
