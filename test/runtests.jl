@@ -6,4 +6,5 @@ using CSV, DataFrames, Distributions, PDMats, SpecialFunctions, ForwardDiff, Tes
     include("data_test.jl")
     include("structures_test.jl")
     include("scalingtest_test.jl")
+    include("misspecification_test.jl")
 end
