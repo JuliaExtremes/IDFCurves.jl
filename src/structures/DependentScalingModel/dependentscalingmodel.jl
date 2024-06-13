@@ -205,21 +205,36 @@ end
 Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted model `pd` on the IDFdata `data`.      
 """
 function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
+
+    H = IDFCurves.hessian(pd, data)
+
+    return quantilevar(pd, data, d, p, H)
+
+end
+
+"""
+    quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
+
+Compute the quantile of level `p` variance for the duration `d` of the fitted scaling model `pd` on the IDFdata `data` with the Delta method.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument.   
+"""
+function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration should be positive."
 
-    T = getabstracttype(pd)
+    T = IDFCurves.getabstracttype(pd)
 
     θ̂ = collect(params(pd))
     d₀ = duration(getmarginalmodel(pd))
 
     # quantile function
     function g(θ::DenseVector{<:Real}) 
-        model = IDFCurves.construct_model(T, d₀, map_to_real_space(T, θ))
+        model = IDFCurves.construct_model(T, d₀, IDFCurves.map_to_real_space(T, θ))
         return quantile(model, d, p)
     end
-
-    H = hessian(pd, data)
 
     v = Extremes.delta(g, θ̂, H)
 
