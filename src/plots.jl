@@ -36,11 +36,15 @@ function qqplot(pd::MarginalScalingModel, data::IDFdata, d::Real)
 end
 
 """
-    qqplotci(fm::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
+    qqplotci(fm::DependentScalingModel, α::Real=.05, H::PDMat{<:Real})
 
-Quantile-Quantile plot for the estimated distribution for duration d, along with the confidence interval of level `1-α`.
+Quantile-Quantile plot along with the confidence/credible interval of level `1-α`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument.  
 """
-function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
+function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, H::PDMat{<:Real}, α::Real=.05)
     @assert d>0 "duration must be positive."
     @assert 0 < α < 1 "the level should be in (0,1)." 
 
@@ -53,9 +57,7 @@ function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.0
 
     p = (1:n) ./ (n+1)
 
-    scaling_model = IDFCurves.getmarginalmodel(fd)
-
-    q̂ = quantile.(scaling_model, d, p)
+    q̂ = quantile.(fd, d, p)
 
     df = DataFrame(Empirical = q, Model = q̂)
 
@@ -63,7 +65,7 @@ function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.0
     q_sup = Float64[]
 
     for pᵢ in p
-        c = quantilecint(fd, data, d, pᵢ)
+        c = quantilecint(fd, data, d, pᵢ, H)
         push!(q_inf, c[1])
         push!(q_sup, c[2])
     end
@@ -75,13 +77,42 @@ function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.0
         Theme(default_color="black", discrete_highlight_color=c->nothing))
     l2 = layer(df, x=:Model, ymin=:Inf, ymax=:Sup, Geom.ribbon, Theme(lowlight_color=c->"lightgray"))
     
-    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Guide.title("QQ-plot with confidence intervals for duration "*tag),
-             Theme(background_color="white"))
+    return plot(l1,l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Theme(background_color="white"))
 end
 
+"""
+    qqplotci(fm::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
+
+Quantile-Quantile plot for the estimated distribution for duration d, along with the confidence interval of level `1-α`.
+"""
+function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
+    
+    H = IDFCurves.hessian(fd, data)
+    
+    return qqplotci(fd, data, d, H, α)
+end
+
+"""
+    qqplotci(fm::MarginalScalingModel, α::Real=.05)
+
+Quantile-Quantile plot along with the confidence/credible interval of level `1-α`.
+"""
 function qqplotci(fd::MarginalScalingModel, data::IDFdata, d::Real, α::Real=.05)
     
     return qqplotci(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, α)
+end
+
+"""
+    qqplotci(fm::MarginalScalingModel, α::Real=.05, H::PDMat{<:Real})
+
+Quantile-Quantile plot along with the confidence/credible interval of level `1-α`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument.  
+"""
+function qqplotci(fd::MarginalScalingModel, data::IDFdata, d::Real, H::PDMat{<:Real}, α::Real=.05)
+    return qqplotci(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, H, α)
 end
 
 

@@ -180,6 +180,21 @@ function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
 end
 
 """
+    quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
+
+Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument. 
+"""
+function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
+    
+    return quantilevar(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, H)
+
+end
+
+"""
     quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
@@ -187,6 +202,21 @@ Compute the approximate Wald quantile confidence interval of level (1-`α`) of t
 function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
     
     return quantilecint(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, α)
+
+end
+
+"""
+    quantilecint(pd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
+
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument.  
+"""
+function quantilecint(pd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
+    
+    return quantilecint(DependentScalingModel(pd, UncorrelatedStructure(), IdentityCopula), data, d, p, H, α)
 
 end
 
