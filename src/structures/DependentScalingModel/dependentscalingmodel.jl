@@ -242,7 +242,28 @@ function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real,
 
 end
 
+"""
+    quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
 
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument.  
+"""
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
+    @assert 0<p<1 "the quantile level sould be in (0,1)."
+    @assert d>0 "the duration sould be positive."
+    @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
+
+    q̂ = quantile(pd, d, p)
+    v = IDFCurves.quantilevar(pd, data, d, p, H)
+
+   dist = Normal(q̂, sqrt(v))
+
+   return quantile.(dist, [α/2, 1-α/2])
+
+end
 
 """
     quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
@@ -250,18 +271,9 @@ end
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `p` for the duration `d`.
 """
 function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
-    @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
+    
+    H = IDFCurves.hessian(pd, data)
 
-    q̂ = quantile(pd, d, p )
-    v = quantilevar(pd, data, d, p)
-
-    if v > 0
-        dist = Normal(q̂, sqrt(v))
-        return quantile.(dist, [α/2, 1-α/2])
-    else
-        return [q̂, q̂]
-    end
+    return quantilecint(pd, data, d, p, H, α)
 
 end
