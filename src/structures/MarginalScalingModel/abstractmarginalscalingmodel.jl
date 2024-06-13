@@ -162,7 +162,7 @@ function godambe(fd::MarginalScalingModel, data::IDFdata)
     
     H = IDFCurves.hessian(fd, data)
     
-    G = PDMats.X_invA_Xt(J, H)
+    G = PDMat(PDMats.X_invA_Xt(J, H))
     
     return G
     
