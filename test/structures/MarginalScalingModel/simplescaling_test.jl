@@ -140,6 +140,13 @@
             @test init_vector2[4] ≈ init_vector[4] 
             @test log(init_vector2[1]) ≈ log(24)*init_vector2[4] + log(init_vector[1])
 
+            Random.seed!(37)
+            df = DataFrame(Year = 1:20, d1 = rand(GeneralizedExtremeValue(50., 7., -0.2), 20), d2 = rand(GeneralizedExtremeValue(35., 5., -0.1), 20) )
+            duration_dict = Dict(zip(["d1", "d2"], [1/12, 1/6]))
+            data2 = IDFdata(df, "Year", duration_dict)
+
+            @test initialize(SimpleScaling, data2, 1) isa Any
+
         end
 
         fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
