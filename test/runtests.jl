@@ -1,5 +1,5 @@
 using IDFCurves
-using CSV, DataFrames, Distributions, PDMats, SpecialFunctions, ForwardDiff, Test
+using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFunctions, Test
 
 @testset "IDFCurves.jl" begin
     include("utils_test.jl")
