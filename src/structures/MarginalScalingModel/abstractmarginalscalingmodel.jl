@@ -105,6 +105,16 @@ function rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; t
     
 end
 
+"""
+    scalingtype(fd::MarginalScalingModel)
+
+Return the MarginalScalingModel specific type
+"""
+function scalingtype(fd::MarginalScalingModel)
+    
+    return eval(nameof(typeof(fd)))
+    
+end
 
 ### Fit
 
@@ -138,6 +148,27 @@ function hessian(fd::MarginalScalingModel, data::IDFdata)
 end
 
 """
+    godambe(fd::GeneralScaling, data::IDFdata)
+
+Compute the Godambe matrix from the GeneralScaling model `fd` and the IDFData `data`.
+
+## Detail
+
+See also [`godambe`](@ref).
+"""
+function godambe(fd::MarginalScalingModel, data::IDFdata)
+    
+    J = variability_matrix(fd, data)
+    
+    H = IDFCurves.hessian(fd, data)
+    
+    G = PDMats.X_invA_Xt(J, H)
+    
+    return G
+    
+end
+
+"""
     quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
 
 Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.      
@@ -158,3 +189,44 @@ function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real,
     return quantilecint(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, α)
 
 end
+
+
+"""
+    variability_matrix(fd::MarginalScalingModel, data::IDFdata)
+
+Estimate the variability matrix for the MarginalScalingModel `fd` according to the IDFData `data`.
+    
+## Detail
+
+The data matrix is constructied assuming that all durations have the same number of observations.
+
+See also [`variability_matrix`](@ref).
+"""
+function variability_matrix(fd::MarginalScalingModel, data::IDFdata)
+   
+    # TODO: Handling missing data. Assuming here that all durations have the same number of observations.
+    Y = stack(getdata.(data, gettag(data)), dims=1)
+    
+    θ̂ = collect(params(fd))
+        
+    d, n = size(Y)
+    
+    J = zeros(length(θ̂), length(θ̂))
+        
+    scaling_model = scalingtype(fd)
+        
+    pd(θ) = getdistribution.(scaling_model(IDFCurves.duration(fd), θ...), getduration.(data, gettag(data)))
+    ll(θ, y) = sum(logpdf.(pd(θ), y))
+    u(θ, y) = ForwardDiff.gradient( θ -> ll(θ, y), θ)
+    
+    for y in eachcol(Y)
+        
+        uᵢ = u(θ̂, y)
+        
+        J .+= uᵢ * uᵢ'
+    end
+    
+    return PDMat(Symmetric(J))
+        
+end
+    
