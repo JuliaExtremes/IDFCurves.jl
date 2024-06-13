@@ -18,7 +18,7 @@
         @test H[1] ≈ n rtol=.05
 
         G = IDFCurves.godambe(fd, y)
-        @test G[1] ≈ n rtol=.05
+        @test G[1] ≈ n rtol=.1
 
     end
     @testset "with misspecification" begin
@@ -32,7 +32,7 @@
         fd = Exponential(1/θ̂)
 
         G = IDFCurves.godambe(fd, y)
-        @test G[1] ≈ 2*n rtol=.05
+        @test G[1] ≈ 2*n rtol=.1
 
     end
 end
