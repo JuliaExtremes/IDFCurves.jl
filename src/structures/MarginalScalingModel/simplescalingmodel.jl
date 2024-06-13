@@ -151,7 +151,11 @@ function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
     log_σ_values = Dict{String, Real}()
     duration_tags = gettag(data)
     for tag in duration_tags
-        fm = Extremes.gevfit(getdata(data, tag))
+        try
+            global fm = Extremes.gevfit(getdata(data, tag))
+        catch e 
+            global fm = Extremes.gevfitpwm(getdata(data, tag))
+        end
         log_μ_values[tag] = log( fm.θ̂[1] )
         log_σ_values[tag] = fm.θ̂[2]
     end
