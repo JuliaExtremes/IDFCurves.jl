@@ -6,7 +6,9 @@ Load the dataset associated with `name`.
 ### Details
 
 Some datasets are available using the following names:
- - `702S006`: short duration rainfall intensity-duration-frequency data recorded at Montreal Pierre-Elliott-Trudeau internation airport
+ - `1108487`: short duration rainfall intensity-duration-frequency data recorded at VANCOUVER UBC
+ - `6158731`: short duration rainfall intensity-duration-frequency data recorded at the Toronto Leaster B. Pearson Internation Airport
+ - `702S006`: short duration rainfall intensity-duration-frequency data recorded at the Montreal Pierre-Elliott-Trudeau Internation Airport
  
  These datasets have been retrieved from the [Environment and Climate Change Canada website](https://climate.weather.gc.ca/prods_servs/engineering_e.html).
 
