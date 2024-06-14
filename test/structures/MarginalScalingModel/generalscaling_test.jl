@@ -144,6 +144,7 @@
         end
 
         fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
+        H = IDFCurves.hessian(fd, data)
 
         @testset "fit_mle(::GeneralScaling, data, d₀, initialvalues)" begin
 
@@ -163,7 +164,7 @@
 
         @testset "hessian(::GeneralScaling, data)" begin
         
-            @test IDFCurves.hessian(fd, data) ≈ [21.5015 -10.5403 46.7217 -100.863 -283.946;
+            @test H ≈ [21.5015 -10.5403 46.7217 -100.863 -283.946;
                 -10.5403 37.1912 21.0899 -43.1767 31.1629;
                 46.7217 21.0899 1332.12 412.91 -1281.44;
                 -100.863 -43.1767 412.91 21878.6 -15727.8;
@@ -172,12 +173,16 @@
         end
 
         @testset "quantilevar" begin
+            @test IDFCurves.quantilevar(fd, data, 24, .95, H) ≈ 0.014404245774623275
             @test IDFCurves.quantilevar(fd, data, 24, .95) ≈ 0.014404245774623275
         end
 
-        @testset "quantilevar" begin
+        @testset "quantilecint" begin
             @test quantilecint(fd, data, 24, .95) ≈ [3.2642, 3.7346] atol = 1e-4
             @test quantilecint(fd, data, 24, .95, .1) ≈ [3.3020, 3.6968] atol = 1e-4
+
+            @test quantilecint(fd, data, 24, .95, H) ≈ [3.2642, 3.7346] atol = 1e-4
+            @test quantilecint(fd, data, 24, .95, H, .1) ≈ [3.3020, 3.6968] atol = 1e-4
         end
         
     end
