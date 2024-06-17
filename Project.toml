@@ -1,7 +1,7 @@
 name = "IDFCurves"
 uuid = "17afcda4-a678-4b99-aabd-b1f8835dcb1e"
 authors = ["Jonathan Jalbert", "Paul Mathivon", "Auguste Paoli"]
-version = "0.1.2"
+version = "0.2.0"
 
 [deps]
 BesselK = "432ab697-7a72-484f-bc4a-bc531f5c819b"
