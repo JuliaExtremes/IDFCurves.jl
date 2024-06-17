@@ -22,14 +22,14 @@ end
 
 
 """
-    map_to_param_space(::Type{<:ExponentialCorrelationStructure}, θ)
+    construct_model(::Type{<:ExponentialCorrelationStructure, θ)
 
-Map the parameter(s) from the real space to the ExponentialCorrelationStructure parameter space.
+Construct an ExponentialCorrelationStructure from a set of transformed parameters θ in the real space.
 """
-function map_to_param_space(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
     @assert length(θ) == 1 "The parameter vector length must be 1 for an exponential correlation structure."
 
-    return [exp(θ[1])]
+    return ExponentialCorrelationStructure(exp(θ[1]))
 
 end
 
@@ -41,6 +41,37 @@ Map the parameter(s) from the ExponentialCorrelationStructure parameter space to
 function map_to_real_space(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
     @assert length(θ) == 1 "The parameter vector length must be 1 for an exponential correlation structure."
 
+    @assert θ[1] > 0 "exponential correlogram parameter must be positive"  
+
     return [log(θ[1])]
+
+end
+
+"""
+    initialize(::Type{<:ExponentialCorrelationStructure}, data::IDFdata)
+
+Initialize a vector of parameters for the ExponentialCorrelationStructure adapted to the data.
+The initialization is done by fitting the correlation function to the Kendall's Tau (measure of correlation) associated to each pair of durations.
+"""
+function initialize(::Type{<:ExponentialCorrelationStructure}, data::IDFdata)
+
+    # Kendall's Tau for each pair of durations
+    kendall_data = IDFCurves.getKendalldata(data)
+    transform!(kendall_data, :kendall => (x -> sin.(pi / 2 .* x)) => :kendall)
+
+    # The function to be optimized takes as argument a vector of size 1 containing the value (transformed into real space) of the correlation parameter, 
+    # and returns the squared error associated with the approximation of the empirical Kendall's Tau by the theoretical exponential correlation with this parameter.
+    function MSE_kendall(θ::DenseVector{<:Real})
+        cor_struct =  construct_model(ExponentialCorrelationStructure, θ)
+        corrs = [ cor(cor_struct, h) for h in kendall_data[:,:distance] ]
+    
+        return sum( (corrs .- kendall_data[:,:kendall]).^2 )
+    end
+
+    # optimization
+    θ₀ = [0.]
+    θ̂ = perform_optimization(MSE_kendall, θ₀, warn_message = "Automatic initialization did not work as expected for the ExponentialCorrelationStructure. Initialized parameter is 1 as a default.")
+
+    return [maximum([0.001, exp(θ̂[1])])] # avoids possible numerical errors
 
 end

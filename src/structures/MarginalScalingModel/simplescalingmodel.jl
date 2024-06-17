@@ -28,7 +28,7 @@ end
 
 function SimpleScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T <: Real}
         
-    @assert 0 < α ≤ 1 "Scaling exponent must be between 0 and 1"
+    @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
     @assert σ₀ > 0 "Scale must be positive"
         
     return SimpleScaling{T}(d₀, μ₀, σ₀, ξ, α)
@@ -94,26 +94,29 @@ function getdistribution(pd::SimpleScaling, d::Real)
 end
 
 """
-    map_to_param_space(::Type{<:SimpleScaling}, θ)
+    construct_model(::Type{<:SimpleScaling}, θ)
 
-Map the parameters from the real hypercube to the SimpleScaling parameter space.
+Construct a SimpleScaling marginal model from a set of transformed parameters θ in the real space.
 """
-function map_to_param_space(::Type{<:SimpleScaling}, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector{<:Real})
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
 
-    return [θ[1], exp(θ[2]), logistic(θ[3])-.5, logistic(θ[4])]
+    return SimpleScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]))
 
 end
 
 """
     map_to_real_space(::Type{<:SimpleScaling}, θ)
 
-Map the parameters from the SimpleScaling parameter spave to the real hypercube.
+Map the parameters from the SimpleScaling parameter space to the real space.
 """
 function map_to_real_space(::Type{<:SimpleScaling}, θ::AbstractVector{<:Real})
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
 
-    return [θ[1], log(θ[2]), logit(θ[3]+.5), logit(θ[4])]
+    @assert 0 < θ[4] < 1 "Scaling exponent must be between 0 and 1"
+    @assert θ[2] > 0 "Scale must be positive"
+
+    return [θ[1], log(θ[2]), θ[3], logit(θ[4])]
 
 end
 
@@ -132,4 +135,45 @@ function Base.show(io::IO, obj::SimpleScaling)
         ", ξ = ", round(shape(obj), digits=4),
         ", α = ", round(exponent(obj), digits=4),
         ")")
+end
+
+"""
+    initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
+
+Initialize a vector of parameters for the SimpleScaling marginal model with reference duration d₀, adapted to the data.
+The initialization is done by fitting a Gumbel distribution independently for each duration in the data and then estimating the scaling relationship by
+    regression over μ and σ. ξ is initialized at 0 as a default.
+"""
+function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
+    
+    # step 1 : computing Gumbel parameters separately for each duration
+    log_μ_values = Dict{String, Real}()
+    log_σ_values = Dict{String, Real}()
+    duration_tags = gettag(data)
+    for tag in duration_tags
+        try
+            global fm = Extremes.gevfit(getdata(data, tag))
+        catch e 
+            global fm = Extremes.gevfitpwm(getdata(data, tag))
+        end
+        log_μ_values[tag] = log( fm.θ̂[1] )
+        log_σ_values[tag] = fm.θ̂[2]
+    end
+
+    # step 2 : computing μ_d₀, σ_d₀ et α using regression
+    regression_data = DataFrame(is_μ_value = Bool[], is_σ_value = Bool[], log_d = Float64[], param_value = Float64[])
+    for tag in duration_tags
+        push!(regression_data, [true, false, log(getduration(data, tag) / d₀), log_μ_values[tag]])
+        push!(regression_data, [false, true, log(getduration(data, tag) / d₀), log_σ_values[tag]])
+    end
+    X = Matrix(regression_data[:,1:3])
+    y = Vector(regression_data[:,4])
+    regression_res = X \ y
+
+    return [ exp(regression_res[1]), 
+                maximum([0.001, exp(regression_res[2])]), # avoids possible numerical errors
+                0.,
+                maximum([0.001, minimum([0.999, - regression_res[3]])]) # avoids possible domain errors
+            ]
+
 end

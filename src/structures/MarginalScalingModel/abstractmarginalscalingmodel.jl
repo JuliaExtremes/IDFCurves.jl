@@ -66,75 +66,6 @@ function quantile(pd::MarginalScalingModel, d::Real, p::Real)
 
 end
 
-"""
-
-    hessian(fd::MarginalScalingModel, data::IDFdata)
-
-Compute the Hessian matrix of the loglikelihood of the fitted scaling model `pd` associated with the IDF data `data`.
-"""
-function hessian(fd::MarginalScalingModel, data::IDFdata)
-
-    d₀ = duration(fd)
-    θ̂ = collect(params(fd))
-
-    T = eval(nameof(typeof(fd)))
-
-    fobj(θ) = -loglikelihood(T(d₀, θ...), data)
-
-    H = Hermitian(ForwardDiff.hessian(fobj, θ̂))
-
-end
-
-"""
-    quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
-
-Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.      
-"""
-function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration should be positive."
-
-    d₀ = duration(fd)
-    θ̂ = collect(params(fd))
-
-    H = IDFCurves.hessian(fd, data)
-
-    T = eval(nameof(typeof(fd)))
-
-    # quantile function
-    g(θ::DenseVector{<:Real}) = quantile(T(d₀, θ...), d, p)
-
-    # gradient
-    ∇ = ForwardDiff.gradient(g, θ̂)
-
-    # Approximate variance computed with the delta method
-    u = H\∇
-    v = dot(∇, u)
-
-    return v
-
-end
-
-"""
-    quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
-
-Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
-"""
-function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
-    @assert 0<p<1 "the quantile level sould be in (0,1)."
-    @assert d>0 "the duration sould be positive."
-    @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
-
-    q̂ = quantile(fd, d, p)
-    v = IDFCurves.quantilevar(fd, data, d, p)
-
-   dist = Normal(q̂, sqrt(v))
-
-   return quantile.(dist, [α/2, 1-α/2])
-
-end
-
-
 
 """
     rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
@@ -174,6 +105,16 @@ function rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; t
     
 end
 
+"""
+    scalingtype(fd::MarginalScalingModel)
+
+Return the MarginalScalingModel specific type
+"""
+function scalingtype(fd::MarginalScalingModel)
+    
+    return eval(nameof(typeof(fd)))
+    
+end
 
 ### Fit
 
@@ -185,3 +126,137 @@ function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Rea
     return getmarginalmodel(fitted_global_model)
 
 end
+
+function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
+
+    fitted_global_model = fit_mle(DependentScalingModel{pd_type, UncorrelatedStructure, IdentityCopula}, data, d₀)
+    
+    return getmarginalmodel(fitted_global_model)
+
+end
+
+"""
+
+    hessian(fd::MarginalScalingModel, data::IDFdata)
+
+Compute the Hessian matrix of the loglikelihood of the fitted scaling model `fd` associated with the IDF data `data`.
+"""
+function hessian(fd::MarginalScalingModel, data::IDFdata)
+
+    return hessian(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data)
+
+end
+
+"""
+    godambe(fd::GeneralScaling, data::IDFdata)
+
+Compute the Godambe matrix from the GeneralScaling model `fd` and the IDFData `data`.
+
+## Detail
+
+See also [`godambe`](@ref).
+"""
+function godambe(fd::MarginalScalingModel, data::IDFdata)
+    
+    J = variability_matrix(fd, data)
+    
+    H = IDFCurves.hessian(fd, data)
+    
+    G = PDMat(PDMats.X_invA_Xt(J, H))
+    
+    return G
+    
+end
+
+"""
+    quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
+
+Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.      
+"""
+function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
+    
+    return quantilevar(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p)
+
+end
+
+"""
+    quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
+
+Compute with the Delta method the quantile of level `p` variance for the duration `d` of the fitted scaling model `fd` on the IDFdata `data`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument. 
+"""
+function quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
+    
+    return quantilevar(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, H)
+
+end
+
+"""
+    quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+"""
+function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+    
+    return quantilecint(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, α)
+
+end
+
+"""
+    quantilecint(pd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
+
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument.  
+"""
+function quantilecint(pd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
+    
+    return quantilecint(DependentScalingModel(pd, UncorrelatedStructure(), IdentityCopula), data, d, p, H, α)
+
+end
+
+
+"""
+    variability_matrix(fd::MarginalScalingModel, data::IDFdata)
+
+Estimate the variability matrix for the MarginalScalingModel `fd` according to the IDFData `data`.
+    
+## Detail
+
+The data matrix is constructied assuming that all durations have the same number of observations.
+
+See also [`variability_matrix`](@ref).
+"""
+function variability_matrix(fd::MarginalScalingModel, data::IDFdata)
+   
+    # TODO: Handling missing data. Assuming here that all durations have the same number of observations.
+    Y = stack(getdata.(data, gettag(data)), dims=1)
+    
+    θ̂ = collect(params(fd))
+        
+    d, n = size(Y)
+    
+    J = zeros(length(θ̂), length(θ̂))
+        
+    scaling_model = scalingtype(fd)
+        
+    pd(θ) = getdistribution.(scaling_model(IDFCurves.duration(fd), θ...), getduration.(data, gettag(data)))
+    ll(θ, y) = sum(logpdf.(pd(θ), y))
+    u(θ, y) = ForwardDiff.gradient( θ -> ll(θ, y), θ)
+    
+    for y in eachcol(Y)
+        
+        uᵢ = u(θ̂, y)
+        
+        J .+= uᵢ * uᵢ'
+    end
+    
+    return PDMat(Symmetric(J))
+        
+end
+    

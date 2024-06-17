@@ -23,16 +23,28 @@
         
     end
 
-    @testset "map_to_param_space(::Type{<:GeneralScaling}, θ)" begin
+    @testset "construct_model(::Type{<:GeneralScaling}, θ)" begin
+
+        θ = [1., 0., 0., 0.]
+        @test_throws AssertionError IDFCurves.construct_model(GeneralScaling, 1, θ) 
         
         θ = [1., 0., 0., 0., 0.]
-        @test IDFCurves.map_to_param_space(GeneralScaling, θ) ≈ [1., 1., 0., .5, 1.]
+        pd = IDFCurves.construct_model(GeneralScaling, 1, θ)
+        @test pd isa GeneralScaling
+        @test duration(pd) == 1
+        @test all([params(pd)...] .≈  [1., 1., 0., .5, 1.])
+
     end
 
     @testset "map_to_real_space(::Type{<:GeneralScaling}, θ)" begin
+
+        @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., -1, 0., 0.5, 0.1])
+        @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., 1., 0., 0., 0.1])
+        @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., 1., 0., 0.5, -0.1])
         
         θ = [1., 1., 0., .5, 1.]
         @test IDFCurves.map_to_real_space(GeneralScaling, θ) ≈ [1., 0., 0., 0., 0.]
+        
     end
 
     @testset "Base.show(io, GeneralScaling)" begin
@@ -115,16 +127,26 @@
     @testset "fitting a general scaling model" begin
 
         df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
-        
         tags = names(df)[2:10]
         durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
         duration_dict = Dict(zip(tags, durations))
-                
         data = IDFdata(df, "Year", duration_dict)
 
-        fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
+        @testset "initialize(::GeneralScaling)" begin
+            
+            init_vector = initialize(GeneralScaling, data, 1)
+            @test length(init_vector) == 5
+            @test init_vector[5] ≈ 0.001
 
-        @testset "fit_mle(::GeneralScaling)" begin
+            init_vector_SS = initialize(SimpleScaling, data, 1)
+            @test init_vector[1:4] ≈ init_vector_SS
+            
+        end
+
+        fd = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .04, .76, .07])
+        H = IDFCurves.hessian(fd, data)
+
+        @testset "fit_mle(::GeneralScaling, data, d₀, initialvalues)" begin
 
             @test [params(fd)...] ≈ [19.7911, 5.5938, 0.0405, 0.7609, 0.0681] rtol=.1
             fd2 = IDFCurves.fit_mle(GeneralScaling, data, 1, [20, 5, .0, .76, .07])
@@ -133,9 +155,16 @@
 
         end
 
+        @testset "fit_mle(::GeneralScaling, data, d₀)" begin
+
+            fd3 = IDFCurves.fit_mle(GeneralScaling, data, 1)
+            @test [params(fd3)...] ≈ [params(fd)...] rtol=.1
+
+        end
+
         @testset "hessian(::GeneralScaling, data)" begin
         
-            @test IDFCurves.hessian(fd, data) ≈ [21.5015 -10.5403 46.7217 -100.863 -283.946;
+            @test H ≈ [21.5015 -10.5403 46.7217 -100.863 -283.946;
                 -10.5403 37.1912 21.0899 -43.1767 31.1629;
                 46.7217 21.0899 1332.12 412.91 -1281.44;
                 -100.863 -43.1767 412.91 21878.6 -15727.8;
@@ -144,12 +173,16 @@
         end
 
         @testset "quantilevar" begin
+            @test IDFCurves.quantilevar(fd, data, 24, .95, H) ≈ 0.014404245774623275
             @test IDFCurves.quantilevar(fd, data, 24, .95) ≈ 0.014404245774623275
         end
 
-        @testset "quantilevar" begin
+        @testset "quantilecint" begin
             @test quantilecint(fd, data, 24, .95) ≈ [3.2642, 3.7346] atol = 1e-4
             @test quantilecint(fd, data, 24, .95, .1) ≈ [3.3020, 3.6968] atol = 1e-4
+
+            @test quantilecint(fd, data, 24, .95, H) ≈ [3.2642, 3.7346] atol = 1e-4
+            @test quantilecint(fd, data, 24, .95, H, .1) ≈ [3.3020, 3.6968] atol = 1e-4
         end
         
     end

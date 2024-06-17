@@ -15,14 +15,14 @@ function cor(C::UncorrelatedStructure, d::Real)
 end
 
 """
-    map_to_param_space(::Type{<:UncorrelatedStructure}, θ)
+    construct_model(::Type{<:MaternCorrelationStructure, θ)
 
-Map the parameter(s) from the real space to the UncorrelatedStructure parameter space.
+Construct an UncorrelatedStructure from a set of transformed parameters θ in the real space.
 """
-function map_to_param_space(::Type{<:UncorrelatedStructure}, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:UncorrelatedStructure}, θ::AbstractVector{<:Any})
     @assert length(θ) == 0 "The parameter vector length must be 0 for an uncorrelated structure."
 
-    return Float64[]
+    return UncorrelatedStructure()
 
 end
 
@@ -31,8 +31,19 @@ end
 
 Map the parameter(s) from the UncorrelatedStructure parameter space to the real space.
 """
-function map_to_real_space(::Type{<:UncorrelatedStructure}, θ::AbstractVector{<:Real})
+function map_to_real_space(::Type{<:UncorrelatedStructure}, θ::AbstractVector{<:Any})
     @assert length(θ) == 0 "The parameter vector length must be 0 for an uncorrelated structure."
+
+    return Float64[]
+
+end
+
+"""
+    initialize(::Type{<:UncorrelatedStructure}, data::IDFdata)
+
+Returs an empty vector.
+"""
+function initialize(::Type{<:UncorrelatedStructure}, data::IDFdata)
 
     return Float64[]
 

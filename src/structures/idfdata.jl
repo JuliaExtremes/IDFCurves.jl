@@ -22,7 +22,7 @@ end
 """
     IDFdata(df::DataFrame, year_id::String, duration::Dict{String, T} where T<:Real)
 
-Construct a IDFdata sructure from a DataFrame.
+Construct a IDFdata structure from a DataFrame.
 
 ### Details
 
@@ -162,7 +162,26 @@ function gettag(data::IDFdata, d::Real)
 
 end
 
+"""
+    excludeduration(data::IDFdata, d::Real)
 
+Remove the data of `data` corresponding to the duration `d`.
+"""
+function excludeduration(data::IDFdata, d::Real)
+
+    new_year = Dict{String, Vector{Int64}}()
+    new_data = Dict{String, Vector{Float64}}()
+    new_duration = Dict(k => v for (k, v) in getduration(data) if k != gettag(data, d))
+
+    new_tag = collect(keys(new_duration))
+    for key in new_tag
+        new_year[key] = getyear(data, key)
+        new_data[key] = getdata(data, key)
+    end
+
+    return IDFdata(new_tag, new_duration, new_year, new_data)
+
+end
 
 """
     Base.show(io::IO, obj::IDFdata)
@@ -176,4 +195,36 @@ function Base.show(io::IO, obj::IDFdata)
     for tag in gettag(obj)
         println(io, prefix, tag, ": ", typeof(getdata(obj, tag)), "[", length(getdata(obj,tag)), "]" )
     end
+end
+
+
+"""
+    getKendalldata(obj::IDFdata)
+
+Computes the Kendall tau for each pair of durations for which obj contains data,
+    and returns them in a DataFrame.
+
+"""
+function getKendalldata(obj::IDFdata)
+
+    df_kendall = DataFrame(tag1 = String[], tag2 = String[], distance = Float64[], kendall = Float64[])
+    
+    for c in combinations(gettag(obj),2)
+    
+        d₁ = getduration(obj, c[1])
+        d₂ = getduration(obj, c[2])
+        
+        h = IDFCurves.logdist(d₁, d₂)
+        
+        y₁ = getdata(obj, c[1])
+        y₂ = getdata(obj, c[2])
+        
+        τ = corkendall(y₁, y₂)
+        
+        push!(df_kendall, [c[1], c[2], h, τ])
+        
+    end
+
+    return df_kendall
+
 end

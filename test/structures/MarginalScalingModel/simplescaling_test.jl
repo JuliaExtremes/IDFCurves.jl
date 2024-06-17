@@ -23,13 +23,23 @@
         
     end
 
-    @testset "map_to_param_space(::Type{<:SimpleScaling}, θ)" begin
+    @testset "construct_model(::Type{<:SimpleScaling}, θ)" begin
+
+        θ = [1., 0., 0.]
+        @test_throws AssertionError IDFCurves.construct_model(SimpleScaling, 1, θ)
         
         θ = [1., 0., 0., 0.]
-        @test IDFCurves.map_to_param_space(SimpleScaling, θ) ≈ [1., 1., 0., .5]
+        pd = IDFCurves.construct_model(SimpleScaling, 1, θ)
+        @test pd isa SimpleScaling
+        @test duration(pd) == 1
+        @test all([params(pd)...] .≈  [1., 1., 0., .5])
+
     end
 
     @testset "map_to_real_space(::Type{<:SimpleScaling}, θ)" begin
+
+        @test_throws AssertionError IDFCurves.map_to_real_space(SimpleScaling, [1., 0., 0., 0.5])
+        @test_throws AssertionError IDFCurves.map_to_real_space(SimpleScaling, [1., 1., 0., -0.1])
         
         θ = [1., 1., 0., .5]
         @test IDFCurves.map_to_real_space(SimpleScaling, θ) ≈ [1., 0., 0., 0.]
@@ -115,21 +125,45 @@
     @testset "fitting a simple scaling model" begin
 
         df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
-        
         tags = names(df)[2:10]
         durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
         duration_dict = Dict(zip(tags, durations))
-                
         data = IDFdata(df, "Year", duration_dict)
+
+        @testset "initialize(::SimpleScaling)" begin
+            
+            init_vector = initialize(SimpleScaling, data, 24)
+            @test length(init_vector) == 4
+            @test init_vector ≈ [1.82042, 0.50181, 0.0, 0.7257] rtol=.1
+
+            init_vector2 = initialize(SimpleScaling, data, 1)
+            @test init_vector2[4] ≈ init_vector[4] 
+            @test log(init_vector2[1]) ≈ log(24)*init_vector2[4] + log(init_vector[1])
+
+            Random.seed!(37)
+            df = DataFrame(Year = 1:20, d1 = rand(GeneralizedExtremeValue(50., 7., -0.2), 20), d2 = rand(GeneralizedExtremeValue(35., 5., -0.1), 20) )
+            duration_dict = Dict(zip(["d1", "d2"], [1/12, 1/6]))
+            data2 = IDFdata(df, "Year", duration_dict)
+
+            @test initialize(SimpleScaling, data2, 1) isa Any
+
+        end
 
         fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .04, .76])
 
-        @testset "fit_mle(::SimpleScaling)" begin
+        @testset "fit_mle(::SimpleScaling, data, d₀, initialvalues)" begin
 
             @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=.1
             fd2 = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, .0, .76])
             @test [params(fd2)...] ≈ [params(fd)...] rtol=.1
             @test shape(fd2) != 0.0
+
+        end
+
+        @testset "fit_mle(::SimpleScaling, data, d₀)" begin
+
+            fd3 = IDFCurves.fit_mle(SimpleScaling, data, 1)
+            @test [params(fd3)...] ≈ [params(fd)...] rtol=.1
 
         end
 
