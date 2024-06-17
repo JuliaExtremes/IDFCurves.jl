@@ -6,7 +6,7 @@ Load the dataset associated with `name`.
 ### Details
 
 Some datasets are available using the following names:
- - `1108487`: short duration rainfall intensity-duration-frequency data recorded at VANCOUVER UBC
+ - `1108446`: short duration rainfall intensity-duration-frequency data recorded at  Vancouver Harbour CS
  - `6158731`: short duration rainfall intensity-duration-frequency data recorded at the Toronto Leaster B. Pearson Internation Airport
  - `702S006`: short duration rainfall intensity-duration-frequency data recorded at the Montreal Pierre-Elliott-Trudeau Internation Airport
  
