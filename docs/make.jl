@@ -18,7 +18,7 @@ if CI
     deploydocs(
     repo   = "https://github.com/JuliaExtremes/IDFCurves.jl.git",
     devbranch = "main",
-    versions = ["stable" => "v^", "v#.#", "master"],
+    versions = ["stable" => "v^", "v#.#", "main"],
     push_preview = false,
     target = "build"
     )
