@@ -3,8 +3,8 @@
 [![Active – The project has reached a stable, usable state and is being actively developed.](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Build Status](https://github.com/JuliaExtremes/IDFCurves.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/JuliaExtremes/IDFCurves.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![codecov](https://codecov.io/gh/JuliaExtremes/IDFCurves.jl/branch/main/graph/badge.svg?token=5fe36122-1af1-4494-be65-e307d5aa8acc)](https://codecov.io/gh/JuliaExtremes/IDFCurves.jl)
-[![documentation stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://JuliaExtremes.github.io/IDFCurves.jl/stable/)
-[![documentation latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://JuliaExtremes.github.io/IDFCurves.jl/dev/)
+[![documentation stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliaextremes.github.io/IDFCurves.jl/stable/)
+[![documentation latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliaextremes.github.io/IDFCurves.jl/dev/)
 
 
 IDFCurves.jl is a package in the **Julia** programming language ecosystem. It specializes in the statistical estimation of Intensity-Duration-Frequency curves. It provides exhaustive, high-performance functions by leveraging the multiple-dispatch capabilities in **Julia**. In particular, the package implements:
