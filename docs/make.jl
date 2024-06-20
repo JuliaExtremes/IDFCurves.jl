@@ -17,7 +17,7 @@ makedocs(sitename = "IDFCurves.jl",
 if CI
     deploydocs(
     repo   = "https://github.com/JuliaExtremes/IDFCurves.jl.git",
-    devbranch = "main",
+    devbranch = "dev",
     versions = ["stable" => "v^", "v#.#", "main"],
     push_preview = false,
     target = "build"
