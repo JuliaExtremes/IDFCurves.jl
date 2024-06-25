@@ -1,3 +1,6 @@
+using IDFCurves
+using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFunctions, Test
+
 @testset "DependentScaling" begin
 
     @testset "get subtypes of DependentScalingModel" begin
@@ -130,7 +133,6 @@
             @test all( θ[1:5] .≈ IDFCurves.map_to_real_space(GeneralScaling, params_vector[1:5]) )
             @test all( θ[6:7] .≈ IDFCurves.map_to_real_space(MaternCorrelationStructure, params_vector[6:7]) )
 
-            
         end
 
         abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
@@ -185,7 +187,6 @@
 
         end
 
-
         @testset "quantilevar(::DependentScalingModel)" begin
 
             @test_throws AssertionError IDFCurves.quantilevar(fd, data, 0, 0.99)
@@ -207,6 +208,41 @@
             
         end
 
+    end
+
+    @testset "fitting a dependent scaling model with constrained parameters" begin
+
+        df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
+        tags = names(df)[2:10]
+        durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+        duration_dict = Dict(zip(tags, durations))
+        data = IDFdata(df, "Year", duration_dict)
+
+        abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
+
+        d₀ = 1.0
+        initialvalues = [20, 5, 0.00001, .76]
+        fixedvalues = [nothing, nothing, 0.0, nothing]
+
+        @testset "initial shape parameter adjustment" begin
+            initialvalues_test = copy(initialvalues)
+            fixedvalues_test = copy(fixedvalues)
+
+            fd = IDFCurves.fit_mle(abstract_model, data, d₀, initialvalues_test, fixedvalues_test)
+            
+            # Check if the initial shape parameter has been adjusted
+            @test initialvalues_test[3] == 0.0001
+            @test fixedvalues_test[3] == 0.0001
+        end
+
+        @testset "optimization returns expected model" begin
+            initialvalues_test = copy(initialvalues)
+            fd1 = IDFCurves.fit_mle(abstract_model, data, d₀, initialvalues_test)
+            fd2 = IDFCurves.fit_mle(abstract_model, data, d₀, initialvalues_test, [nothing, nothing, 0.04, nothing])
+
+            @test all([params(getmarginalmodel(fd1))...] .!= [params(getmarginalmodel(fd2))...])
+            @test [params(getmarginalmodel(fd2))...] ≈ [18.161000347306484, 5.299451673789118, 0.04, 0.6945575661249878] rtol = .01
+        end
     end
 
 end

@@ -106,6 +106,18 @@ function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector
 end
 
 """
+    construct_model(::Type{<:SimpleScaling}, d₀, θ, c)
+
+Construct a SimpleScaling marginal model from a set of transformed and fixed parameters in the real space.
+"""
+function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector{<:Real}, c::AbstractVector{<:Union{Nothing, Real}})
+    θ_mixed = [isnothing(fixed_param) ? param : fixed_param for (param, fixed_param) in zip(θ, c)]
+
+    @assert length(θ_mixed) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
+    return SimpleScaling(d₀, θ_mixed[1], exp(θ_mixed[2]), θ_mixed[3], logistic(θ_mixed[4]))
+end
+
+"""
     map_to_real_space(::Type{<:SimpleScaling}, θ)
 
 Map the parameters from the SimpleScaling parameter space to the real space.

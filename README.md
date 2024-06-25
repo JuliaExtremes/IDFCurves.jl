@@ -39,5 +39,13 @@ The following **julia** command will install the package:
 julia> Pkg.add("IDFCurves")
 ```
 
+## Tests
+
+To run unit tests, 
+
+```sh
+julia --project -e 'import Pkg; Pkg.test()'
+```
+
 ## Data
 The datasets that are available through this package are retriveved from the [Environment and Climate Change Canada](https://collaboration.cmc.ec.gc.ca/cmc/climate/Engineer_Climate/IDF/) website.
