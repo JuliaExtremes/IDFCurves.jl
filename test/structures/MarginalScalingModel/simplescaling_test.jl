@@ -1,3 +1,5 @@
+using IDFCurves
+using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFunctions, Test
 
 @testset "SimpleScaling" begin
 
@@ -23,7 +25,7 @@
         
     end
 
-    @testset "construct_model(::Type{<:SimpleScaling}, θ)" begin
+    @testset "construct_model(::Type{<:SimpleScaling}, d₀, θ)" begin
 
         θ = [1., 0., 0.]
         @test_throws AssertionError IDFCurves.construct_model(SimpleScaling, 1, θ)
@@ -34,6 +36,21 @@
         @test duration(pd) == 1
         @test all([params(pd)...] .≈  [1., 1., 0., .5])
 
+    end
+
+    @testset "construct_model(::Type{<:SimpleScaling}, d₀, θ, c)" begin
+
+        θ = [0., 0., 0.]
+        c = [1., 1., 0.5]
+        @test_throws AssertionError IDFCurves.construct_model(SimpleScaling, 1, θ, c)
+        
+        θ = [1., 1., 1., 1.]
+        c = [1., 0., 0., 0.]
+        pd = IDFCurves.construct_model(SimpleScaling, 1, θ, c)
+
+        @test pd isa SimpleScaling
+        @test duration(pd) == 1
+        @test all([params(pd)...] .≈  [1., 1., 0., .5])
     end
 
     @testset "map_to_real_space(::Type{<:SimpleScaling}, θ)" begin

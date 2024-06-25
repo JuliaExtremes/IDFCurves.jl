@@ -113,6 +113,27 @@ function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::Dens
 end
 
 """
+    construct_model(::Type{<:DependentScalingModel}, d₀, θ, C)
+
+Construct a DependentScalingModel from a set of transformed and fixed parameters in the real space.
+"""
+function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::DenseVector{<:Real}, c::AbstractVector{<:Union{Nothing, <:Real}})
+
+    scaling_model = IDFCurves.getmarginaltype(pd)
+    copula_model = IDFCurves.getcopulatype(pd)
+    correlogram_model = IDFCurves.getcorrelogramtype(pd)
+
+    k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
+    @assert length(θ) == k_marginal + k_correlation "Length of θ ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
+
+    sm = IDFCurves.construct_model(scaling_model, d₀, θ[1:k_marginal], c)
+    Σ = IDFCurves.construct_model(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])
+
+    return DependentScalingModel(sm, Σ, copula_model)
+    
+end
+
+"""
     map_to_real_space(::Type{<:DependentScalingModel}, θ)
 
 Map the parameters from the DependentScalingModel parameter space to the real space.
@@ -128,7 +149,6 @@ function map_to_real_space(pd::Type{<:DependentScalingModel}, θ::AbstractVector
 
 end
 
-
 function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real})
 
     if abs(initialvalues[3]) < 0.0001 # the shape parameter can't be initalized at 0.0
@@ -138,6 +158,28 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
     θ₀ = map_to_real_space(pd, initialvalues)
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
+    @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
+
+    # optimization
+    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+
+    return model(θ̂)
+
+end
+
+function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real}, fixedvalues::AbstractVector{<:Union{Nothing, <:Real}})
+    if abs(initialvalues[3]) < 0.0001 # the shape parameter can't be initalized at 0.0
+        initialvalues[3] = 0.0001
+    end
+
+    if !isnothing(fixedvalues[3]) && abs(fixedvalues[3]) < 0.0001 # the shape parameter can't be initalized at 0.0
+        fixedvalues[3] = 0.0001
+    end
+
+    θ₀ = map_to_real_space(pd, initialvalues)
+
+    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ, fixedvalues)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 

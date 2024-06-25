@@ -110,19 +110,33 @@ end
 Construct a GeneralScaling marginal model from a set of transformed parameters θ in the real space.
 """
 function construct_model(::Type{<:GeneralScaling}, d₀::Real, θ::AbstractVector{<:Real})
-    @assert length(θ) == 5 "The parameter vector length must be 4. Verify that the reference duration is not included."
+    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
     
     return GeneralScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), exp(θ[5]))
 
 end
 
 """
+    construct_model(::Type{<:GeneralScaling}, d₀, θ, c)
+
+Construct a GeneralScaling marginal model from a set of transformed and fixed parameters in the real space.
+"""
+function construct_model(::Type{<:GeneralScaling}, d₀::Real, θ::AbstractVector{<:Real}, c::AbstractVector{<:Union{Nothing, Real}})
+    θ_mixed = [isnothing(fixed_param) ? param : fixed_param for (param, fixed_param) in zip(θ, c)]
+
+    @assert length(θ_mixed) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
+    # should it be exp(θ_mixed[5]
+    return GeneralScaling(d₀, θ_mixed[1], exp(θ_mixed[2]), θ_mixed[3], logistic(θ_mixed[4]), exp(θ_mixed[5]))
+end
+
+
+"""
     map_to_real_space(::Type{<:GeneralScaling}, θ)
 
-Map the parameters from the GeneralScaling parameter spave to the real hypercube.
+Map the parameters from the GeneralScaling parameter space to the real hypercube.
 """
 function map_to_real_space(::Type{<:GeneralScaling}, θ::AbstractVector{<:Real})
-    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
+    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
 
     @assert 0 < θ[4] < 1 "Scaling exponent must be between 0 and 1"
     @assert θ[2] > 0 "Scale must be positive"
