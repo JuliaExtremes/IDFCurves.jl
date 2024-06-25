@@ -36,6 +36,21 @@
 
     end
 
+    @testset "construct_model(::Type{<:GeneralScaling}, θ, c)" begin
+
+        θ = [0., 0., 0., 0.]
+        c = [1., 1., .5, .5]
+        @test_throws AssertionError IDFCurves.construct_model(GeneralScaling, 1, θ, c) 
+        
+        θ = [1., 1., 1., 1., 1.]
+        c = [1., 0., 0., 0., 0.]
+        pd = IDFCurves.construct_model(GeneralScaling, 1, θ, c)
+        @test pd isa GeneralScaling
+        @test duration(pd) == 1
+        @test all([params(pd)...] .≈  [1., 1., 0., .5, 1.])
+
+    end
+
     @testset "map_to_real_space(::Type{<:GeneralScaling}, θ)" begin
 
         @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., -1, 0., 0.5, 0.1])
