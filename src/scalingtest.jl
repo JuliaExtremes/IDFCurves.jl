@@ -26,12 +26,14 @@ function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, tag_o
     # Computing the p-value
 
     # Fisher information matrix (normalized)
-    try 
-        H = hessian(fitted_model, train_data)
-        global norm_I_Fisher = H / ℓ
-    catch e
-        return 1.
-    end
+    # try 
+    #     H = hessian(fitted_model, train_data)
+    #     global norm_I_Fisher = H / ℓ
+    # catch e
+    #     return 1.
+    # end
+    H = hessian(fitted_model, train_data)
+    norm_I_Fisher = H / ℓ
 
     # Kernel function ρ
     g = get_g(fitted_model, d_out)

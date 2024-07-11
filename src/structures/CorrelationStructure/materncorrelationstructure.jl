@@ -36,7 +36,8 @@ end
 
 Construct an MaternCorrelationStructure from a set of transformed parameters θ in the real space.
 """
-function construct_model(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real};
+                            final_model::Bool = false)
     @assert length(θ) == 2 "The parameter vector length must be 1 for a Matern correlation structure."
 
     return MaternCorrelationStructure(exp(θ[1]), exp(θ[2]))
