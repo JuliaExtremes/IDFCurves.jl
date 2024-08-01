@@ -231,11 +231,11 @@ end
 
 
 """
-get_layers_pointwise_estimations(model::DependentScalingModel, T_values::Vector{<:Real}, durations::Vector{<:Real})
+get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool)
 
 Returns the layers associated to pointwise estimations of the return levels at the differents durations, for every return period in T_values.
 """
-function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool)
+function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool)
 
     if show_confidence_intervals
         data_return_levels = DataFrame(T = Float64[], d = Float64[], return_level = Float64[], conf_lower = Float64[], conf_upper = Float64[])
@@ -244,8 +244,9 @@ function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real
     end
     
     for d in durations
-        try # if the duration is not in the data, then it is skipped
+        try
             fm = Extremes.gevfit(getdata(data, gettag(data,d)))
+
             for T in T_values
                 if show_confidence_intervals
                     conf_int = cint(returnlevel(fm,T), .95)[1]
@@ -263,7 +264,53 @@ function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real
     for T in reverse(T_values)
         data = data_return_levels[data_return_levels[:,:T] .== T, :]
         if show_confidence_intervals
-            push!(layers, layer(data, x = :d, y = :return_level, ymin = :conf_lower, ymax = :conf_upper, color = :T, shape=[Shape.xcross], Geom.point(), Geom.errorbar()))
+            push!(layers, layer(data, x = :d, y = :return_level, ymin = :conf_lower, ymax = :conf_upper, color = :T, shape=[Shape.xcross], ribbon ? Geom.ribbon() : Geom.point(), Geom.errorbar(), Theme(alphas=[0.4])))
+        else 
+            push!(layers, layer(data, x = :d, y = :return_level, color = :T, shape=[Shape.xcross], Geom.point()))
+        end
+    end
+
+    return layers
+
+end
+
+"""
+get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool)
+
+Returns the layers associated to pointwise estimations of the return levels at the differents durations, for every return period in T_values.
+"""
+function get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool, α::Real=.05)
+
+    if show_confidence_intervals
+        data_return_levels = DataFrame(T = Float64[], d = Float64[], return_level = Float64[], conf_lower = Float64[], conf_upper = Float64[])
+    else
+        data_return_levels = DataFrame(T = Float64[], d = Float64[], return_level = Float64[])
+    end
+    
+    for d in durations
+        try
+            scaling_model = getmarginalmodel(model)
+
+            for T in T_values
+                p = 1-1/T
+                q = quantile(scaling_model, d, p)
+                if show_confidence_intervals
+                    conf_int = quantilecint(scaling_model, data, d, p, α)
+                    push!(data_return_levels, [T, d, q, conf_int[1], conf_int[2]])
+                else 
+                    push!(data_return_levels, [T, d, q])
+                end
+            end
+        catch e
+            continue
+        end
+    end
+
+    layers = []
+    for T in reverse(T_values)
+        data = data_return_levels[data_return_levels[:,:T] .== T, :]
+        if show_confidence_intervals
+            push!(layers, layer(data, x = :d, y = :return_level, ymin = :conf_lower, ymax = :conf_upper, color = :T, shape=[Shape.xcross], ribbon ? Geom.ribbon() : Geom.point(), Geom.errorbar(), Theme(alphas=[0.4])))
         else 
             push!(layers, layer(data, x = :d, y = :return_level, color = :T, shape=[Shape.xcross], Geom.point()))
         end
@@ -280,9 +327,13 @@ plotIDFCurves(model::DependentScalingModel, data::IDFdata; ...)
 Plots the IDF curves based on the given model. Pointwise estimations are added (crosses) to illustrate the fitting.
 Durations and return periods may be chosen by the user but have default values.
 If show_confidence_intervals = true, 95% confidence intervals associated to the pointwise estimations are represented.
+If ribbon = true, confidence intervals will be bounded by a ribbon above and below interval limits.
 """
 function plotIDFCurves(model::DependentScalingModel, data::IDFdata; 
         show_confidence_intervals::Bool = false,
+        ribbon::Bool = false,
+        dgev_return_levels::Bool = false,
+        α::Real=.05,
         T_values::Vector{<:Real}=[2,5,10,25,50,100],
         durations::Vector{<:Real}=[1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24],
         d_min::Union{Real, Nothing} = nothing,
@@ -303,7 +354,7 @@ function plotIDFCurves(model::DependentScalingModel, data::IDFdata;
     d_step = d_min/10
     layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max))
     
-    append!(layers, get_layers_pointwise_estimations(data, T_values, durations, show_confidence_intervals))
+    append!(layers, dgev_return_levels ? get_layers_pointwise_estimations(model, data, T_values, durations, show_confidence_intervals, ribbon, α) :  get_layers_pointwise_estimations(data, T_values, durations, show_confidence_intervals, ribbon))
 
     labels = get_durations_labels(durations)
     f_label(x) = labels[durations .≈ exp(x)][1]

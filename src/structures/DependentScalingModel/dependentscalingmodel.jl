@@ -300,10 +300,9 @@ function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real
 
     q̂ = quantile(pd, d, p)
     v = IDFCurves.quantilevar(pd, data, d, p, H)
-
-   dist = Normal(q̂, sqrt(v))
-
-   return quantile.(dist, [α/2, 1-α/2])
+    
+    dist = Normal(q̂, sqrt(v))
+    return quantile.(dist, [α/2, 1-α/2])
 
 end
 
