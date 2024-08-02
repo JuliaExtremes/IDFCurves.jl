@@ -1,5 +1,5 @@
 using IDFCurves, Test
-
+import IDFCurves: getdistribution
 using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats, GeoStats, Random
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
@@ -10,6 +10,7 @@ h = IDFCurves.logdist(durations)
 duration_dict = Dict(zip(tags, durations))
     
 data = IDFdata(df, "Year", duration_dict)
+
 
 
 # renvoie d'un SimpleScaling model lorsque δ=0
