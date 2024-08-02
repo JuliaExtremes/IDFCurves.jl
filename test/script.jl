@@ -12,18 +12,15 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 
-# courant : (procédure de test)
+# renvoie d'un SimpleScaling model lorsque δ=0
 
-Random.seed!(37)
-#d1_data = d1 = rand(GeneralizedExtremeValue(50., 7., -0.2), 20)
-df = DataFrame(Year = 1:20, d1 = rand(GeneralizedExtremeValue(50., 7., -0.2), 20), d2 = rand(GeneralizedExtremeValue(35., 5., -0.1), 20) )
-durations = [1/12, 1/6]
-tags = names(df)[2:3]
-duration_dict = Dict(zip(tags, durations))
-data = IDFdata(df, "Year", duration_dict)
+df = CSV.read(joinpath("data","1108446.csv"), DataFrame)
+tags = names(df)[2:10]
+durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+duration_dict = Dict(zip(tags, durations))  
+data_CXH = IDFdata(df, "Year", duration_dict)
 
-initialize(SimpleScaling, data, 1)
-
+IDFCurves.fit_mle(GeneralScaling, data_CXH, 1)
 
 # méthodes d'optimisation de fonctions :
 

@@ -96,7 +96,8 @@ end
 
 Construct a DependentScalingModel from a set of transformed parameters θ in the real space.
 """
-function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::DenseVector{<:Real})
+function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::DenseVector{<:Real};
+                            final_model::Bool = false)
 
     scaling_model = IDFCurves.getmarginaltype(pd)
     copula_model = IDFCurves.getcopulatype(pd)
@@ -105,8 +106,8 @@ function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::Dens
     k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
     @assert length(θ) == k_marginal + k_correlation "Length of θ ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
 
-    sm = IDFCurves.construct_model(scaling_model, d₀, θ[1:k_marginal])
-    Σ = IDFCurves.construct_model(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])
+    sm = IDFCurves.construct_model(scaling_model, d₀, θ[1:k_marginal], final_model = final_model)
+    Σ = IDFCurves.construct_model(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)], final_model = final_model)
 
     return DependentScalingModel(sm, Σ, copula_model)
     
@@ -144,7 +145,7 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
     # optimization
     θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
 
-    return model(θ̂)
+    return IDFCurves.construct_model(pd, d₀, θ̂, final_model = true)
 
 end
 
