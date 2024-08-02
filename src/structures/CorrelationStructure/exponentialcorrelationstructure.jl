@@ -24,9 +24,13 @@ end
 """
     construct_model(::Type{<:ExponentialCorrelationStructure, θ)
 
-Construct an ExponentialCorrelationStructure from a set of transformed parameters θ in the real space.
+Construct an ExponentialCorrelationStructure from a set of transformed parameters θ in the real space. 
+
+The optional parameter final_model is true when the model to construct is the final model. In that case,
+some checks on the final parameter values are to be done in the marginal constructors
 """
-function construct_model(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:ExponentialCorrelationStructure}, θ::AbstractVector{<:Real};
+                            final_model::Bool = false)
     @assert length(θ) == 1 "The parameter vector length must be 1 for an exponential correlation structure."
 
     return ExponentialCorrelationStructure(exp(θ[1]))

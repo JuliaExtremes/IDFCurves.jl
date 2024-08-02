@@ -98,7 +98,8 @@ end
 
 Construct a SimpleScaling marginal model from a set of transformed parameters θ in the real space.
 """
-function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector{<:Real})
+function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector{<:Real};
+                            final_model::Bool = false)
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
 
     return SimpleScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]))
