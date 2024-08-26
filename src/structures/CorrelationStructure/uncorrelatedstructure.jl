@@ -19,8 +19,7 @@ end
 
 Construct an UncorrelatedStructure from a set of transformed parameters θ in the real space.
 """
-function construct_model(::Type{<:UncorrelatedStructure}, θ::AbstractVector{<:Any};
-                            final_model::Bool = false)
+function construct_model(::Type{<:UncorrelatedStructure}, θ::AbstractVector{<:Any})
     @assert length(θ) == 0 "The parameter vector length must be 0 for an uncorrelated structure."
 
     return UncorrelatedStructure()
