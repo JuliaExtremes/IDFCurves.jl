@@ -122,7 +122,12 @@ function simul_test_results(generative_model::MarginalScalingModel, gen_duration
     for k in 1:Nsimul
         
         data = IDFCurves.rand(generative_model, gen_durations, nyear)
-        pval = IDFCurves.scalingtest(test_model, data, IDFCurves.gettag(data, d_out))
+
+        try 
+            global pval = IDFCurves.scalingtest(test_model, data, IDFCurves.gettag(data, d_out))
+        catch e
+            continue
+        end
 
         push!(test_results, [k, pval])
         
