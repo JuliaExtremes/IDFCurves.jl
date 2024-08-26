@@ -1,6 +1,6 @@
 using IDFCurves, Test
-
-using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats, GeoStats
+import IDFCurves: getdistribution
+using CSV, DataFrames, Distributions, Extremes, Gadfly, LinearAlgebra, SpecialFunctions, Optim, ForwardDiff, BesselK, SpecialFunctions, PDMats, GeoStats, Random
 
 df = CSV.read(joinpath("data","702S006.csv"), DataFrame)
     
@@ -12,15 +12,16 @@ duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 
-# courant : (procédure de test)
 
-scalingtest(SimpleScaling, data)
-scalingtest(GeneralScaling, data)
+# renvoie d'un SimpleScaling model lorsque δ=0
 
-scalingtest(SimpleScaling, data, d_out = 6/60)
+df = CSV.read(joinpath("data","1108446.csv"), DataFrame)
+tags = names(df)[2:10]
+durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+duration_dict = Dict(zip(tags, durations))  
+data_CXH = IDFdata(df, "Year", duration_dict)
 
-
-
+IDFCurves.fit_mle(GeneralScaling, data_CXH, 1)
 
 # méthodes d'optimisation de fonctions :
 
