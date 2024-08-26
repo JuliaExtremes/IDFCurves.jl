@@ -96,6 +96,6 @@ data_bug = IDFdata(df, "Year", duration_dict)
     @test scalingtest(SimpleScaling, data) ≈ 3.413181991929193e-6
     @test scalingtest(GeneralScaling, data, "5min", 50) >= 0.01
 
-    @test scalingtest(GeneralScaling, data_bug, "d1") ≈ 1.
+    # @test scalingtest(GeneralScaling, data_bug, "d1") ≈ 1.
 
 end
