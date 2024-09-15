@@ -1,5 +1,11 @@
 abstract type MarginalScalingModel <: ContinuousMultivariateDistribution end
 
+struct paramfun
+    covariate::Vector{<:DataItem}
+    fun::Function
+    estimators::AbstractVector{<:Any}
+end
+
 include("simplescalingmodel.jl")
 include("generalscalingmodel.jl")
 
@@ -14,7 +20,7 @@ Return the cdf of the marginal distribution for duration `d` of the model `pd` e
 function cdf(pd::MarginalScalingModel, d::Real, x::Real)
 
     margdist = IDFCurves.getdistribution(pd, d)
-    return Distributions.cdf(margdist, x)
+    return cdf.(margdist, x)
 
 end
 
@@ -42,8 +48,9 @@ function loglikelihood(pd::MarginalScalingModel, data::IDFdata)
     for tag in gettag(data)
 
         marginal = getdistribution(pd, getduration(data, tag))
-
-        ll += sum(logpdf.(marginal, getdata(data, tag)))
+        
+        test = logpdf.(marginal, getdata(data, tag))
+        ll += sum(test)
 
     end
     
@@ -52,17 +59,17 @@ function loglikelihood(pd::MarginalScalingModel, data::IDFdata)
 end
 
 """
-    quantile(pd::MarginalScalingModel, d::Real, p::Real)
+    quantile(pd::MarginalScalingModel, d::Real, p::Real, y::Real=0)
 
-Compute the quantile of level `p` for the duration `d` of the scaling model `pd`. 
+Compute the quantile of level `p` for the duration `d` and year `y` of the scaling model `pd`. 
 """
-function quantile(pd::MarginalScalingModel, d::Real, p::Real)
+function quantile(pd::MarginalScalingModel, d::Real, p::Real, y::Real=0)
     @assert 0<p<1 "The quantile level p must be in (0,1)."
     @assert d>0 "The duration must be positive."
 
     marginal = IDFCurves.getdistribution(pd, d)
 
-    return Distributions.quantile(marginal, p)
+    return Distributions.quantile(y == 0 ? marginal : marginal[y], p)
 
 end
 
@@ -267,4 +274,47 @@ function variability_matrix(fd::MarginalScalingModel, data::IDFdata)
     return PDMat(Symmetric(J))
         
 end
-    
+
+
+"""
+    (covariates::Vector{Variable})
+
+Establish the parameter as function of the corresponding covariates.
+
+"""
+function computeparamfunction(covariates::Vector{<:DataItem})::Function
+
+    fun =
+    if isempty(covariates)
+        function(β::Vector{<:Real})
+            return identity(β)
+        end
+    else
+        X = ones(length(covariates[1].value))
+
+        for cov in covariates
+            X = hcat(X, cov.value)
+        end
+        function(β::Vector{<:Real})
+            return X*β
+        end
+    end
+    return fun
+
+end
+
+
+"""
+    showparamfun(name::String, param::paramfun)::String
+
+Constructs a string describing a parameter `param` with name `name`.
+
+"""
+function showparamfun(name::String, param::paramfun)::String
+
+    covariate = [" + $(x.name)" for x in param.covariate]
+    res = string("$name ~ 1", covariate...)
+
+    return res
+
+end

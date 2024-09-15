@@ -17,27 +17,49 @@ Koutsoyiannis, D., Kozonis, D. and Manetas, A. (1998).
 A mathematical framework for studying rainfall intensity-duration-frequency relationships,
 *Journal of Hydrology*, 206(1-2), 118-135, https://doi.org/10.1016/S0022-1694(98)00097-3.
 """
-struct GeneralScaling{T<:Real} <: MarginalScalingModel
+struct GeneralScaling{T<:Real, U<:Union{Real, paramfun}} <: MarginalScalingModel
     d₀::T # reference duration
-    μ₀::T 
+    μ₀::U
     σ₀::T
     ξ::T
     α::T # duration exponent (defining slope of the IDF curve)
     δ::T # duration offset (defining curvature of the IDF curve)
-    GeneralScaling{T}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real} = new{T}(d₀, μ₀, σ₀, ξ, α, δ)
+    GeneralScaling{T, U}(d₀::T, μ₀::U, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real, U<:Union{Real, paramfun}} = new{T, U}(d₀, μ₀, σ₀, ξ, α, δ)
 end
 
-
-
-function GeneralScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+function GeneralScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real}
         
     @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
     @assert σ₀ > 0 "Scale must be positive"
     @assert δ ≥ 0 "Duration offset must be non-negative"
-        
-    return GeneralScaling{T}(d₀, μ₀, σ₀, ξ, α, δ)
-        
+    
+    GeneralScaling{T, T}(d₀, μ₀, σ₀, ξ, α, δ)
 end
+
+function GeneralScaling(d₀::T, μ₀::Vector{Variable}, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+    @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
+    @assert σ₀ > 0 "Scale must be positive"
+    @assert δ ≥ 0 "Duration offset must be non-negative"
+
+    μ₀_fun = computeparamfunction(μ₀)
+    return GeneralScaling{T, paramfun}(d₀, paramfun(μ₀, μ₀_fun, []), σ₀, ξ, α, δ)
+end
+
+function GeneralScaling(d₀::T, μ₀::paramfun, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+    @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
+    @assert σ₀ > 0 "Scale must be positive"
+    @assert δ ≥ 0 "Duration offset must be non-negative"
+
+    return GeneralScaling{T, paramfun}(d₀, μ₀, σ₀, ξ, α, δ)
+end
+
+# function GeneralScaling(d₀::T, μ₀::paramfun, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+#     @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
+#     @assert σ₀ > 0 "Scale must be positive"
+#     @assert δ ≥ 0 "Duration offset must be non-negative"
+
+#     return GeneralScaling{T, paramfun}(d₀, μ₀, σ₀, ξ, α, δ)
+# end
 
 GeneralScaling(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real) = GeneralScaling(promote(d₀, μ₀, σ₀, ξ, α, δ)...)
 
@@ -73,9 +95,11 @@ scale(pd::GeneralScaling) = pd.σ₀
 
 shape(pd::GeneralScaling) = pd.ξ
 
-params(pd::GeneralScaling) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
+params(pd::GeneralScaling) = (pd.μ₀ isa paramfun ? pd.μ₀.estimators : location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
 
 params_number(::Type{<:GeneralScaling}) = 5
+
+params_number(pd::GeneralScaling) = 5 + (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
 
 ### Methods
 
@@ -86,7 +110,12 @@ Return the marginal GEV distribution for duration `d`.
 """
 function getdistribution(pd::GeneralScaling, d::Real)
     
-    μ₀ = location(pd)
+    # μ₀ = location(pd)
+    # what happen in blockmaxima to the original mu value? the original mu value is essentially multiplied against the covariates matrix.
+    # for example, if u=0.5 and there are 10 covariate values. we should return [0.5, ..., 0.5]
+    # ideally here, we call fun() length of mu parameters. probably will need to introduce a vector for covariates data.
+    μ₀ = (pd.μ₀ isa paramfun ? pd.μ₀.fun(pd.μ₀.estimators) : location(pd)) 
+
     σ₀ = scale(pd)
     ξ = shape(pd)
     α = exponent(pd)
@@ -97,12 +126,13 @@ function getdistribution(pd::GeneralScaling, d::Real)
     ls = -α * (log(d + δ) - log(d₀ + δ))
     s = exp(ls)
 
-    μ = μ₀ * s
+    μ = μ₀ .* s
     σ = σ₀ * s
     
-    return GeneralizedExtremeValue(μ, σ, ξ)
+    return GeneralizedExtremeValue.(μ, σ, ξ)
     
 end
+
 
 """
     construct_model(::Type{<:GeneralScaling}, d₀, θ)
@@ -117,16 +147,41 @@ function construct_model(::Type{<:GeneralScaling}, d₀::Real, θ::AbstractVecto
 end
 
 """
-    construct_model(::Type{<:GeneralScaling}, d₀, θ, c)
+    construct_model(::GeneralScaling, d₀, θ)
+
+Construct a GeneralScaling marginal model from a set of transformed parameters θ in the real space.
+"""
+function construct_model(pd::GeneralScaling, d₀::Real, θ::AbstractVector{<:Real})
+    @assert length(θ) == params_number(pd)  "The parameter vector length must be equal to the model parameter number. Verify that the reference duration is included."
+    
+    cov_μ₀ = (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
+    μ₀_pos = 1
+    σ₀_pos = 2 + cov_μ₀
+    ξ_pos = 3 + cov_μ₀
+    α_pos = 4 + cov_μ₀
+    δ_pos = 5 + cov_μ₀
+
+    return pd.μ₀ isa paramfun ? GeneralScaling{Real, paramfun}(d₀, paramfun(pd.μ₀.covariate, pd.μ₀.fun, θ[μ₀_pos : μ₀_pos + cov_μ₀]), exp(θ[σ₀_pos]), θ[ξ_pos], logistic(θ[α_pos]), exp(θ[δ_pos])) : GeneralScaling(d₀, θ[μ₀_pos], exp(θ[σ₀_pos]), θ[ξ_pos], logistic(θ[α_pos]), exp(θ[δ_pos]))
+end
+
+"""
+    construct_model(::GeneralScaling, d₀, θ, c)
 
 Construct a GeneralScaling marginal model from a set of transformed and fixed parameters in the real space.
 """
-function construct_model(::Type{<:GeneralScaling}, d₀::Real, θ::AbstractVector{<:Real}, c::AbstractVector{<:Union{Nothing, Real}})
+function construct_model(pd::GeneralScaling, d₀::Real, θ::AbstractVector{<:Real}, c::AbstractVector{<:Union{Nothing, Real}})
     θ_mixed = [isnothing(fixed_param) ? param : fixed_param for (param, fixed_param) in zip(θ, c)]
 
-    @assert length(θ_mixed) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
-    # should it be exp(θ_mixed[5]
-    return GeneralScaling(d₀, θ_mixed[1], exp(θ_mixed[2]), θ_mixed[3], logistic(θ_mixed[4]), exp(θ_mixed[5]))
+    @assert length(θ_mixed) == params_number(pd) "The parameter vector length must be equal to the model parameter number. Verify that the reference duration is included."
+
+    cov_μ₀ = (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
+    μ₀_pos = 1
+    σ₀_pos = 2 + cov_μ₀
+    ξ_pos = 3 + cov_μ₀
+    α_pos = 4 + cov_μ₀
+    δ_pos = 5 + cov_μ₀
+
+    return pd.μ₀ isa paramfun ? GeneralScaling{Real, paramfun}(d₀, paramfun(pd.μ₀.covariate, pd.μ₀.fun, θ_mixed[μ₀_pos : μ₀_pos + cov_μ₀]), exp(θ_mixed[σ₀_pos]), θ_mixed[ξ_pos], logistic(θ_mixed[α_pos]), exp(θ_mixed[δ_pos])) : GeneralScaling(d₀, θ_mixed[μ₀_pos], exp(θ_mixed[σ₀_pos]), θ_mixed[ξ_pos], logistic(θ_mixed[α_pos]), exp(θ_mixed[δ_pos]))
 end
 
 
@@ -147,6 +202,29 @@ function map_to_real_space(::Type{<:GeneralScaling}, θ::AbstractVector{<:Real})
 end
 
 """
+    map_to_real_space(pd::GeneralScaling, θ)
+
+Map the parameters from the GeneralScaling parameter space to the real hypercube.
+"""
+function map_to_real_space(pd::GeneralScaling, θ::AbstractVector{<:Real})
+    @assert length(θ) == params_number(pd) "The parameter vector length must be 5. Verify that the reference duration is included."
+
+    cov_μ₀ = (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
+    μ₀_pos = 1
+    σ₀_pos = 2 + cov_μ₀
+    ξ_pos = 3 + cov_μ₀
+    α_pos = 4 + cov_μ₀
+    δ_pos = 5 + cov_μ₀
+    @assert 0 < θ[α_pos] < 1 "Scaling exponent must be between 0 and 1"
+    @assert θ[σ₀_pos] > 0 "Scale must be positive"
+    @assert θ[δ_pos] ≥ 0 "Duration offset must be non-negative"
+
+    # this won't work for normal real mu values. maybe create a separate map to real space function for paramfun.
+    return [θ[μ₀_pos], θ[μ₀_pos + 1 : μ₀_pos + cov_μ₀]..., log(θ[σ₀_pos]), θ[ξ_pos], logit(θ[α_pos]), log(θ[δ_pos])]
+
+end
+
+"""
     Base.show(io::IO, obj::GeneralScaling)
 
 Override of the show function for the objects of type GeneralScaling.
@@ -156,7 +234,7 @@ function Base.show(io::IO, obj::GeneralScaling)
     println(io, 
         typeof(obj), "(",
         "d₀ = ", duration(obj),
-        ", μ₀ = ", round(location(obj), digits=4),
+        ", μ₀ = ", obj.μ₀ isa paramfun ? obj.μ₀.estimators : round(location(obj), digits=4),
         ", σ₀ = ", round(scale(obj), digits=4),
         ", ξ = ", round(shape(obj), digits=4),
         ", α = ", round(exponent(obj), digits=4),
@@ -171,6 +249,20 @@ Initialize a vector of parameters for the GeneralScaling marginal model with ref
 The initialization is the same as for the SImpleScaling model. δ is initialized at (close to) 0 as a default.
 """
 function initialize(::Type{<:GeneralScaling}, data::IDFdata, d₀::Real)
+    
+    init_simple_scaling = initialize(SimpleScaling, data, d₀)
+
+    return [ init_simple_scaling ; [0.001] ]
+
+end
+
+"""
+    initialize(::Type{<:GeneralScaling}, data::IDFdata, d₀::Real)
+
+Initialize a vector of parameters for the GeneralScaling marginal model with reference duration d₀, adapted to the data.
+The initialization is the same as for the SImpleScaling model. δ is initialized at (close to) 0 as a default.
+"""
+function initialize(::GeneralScaling, data::IDFdata, d₀::Real)
     
     init_simple_scaling = initialize(SimpleScaling, data, d₀)
 

@@ -55,16 +55,15 @@ end
 
 
 """
-    quantile(pd::DependentScalingModel, d::Real, p::Real)
+    quantile(pd::DependentScalingModel, d::Real, p::Real, y::Real)
 
-Compute the quantile of level `p` for the duration `d` of the scaling model `pd`. 
+Compute the quantile of level `p` for the duration `d` and year `y` of the scaling model `pd`. 
 """
-function quantile(pd::DependentScalingModel, d::Real, p::Real)
+function quantile(pd::DependentScalingModel, d::Real, p::Real, y::Real)
     @assert 0<p<1 "The quantile level p must be in (0,1)."
     @assert d>0 "The duration must be positive."
 
-    return quantile( getmarginalmodel(pd), d, p)
-
+    return quantile(getmarginalmodel(pd), d, p, y)
 end
 
 function loglikelihood(pd::DependentScalingModel, data)
@@ -82,6 +81,9 @@ function loglikelihood(pd::DependentScalingModel, data)
     Σ = cor.(getcorrelogram(pd), h)
     C = IDFCurves.getcopulatype(pd)(Σ)
 
+    # I need to double check if it is normal that I return [[]] on NS model
+    # u = [cdf(GEV(μ(D_i, C), σ(D_i, C), ξ(D_i, C)), D_i) for D_i in durations]
+    # u should consider covariate and durations
     u = cdf.(getmarginalmodel(pd), d, y)
     for c in eachcol(u)
         ll += IDFCurves.logpdf(C, c)
@@ -113,15 +115,36 @@ function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::Dens
 end
 
 """
-    construct_model(::Type{<:DependentScalingModel}, d₀, θ, C)
+    construct_model(::DependentScalingModel, d₀, θ)
+
+Construct a DependentScalingModel from a set of transformed parameters θ in the real space.
+"""
+function construct_model(pd::DependentScalingModel, d₀::Real, θ::DenseVector{<:Real})
+
+    scaling_model = IDFCurves.getmarginalmodel(pd)
+    copula_model = IDFCurves.getcopulatype(pd)
+    correlogram_model = IDFCurves.getcorrelogram(pd)
+
+    k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
+    @assert length(θ) == k_marginal + k_correlation "Length of θ ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
+
+    sm = IDFCurves.construct_model(scaling_model, d₀, θ[1:k_marginal])
+    Σ = IDFCurves.construct_model(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])
+
+    return DependentScalingModel(sm, Σ, copula_model)
+    
+end
+
+"""
+    construct_model(::DependentScalingModel, d₀, θ, C)
 
 Construct a DependentScalingModel from a set of transformed and fixed parameters in the real space.
 """
-function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::DenseVector{<:Real}, c::AbstractVector{<:Union{Nothing, <:Real}})
+function construct_model(pd::DependentScalingModel, d₀::Real, θ::DenseVector{<:Real}, c::AbstractVector{<:Union{Nothing, <:Real}})
 
-    scaling_model = IDFCurves.getmarginaltype(pd)
+    scaling_model = IDFCurves.getmarginalmodel(pd)
     copula_model = IDFCurves.getcopulatype(pd)
-    correlogram_model = IDFCurves.getcorrelogramtype(pd)
+    correlogram_model = IDFCurves.getcorrelogram(pd)
 
     k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
     @assert length(θ) == k_marginal + k_correlation "Length of θ ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
@@ -131,6 +154,22 @@ function construct_model(pd::Type{<:DependentScalingModel}, d₀::Real, θ::Dens
 
     return DependentScalingModel(sm, Σ, copula_model)
     
+end
+
+"""
+    map_to_real_space(::DependentScalingModel, θ)
+
+Map the parameters from the DependentScalingModel parameter space to the real space.
+"""
+function map_to_real_space(pd::DependentScalingModel, θ::AbstractVector{<:Real})
+    scaling_model = IDFCurves.getmarginalmodel(pd)
+    correlogram_model = IDFCurves.getcorrelogram(pd)
+    k_marginal, k_correlation = params_number(scaling_model), params_number(correlogram_model)
+    @assert length(θ) == k_marginal + k_correlation "Length of the parameter vector ("*string(length(θ))*") is wrong. Should match the total number of parameters for the model ("*string(k_marginal + k_correlation)*")."
+
+    return [IDFCurves.map_to_real_space(scaling_model, θ[1:k_marginal])..., 
+                IDFCurves.map_to_real_space(correlogram_model, θ[(k_marginal+1):(k_marginal+k_correlation)])...]
+
 end
 
 """
@@ -168,7 +207,27 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
 
 end
 
-function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real}, fixedvalues::AbstractVector{<:Union{Nothing, <:Real}})
+function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real})
+    if abs(initialvalues[3]) < 0.0001 # the shape parameter can't be initalized at 0.0
+        initialvalues[3] = 0.0001
+    end
+
+    θ₀ = map_to_real_space(pd, initialvalues)
+
+    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
+
+    # bugs here, why is loglikelihood of initial values out of bounds?
+    @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
+
+    # optimization
+    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+
+    return model(θ̂)
+
+end
+
+function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialvalues::AbstractArray{<:Real}, fixedvalues::AbstractVector{<:Union{Nothing, <:Real}})
     if abs(initialvalues[3]) < 0.0001 # the shape parameter can't be initalized at 0.0
         initialvalues[3] = 0.0001
     end
@@ -208,11 +267,42 @@ function initialize(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real
 end
 
 """
+    initialize(::DependentScalingModel, data::IDFdata, d₀::Real)
+
+Initialize a vector of parameters for the DependentScalingmodel adapted to the data.
+The initialization is done independently for the marginal scaling model and the correlation structure.
+"""
+function initialize(pd::DependentScalingModel, data::IDFdata, d₀::Real)
+
+    scaling_model = IDFCurves.getmarginalmodel(pd)
+    correlogram_model = IDFCurves.getcorrelogram(pd)
+
+    init_scaling_params = initialize(scaling_model, data, d₀)
+    init_corr_params = initialize(correlogram_model, data)
+
+    return [init_scaling_params ; init_corr_params]
+end
+
+"""
     fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real)
 
 Fits a DependentScalingModel of type pd to the data using automatic initialization.
 """
 function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real)
+
+    initialvalues = initialize(pd, data, d₀)
+    print(initialvalues)
+
+    return fit_mle(pd, data, d₀, initialvalues)
+
+end
+
+"""
+    fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real)
+
+Fits a DependentScalingModel of type pd to the data using automatic initialization.
+"""
+function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real)
 
     initialvalues = initialize(pd, data, d₀)
 
@@ -228,11 +318,11 @@ Compute the Hessian matrix of the DependentScalingModel distribution `pd` associ
 """
 function hessian(pd::DependentScalingModel, data::IDFdata)
 
-    T = getabstracttype(pd)
+    pd = getmarginalmodel(pd)
     d₀ = duration(pd)
-    θ̂ = collect(params(pd))
-    
-    fobj(θ::DenseVector{<:Real}) = -loglikelihood(IDFCurves.construct_model(T, d₀, map_to_real_space(T, θ)), data)
+    θ̂ = vcat(params(pd)...)
+
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(IDFCurves.construct_model(pd, d₀, map_to_real_space(pd, θ)), data)
 
     H = ForwardDiff.hessian(fobj, θ̂)
 
@@ -255,29 +345,26 @@ function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real)
 end
 
 """
-    quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
+    quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real)
 
-Compute the quantile of level `p` variance for the duration `d` of the fitted scaling model `pd` on the IDFdata `data` with the Delta method.
+Compute the quantile of level `p` variance for the duration `d` and year `y` of the fitted scaling model `pd` on the IDFdata `data` with the Delta method.
 
 ## Details
 
 This function uses the Hessian matrix `H` provided in the argument.   
 """
-function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real})
+function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration should be positive."
 
-    T = IDFCurves.getabstracttype(pd)
-
-    θ̂ = collect(params(pd))
+    θ̂ = vcat(params(pd)...)
     d₀ = duration(getmarginalmodel(pd))
 
-    # quantile function
     function g(θ::DenseVector{<:Real}) 
-        model = IDFCurves.construct_model(T, d₀, IDFCurves.map_to_real_space(T, θ))
-        return quantile(model, d, p)
+        model = IDFCurves.construct_model(pd, d₀, IDFCurves.map_to_real_space(pd, θ))
+        return quantile(model, d, p, y)
     end
-
+    
     v = Extremes.delta(g, θ̂, H)
 
     return v
@@ -285,7 +372,7 @@ function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real,
 end
 
 """
-    quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
+    quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=0, α::Real=.05)
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
 
@@ -293,13 +380,13 @@ Compute the approximate Wald quantile confidence interval of level (1-`α`) of t
 
 This function uses the Hessian matrix `H` provided in the argument.  
 """
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=0, α::Real=.05)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration sould be positive."
     @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
-
-    q̂ = quantile(pd, d, p)
-    v = IDFCurves.quantilevar(pd, data, d, p, H)
+    
+    q̂ = quantile.(pd, d, p, y)
+    v = IDFCurves.quantilevar(pd, data, d, p, H, y)
     
     dist = Normal(q̂, sqrt(v))
     return quantile.(dist, [α/2, 1-α/2])
@@ -317,4 +404,29 @@ function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real
 
     return quantilecint(pd, data, d, p, H, α)
 
+end
+
+
+"""
+    bic(pd:::DependentScalingModel)
+
+Compute the Bayesian information criterion (BIC) of the fitted model by maximum likelihood method.
+
+## Details
+
+The BIC is defined as follows:
+
+``BIC = k \\log n - 2 \\log \\hat{L};``
+
+where ``k`` is the number of estimated parameters, ``n`` is the number of data and ``\\hat{L}`` is the maximized value of the likelihood function for the model. 
+
+"""
+function bic(pd::DependentScalingModel, data::IDFdata)
+    n = 0
+    for tag in gettag(data)
+        n += length(getdata(data, tag))
+    end
+    k_marginal, k_correlation = params_number(getmarginalmodel(pd)), params_number(getcorrelogram(pd))
+
+    return (k_marginal + k_correlation)*log(n)-2*loglikelihood(pd, data)
 end

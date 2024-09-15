@@ -36,7 +36,7 @@ function qqplot(pd::MarginalScalingModel, data::IDFdata, d::Real)
 end
 
 """
-    qqplotci(fm::DependentScalingModel, α::Real=.05, H::PDMat{<:Real})
+    qqplotci(fd::DependentScalingModel, data::IDFData, d::Real, H::PDMat{<:Real}, year::Real=0, α::Real=.05)
 
 Quantile-Quantile plot along with the confidence/credible interval of level `1-α`.
 
@@ -44,7 +44,7 @@ Quantile-Quantile plot along with the confidence/credible interval of level `1-�
 
 This function uses the Hessian matrix `H` provided in the argument.  
 """
-function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, H::PDMat{<:Real}, α::Real=.05)
+function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, H::PDMat{<:Real}, year::Real=0, α::Real=.05)
     @assert d>0 "duration must be positive."
     @assert 0 < α < 1 "the level should be in (0,1)." 
 
@@ -56,8 +56,8 @@ function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, H::PDMat{<:
     q = sort(y)
 
     p = (1:n) ./ (n+1)
-
-    q̂ = quantile.(fd, d, p)
+    
+    q̂ = quantile.(fd, d, p, year)
 
     df = DataFrame(Empirical = q, Model = q̂)
 
@@ -65,7 +65,7 @@ function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, H::PDMat{<:
     q_sup = Float64[]
 
     for pᵢ in p
-        c = quantilecint(fd, data, d, pᵢ, H)
+        c = quantilecint(fd, data, d, pᵢ, H, year)
         push!(q_inf, c[1])
         push!(q_sup, c[2])
     end
@@ -81,15 +81,15 @@ function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, H::PDMat{<:
 end
 
 """
-    qqplotci(fm::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
+    qqplotci(fm::DependentScalingModel, data::IDFdata, d::Real, y::Real=0, α::Real=.05)
 
 Quantile-Quantile plot for the estimated distribution for duration d, along with the confidence interval of level `1-α`.
 """
-function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, α::Real=.05)
+function qqplotci(fd::DependentScalingModel, data::IDFdata, d::Real, y::Real=0, α::Real=.05)
     
     H = IDFCurves.hessian(fd, data)
     
-    return qqplotci(fd, data, d, H, α)
+    return qqplotci(fd, data, d, H, y, α)
 end
 
 """

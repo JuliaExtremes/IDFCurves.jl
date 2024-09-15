@@ -189,3 +189,44 @@ function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
             ]
 
 end
+
+"""
+    initialize(::SimpleScaling, data::IDFdata, d₀::Real)
+
+Initialize a vector of parameters for the SimpleScaling marginal model with reference duration d₀, adapted to the data.
+The initialization is done by fitting a Gumbel distribution independently for each duration in the data and then estimating the scaling relationship by
+    regression over μ and σ. ξ is initialized at 0 as a default.
+"""
+function initialize(::SimpleScaling, data::IDFdata, d₀::Real)
+    
+    # step 1 : computing Gumbel parameters separately for each duration
+    log_μ_values = Dict{String, Real}()
+    log_σ_values = Dict{String, Real}()
+    duration_tags = gettag(data)
+    for tag in duration_tags
+        try
+            global fm = Extremes.gevfit(getdata(data, tag))
+        catch e 
+            global fm = Extremes.gevfitpwm(getdata(data, tag))
+        end
+        log_μ_values[tag] = log( fm.θ̂[1] )
+        log_σ_values[tag] = fm.θ̂[2]
+    end
+
+    # step 2 : computing μ_d₀, σ_d₀ et α using regression
+    regression_data = DataFrame(is_μ_value = Bool[], is_σ_value = Bool[], log_d = Float64[], param_value = Float64[])
+    for tag in duration_tags
+        push!(regression_data, [true, false, log(getduration(data, tag) / d₀), log_μ_values[tag]])
+        push!(regression_data, [false, true, log(getduration(data, tag) / d₀), log_σ_values[tag]])
+    end
+    X = Matrix(regression_data[:,1:3])
+    y = Vector(regression_data[:,4])
+    regression_res = X \ y
+
+    return [ exp(regression_res[1]), 
+                maximum([0.001, exp(regression_res[2])]), # avoids possible numerical errors
+                0.,
+                maximum([0.001, minimum([0.999, - regression_res[3]])]) # avoids possible domain errors
+            ]
+
+end
