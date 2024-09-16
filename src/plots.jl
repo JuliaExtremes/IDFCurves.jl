@@ -163,10 +163,9 @@ get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, dur
 
 Returns the layers associated to the IDF curves based on the given mode, for each return period in T_values.
 """
-function get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, durations_range::Vector{<:Real})
-
+function get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, durations_range::Vector{<:Real}, year::Real=.0)
     data_return_levels = crossjoin( DataFrame(T = T_values),  DataFrame(d = durations_range) )
-    transform!(data_return_levels, [:T, :d] => ((x,y) -> quantile.(Ref(model), y, 1 .- 1 ./ x)) => :return_level)
+    transform!(data_return_levels, [:T, :d] => ((x,y) -> quantile.(Ref(model), y, 1 .- 1 ./ x, Ref(year))) => :return_level)
 
     layers = []
     for T in reverse(T_values)
@@ -236,7 +235,6 @@ get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real}, durati
 Returns the layers associated to pointwise estimations of the return levels at the differents durations, for every return period in T_values.
 """
 function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool)
-
     if show_confidence_intervals
         data_return_levels = DataFrame(T = Float64[], d = Float64[], return_level = Float64[], conf_lower = Float64[], conf_upper = Float64[])
     else
@@ -245,7 +243,7 @@ function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real
     
     for d in durations
         try
-            fm = Extremes.gevfit(getdata(data, gettag(data,d)))
+            fm = Extremes.gevfit(getdata(data, gettag(data, d)))
 
             for T in T_values
                 if show_confidence_intervals
@@ -279,7 +277,7 @@ get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_
 
 Returns the layers associated to pointwise estimations of the return levels at the differents durations, for every return period in T_values.
 """
-function get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool, α::Real=.05)
+function get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool, α::Real=.05, y::Real=.0)
 
     if show_confidence_intervals
         data_return_levels = DataFrame(T = Float64[], d = Float64[], return_level = Float64[], conf_lower = Float64[], conf_upper = Float64[])
@@ -289,13 +287,11 @@ function get_layers_pointwise_estimations(model::DependentScalingModel, data::ID
     
     for d in durations
         try
-            scaling_model = getmarginalmodel(model)
-
             for T in T_values
                 p = 1-1/T
-                q = quantile(scaling_model, d, p)
+                q = quantile(model, d, p, y)
                 if show_confidence_intervals
-                    conf_int = quantilecint(scaling_model, data, d, p, α)
+                    conf_int = quantilecint(model, data, d, p, y, α)
                     push!(data_return_levels, [T, d, q, conf_int[1], conf_int[2]])
                 else 
                     push!(data_return_levels, [T, d, q])
@@ -329,7 +325,9 @@ Durations and return periods may be chosen by the user but have default values.
 If show_confidence_intervals = true, 95% confidence intervals associated to the pointwise estimations are represented.
 If ribbon = true, confidence intervals will be bounded by a ribbon above and below interval limits.
 """
-function plotIDFCurves(model::DependentScalingModel, data::IDFdata; 
+function plotIDFCurves(
+        model::DependentScalingModel, 
+        data::IDFdata; 
         show_confidence_intervals::Bool = false,
         ribbon::Bool = false,
         dgev_return_levels::Bool = false,
@@ -338,7 +336,8 @@ function plotIDFCurves(model::DependentScalingModel, data::IDFdata;
         durations::Vector{<:Real}=[1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24],
         d_min::Union{Real, Nothing} = nothing,
         d_max::Union{Real, Nothing} = nothing,
-        y_ticks::Union{Vector{<:Real}, Nothing} = nothing)
+        y_ticks::Union{Vector{<:Real}, Nothing} = nothing,
+        year::Real=.0)
 
     if isnothing(d_min)
         d_min = minimum(durations)
@@ -352,16 +351,16 @@ function plotIDFCurves(model::DependentScalingModel, data::IDFdata;
     durations = sort(durations)
     
     d_step = d_min/10
-    layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max))
+    layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max), year)
     
-    append!(layers, dgev_return_levels ? get_layers_pointwise_estimations(model, data, T_values, durations, show_confidence_intervals, ribbon, α) :  get_layers_pointwise_estimations(data, T_values, durations, show_confidence_intervals, ribbon))
+    append!(layers, dgev_return_levels ? get_layers_pointwise_estimations(model, data, T_values, durations, show_confidence_intervals, ribbon, α, year) :  get_layers_pointwise_estimations(data, T_values, durations, show_confidence_intervals, ribbon))
 
     labels = get_durations_labels(durations)
     f_label(x) = labels[durations .≈ exp(x)][1]
     palette = [Scale.color_continuous().f((2*i-1)/(2*length(T_values))) for i in eachindex(T_values)]
 
     if isnothing(y_ticks)
-        y_ticks = range(log(.9 * quantile(model, d_max, 1 - 1 / T_values[1])), log(1.1 * quantile(model, d_min, 1 - 1 / T_values[end])), 6)
+        y_ticks = range(log(.9 * quantile(model, d_max, 1 - 1 / T_values[1], year)), log(1.1 * quantile(model, d_min, 1 - 1 / T_values[end], year)), 6)
     end
 
     p = plot(layers..., Scale.x_log(labels = f_label), Scale.y_log(labels = y -> "$(round(exp(y)))"),

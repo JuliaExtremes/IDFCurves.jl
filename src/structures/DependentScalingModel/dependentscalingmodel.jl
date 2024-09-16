@@ -376,7 +376,7 @@ Compute the approximate Wald quantile confidence interval of level (1-`α`) of t
 
 This function uses the Hessian matrix `H` provided in the argument.  
 """
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=0, α::Real=.05)
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=.0, α::Real=.05)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration sould be positive."
     @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
@@ -394,11 +394,11 @@ end
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `p` for the duration `d`.
 """
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, y::Real=.0, α::Real=.05)
     
     H = IDFCurves.hessian(pd, data)
 
-    return quantilecint(pd, data, d, p, H, α)
+    return quantilecint(pd, data, d, p, H, y, α)
 
 end
 
