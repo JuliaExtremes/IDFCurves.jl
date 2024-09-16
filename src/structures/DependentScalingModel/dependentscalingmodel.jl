@@ -317,16 +317,10 @@ function hessian(pd::DependentScalingModel, data::IDFdata)
     pd = getmarginalmodel(pd)
     d₀ = duration(pd)
     θ̂ = vcat(params(pd)...)
-
-    println(θ̂ )
-
+    
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(IDFCurves.construct_model(pd, d₀, map_to_real_space(pd, θ)), data)
 
-    println(fobj(θ̂))
-
     H = ForwardDiff.hessian(fobj, θ̂)
-
-    println(H)
 
     return PDMat(Symmetric(H))
 
