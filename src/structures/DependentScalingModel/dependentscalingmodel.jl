@@ -78,16 +78,13 @@ function loglikelihood(pd::DependentScalingModel, data)
     # Marginal loglikelihood
     ll = loglikelihood(getmarginalmodel(pd), data)
 
-    Σ = cor.(getcorrelogram(pd), h)
-    C = IDFCurves.getcopulatype(pd)(Σ)
-
-    # I need to double check if it is normal that I return [[]] on NS model
-    # u = [cdf(GEV(μ(D_i, C), σ(D_i, C), ξ(D_i, C)), D_i) for D_i in durations]
-    # u should consider covariate and durations
-    u = cdf.(getmarginalmodel(pd), d, y)
-    for c in eachcol(u)
-        ll += IDFCurves.logpdf(C, c)
-    end
+    # Σ = cor.(getcorrelogram(pd), h)
+    # C = IDFCurves.getcopulatype(pd)(Σ)
+    
+    # u = cdf.(getmarginalmodel(pd), d, y)
+    # for c in eachcol(u)
+    #     ll += IDFCurves.logpdf(C, c)
+    # end
 
     return ll
 
@@ -291,7 +288,6 @@ Fits a DependentScalingModel of type pd to the data using automatic initializati
 function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real)
 
     initialvalues = initialize(pd, data, d₀)
-    print(initialvalues)
 
     return fit_mle(pd, data, d₀, initialvalues)
 
@@ -322,9 +318,15 @@ function hessian(pd::DependentScalingModel, data::IDFdata)
     d₀ = duration(pd)
     θ̂ = vcat(params(pd)...)
 
+    println(θ̂ )
+
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(IDFCurves.construct_model(pd, d₀, map_to_real_space(pd, θ)), data)
 
+    println(fobj(θ̂))
+
     H = ForwardDiff.hessian(fobj, θ̂)
+
+    println(H)
 
     return PDMat(Symmetric(H))
 
@@ -364,7 +366,7 @@ function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real,
         model = IDFCurves.construct_model(pd, d₀, IDFCurves.map_to_real_space(pd, θ))
         return quantile(model, d, p, y)
     end
-    
+
     v = Extremes.delta(g, θ̂, H)
 
     return v

@@ -20,11 +20,11 @@ A mathematical framework for studying rainfall intensity-duration-frequency rela
 struct GeneralScaling{T<:Real, U<:Union{Real, paramfun}} <: MarginalScalingModel
     d₀::T # reference duration
     μ₀::U
-    σ₀::T
+    σ₀::U
     ξ::T
     α::T # duration exponent (defining slope of the IDF curve)
     δ::T # duration offset (defining curvature of the IDF curve)
-    GeneralScaling{T, U}(d₀::T, μ₀::U, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real, U<:Union{Real, paramfun}} = new{T, U}(d₀, μ₀, σ₀, ξ, α, δ)
+    GeneralScaling{T, U}(d₀::T, μ₀::U, σ₀::U, ξ::T, α::T, δ::T) where {T<:Real, U<:Union{Real, paramfun}} = new{T, U}(d₀, μ₀, σ₀, ξ, α, δ)
 end
 
 function GeneralScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where {T<:Real}
@@ -36,30 +36,21 @@ function GeneralScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where 
     GeneralScaling{T, T}(d₀, μ₀, σ₀, ξ, α, δ)
 end
 
-function GeneralScaling(d₀::T, μ₀::Vector{Variable}, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+function GeneralScaling(d₀::T, μ₀::Vector{Variable}, σ₀::Vector{Variable}, ξ::T, α::T, δ::T) where {T <: Real}
     @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
-    @assert σ₀ > 0 "Scale must be positive"
     @assert δ ≥ 0 "Duration offset must be non-negative"
 
     μ₀_fun = computeparamfunction(μ₀)
-    return GeneralScaling{T, paramfun}(d₀, paramfun(μ₀, μ₀_fun, []), σ₀, ξ, α, δ)
+    σ₀_fun = computeparamfunction(σ₀)
+    return GeneralScaling{T, paramfun}(d₀, paramfun(μ₀, μ₀_fun, []), paramfun(σ₀, σ₀_fun, []), ξ, α, δ)
 end
 
-function GeneralScaling(d₀::T, μ₀::paramfun, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
+function GeneralScaling(d₀::T, μ₀::paramfun, σ₀::paramfun, ξ::T, α::T, δ::T) where {T <: Real}
     @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
-    @assert σ₀ > 0 "Scale must be positive"
     @assert δ ≥ 0 "Duration offset must be non-negative"
 
     return GeneralScaling{T, paramfun}(d₀, μ₀, σ₀, ξ, α, δ)
 end
-
-# function GeneralScaling(d₀::T, μ₀::paramfun, σ₀::T, ξ::T, α::T, δ::T) where {T <: Real}
-#     @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
-#     @assert σ₀ > 0 "Scale must be positive"
-#     @assert δ ≥ 0 "Duration offset must be non-negative"
-
-#     return GeneralScaling{T, paramfun}(d₀, μ₀, σ₀, ξ, α, δ)
-# end
 
 GeneralScaling(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real, δ::Real) = GeneralScaling(promote(d₀, μ₀, σ₀, ξ, α, δ)...)
 
@@ -95,11 +86,11 @@ scale(pd::GeneralScaling) = pd.σ₀
 
 shape(pd::GeneralScaling) = pd.ξ
 
-params(pd::GeneralScaling) = (pd.μ₀ isa paramfun ? pd.μ₀.estimators : location(pd), scale(pd), shape(pd), exponent(pd), offset(pd))
+params(pd::GeneralScaling) = (pd.μ₀ isa paramfun ? pd.μ₀.estimators : location(pd), pd.σ₀ isa paramfun ? pd.σ₀.estimators : scale(pd), shape(pd), exponent(pd), offset(pd))
 
 params_number(::Type{<:GeneralScaling}) = 5
 
-params_number(pd::GeneralScaling) = 5 + (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
+params_number(pd::GeneralScaling) = 5 + (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0) + (pd.σ₀ isa paramfun ? length(pd.σ₀.covariate) : 0)
 
 ### Methods
 
@@ -109,14 +100,9 @@ params_number(pd::GeneralScaling) = 5 + (pd.μ₀ isa paramfun ? length(pd.μ₀
 Return the marginal GEV distribution for duration `d`.
 """
 function getdistribution(pd::GeneralScaling, d::Real)
-    
-    # μ₀ = location(pd)
-    # what happen in blockmaxima to the original mu value? the original mu value is essentially multiplied against the covariates matrix.
-    # for example, if u=0.5 and there are 10 covariate values. we should return [0.5, ..., 0.5]
-    # ideally here, we call fun() length of mu parameters. probably will need to introduce a vector for covariates data.
     μ₀ = (pd.μ₀ isa paramfun ? pd.μ₀.fun(pd.μ₀.estimators) : location(pd)) 
+    σ₀ = (pd.σ₀ isa paramfun ? pd.σ₀.fun(pd.σ₀.estimators) : scale(pd)) 
 
-    σ₀ = scale(pd)
     ξ = shape(pd)
     α = exponent(pd)
     δ = offset(pd)
@@ -127,7 +113,7 @@ function getdistribution(pd::GeneralScaling, d::Real)
     s = exp(ls)
 
     μ = μ₀ .* s
-    σ = σ₀ * s
+    σ = σ₀ .* s
     
     return GeneralizedExtremeValue.(μ, σ, ξ)
     
@@ -155,13 +141,18 @@ function construct_model(pd::GeneralScaling, d₀::Real, θ::AbstractVector{<:Re
     @assert length(θ) == params_number(pd)  "The parameter vector length must be equal to the model parameter number. Verify that the reference duration is included."
     
     cov_μ₀ = (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
+    cov_σ₀ = (pd.σ₀ isa paramfun ? length(pd.σ₀.covariate) : 0)
+
     μ₀_pos = 1
     σ₀_pos = 2 + cov_μ₀
-    ξ_pos = 3 + cov_μ₀
-    α_pos = 4 + cov_μ₀
-    δ_pos = 5 + cov_μ₀
+    ξ_pos = 3 + cov_μ₀ + cov_σ₀
+    α_pos = 4 + cov_μ₀ + cov_σ₀
+    δ_pos = 5 + cov_μ₀ + cov_σ₀
 
-    return pd.μ₀ isa paramfun ? GeneralScaling{Real, paramfun}(d₀, paramfun(pd.μ₀.covariate, pd.μ₀.fun, θ[μ₀_pos : μ₀_pos + cov_μ₀]), exp(θ[σ₀_pos]), θ[ξ_pos], logistic(θ[α_pos]), exp(θ[δ_pos])) : GeneralScaling(d₀, θ[μ₀_pos], exp(θ[σ₀_pos]), θ[ξ_pos], logistic(θ[α_pos]), exp(θ[δ_pos]))
+    μ₀ = pd.μ₀ isa paramfun ? paramfun(pd.μ₀.covariate, pd.μ₀.fun, θ[μ₀_pos : μ₀_pos + cov_μ₀]) : θ[μ₀_pos]
+    σ₀ = pd.σ₀ isa paramfun ? paramfun(pd.σ₀.covariate, pd.σ₀.fun, exp.(θ[σ₀_pos : σ₀_pos + cov_σ₀])) : θ[σ₀_pos]
+
+    return GeneralScaling{Real, paramfun}(d₀, μ₀, σ₀, θ[ξ_pos], logistic(θ[α_pos]), exp(θ[δ_pos]))
 end
 
 """
@@ -175,13 +166,18 @@ function construct_model(pd::GeneralScaling, d₀::Real, θ::AbstractVector{<:Re
     @assert length(θ_mixed) == params_number(pd) "The parameter vector length must be equal to the model parameter number. Verify that the reference duration is included."
 
     cov_μ₀ = (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
+    cov_σ₀ = (pd.σ₀ isa paramfun ? length(pd.σ₀.covariate) : 0)
+
     μ₀_pos = 1
     σ₀_pos = 2 + cov_μ₀
-    ξ_pos = 3 + cov_μ₀
-    α_pos = 4 + cov_μ₀
-    δ_pos = 5 + cov_μ₀
+    ξ_pos = 3 + cov_μ₀ + cov_σ₀
+    α_pos = 4 + cov_μ₀ + cov_σ₀
+    δ_pos = 5 + cov_μ₀ + cov_σ₀
 
-    return pd.μ₀ isa paramfun ? GeneralScaling{Real, paramfun}(d₀, paramfun(pd.μ₀.covariate, pd.μ₀.fun, θ_mixed[μ₀_pos : μ₀_pos + cov_μ₀]), exp(θ_mixed[σ₀_pos]), θ_mixed[ξ_pos], logistic(θ_mixed[α_pos]), exp(θ_mixed[δ_pos])) : GeneralScaling(d₀, θ_mixed[μ₀_pos], exp(θ_mixed[σ₀_pos]), θ_mixed[ξ_pos], logistic(θ_mixed[α_pos]), exp(θ_mixed[δ_pos]))
+    μ₀ = pd.μ₀ isa paramfun ? paramfun(pd.μ₀.covariate, pd.μ₀.fun, θ_mixed[μ₀_pos : μ₀_pos + cov_μ₀]) : θ_mixed[μ₀_pos]
+    σ₀ = pd.σ₀ isa paramfun ? paramfun(pd.σ₀.covariate, pd.σ₀.fun, exp.(θ_mixed[σ₀_pos : σ₀_pos + cov_σ₀])) : θ_mixed[σ₀_pos]
+
+    return GeneralScaling{Real, paramfun}(d₀, μ₀, σ₀, θ_mixed[ξ_pos], logistic(θ_mixed[α_pos]), exp(θ_mixed[δ_pos])) 
 end
 
 
@@ -210,17 +206,22 @@ function map_to_real_space(pd::GeneralScaling, θ::AbstractVector{<:Real})
     @assert length(θ) == params_number(pd) "The parameter vector length must be 5. Verify that the reference duration is included."
 
     cov_μ₀ = (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0)
+    cov_σ₀ = (pd.σ₀ isa paramfun ? length(pd.σ₀.covariate) : 0)
+
     μ₀_pos = 1
     σ₀_pos = 2 + cov_μ₀
-    ξ_pos = 3 + cov_μ₀
-    α_pos = 4 + cov_μ₀
-    δ_pos = 5 + cov_μ₀
+    ξ_pos = 3 + cov_μ₀ + cov_σ₀
+    α_pos = 4 + cov_μ₀ + cov_σ₀
+    δ_pos = 5 + cov_μ₀ + cov_σ₀
+    
     @assert 0 < θ[α_pos] < 1 "Scaling exponent must be between 0 and 1"
     @assert θ[σ₀_pos] > 0 "Scale must be positive"
     @assert θ[δ_pos] ≥ 0 "Duration offset must be non-negative"
 
-    # this won't work for normal real mu values. maybe create a separate map to real space function for paramfun.
-    return [θ[μ₀_pos], θ[μ₀_pos + 1 : μ₀_pos + cov_μ₀]..., log(θ[σ₀_pos]), θ[ξ_pos], logit(θ[α_pos]), log(θ[δ_pos])]
+    μ₀ = cov_μ₀ > 0 ? [θ[μ₀_pos], θ[μ₀_pos + 1 : μ₀_pos + cov_μ₀]...] :  θ[μ₀_pos]
+    σ₀ = cov_σ₀ > 0 ? [θ[σ₀_pos], θ[σ₀_pos + 1 : σ₀_pos + cov_σ₀]...] :  θ[σ₀_pos]
+
+    return [μ₀..., σ₀..., θ[ξ_pos], logit(θ[α_pos]), log(θ[δ_pos])]
 
 end
 
@@ -235,7 +236,7 @@ function Base.show(io::IO, obj::GeneralScaling)
         typeof(obj), "(",
         "d₀ = ", duration(obj),
         ", μ₀ = ", obj.μ₀ isa paramfun ? obj.μ₀.estimators : round(location(obj), digits=4),
-        ", σ₀ = ", round(scale(obj), digits=4),
+        ", σ₀ = ", obj.σ₀ isa paramfun ? obj.σ₀.estimators : round(scale(obj), digits=4),
         ", ξ = ", round(shape(obj), digits=4),
         ", α = ", round(exponent(obj), digits=4),
         ", δ = ", round(offset(obj), digits=4),

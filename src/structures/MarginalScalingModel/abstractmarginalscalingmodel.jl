@@ -48,9 +48,8 @@ function loglikelihood(pd::MarginalScalingModel, data::IDFdata)
     for tag in gettag(data)
 
         marginal = getdistribution(pd, getduration(data, tag))
-        
-        test = logpdf.(marginal, getdata(data, tag))
-        ll += sum(test)
+    
+        ll += sum(logpdf.(marginal, getdata(data, tag)))
 
     end
     
