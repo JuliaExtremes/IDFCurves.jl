@@ -71,6 +71,31 @@
         pd3 = DependentScalingModel(mm, UncorrelatedStructure(), GaussianCopula)
         @test loglikelihood(pd, data) ≈ loglikelihood(pd2, data) ≈ loglikelihood(pd3, data)
 
+
+        # test when years of observations differ across durations
+
+        tags = ["1h", "2h"]
+        durations = [1., 2.]
+        years = [2020, 2021, 2022]
+        years2 = [2020, 2021]
+        y1 = [2,3,4]
+        y2 = [0,1]
+
+        d1 = Dict(zip(tags, durations))
+        d2 = Dict(tags[1] => years, tags[2] => years2)
+        d3 = Dict(tags[1] => y1, tags[2] => y2)
+
+        data = IDFdata(tags, d1, d2, d3)
+
+        mm = SimpleScaling(1, 0, 1, 0, .8)
+        pd = DependentScalingModel(mm, UncorrelatedStructure(), IdentityCopula)
+        @test loglikelihood(pd, data) ≈ -11.010830864994364
+
+        mm = GeneralScaling(1, 0, 1, 0, .8, .5)
+        Σ = MaternCorrelationStructure(1., 1.)
+        pd = DependentScalingModel(mm, Σ, GaussianCopula)
+        @test loglikelihood(pd, data) ≈ -7.090619315218428 + logpdf( getdistribution(mm, getduration(data, "1h")) , y1[3] )
+
     end
 
     @testset "fitting a dependent scaling model" begin
