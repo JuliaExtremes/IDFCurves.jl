@@ -70,18 +70,19 @@ end
 function loglikelihood(pd::DependentScalingModel, data)
 
     tags = gettag(data)
-    idx = getyear(data, tags[1])
     d = getduration.(data, tags)
     h = IDFCurves.logdist(d) 
-
-    y = getdata.(data, tags, idx')
 
     # Marginal loglikelihood
     ll = loglikelihood(getmarginalmodel(pd), data)
 
+    # Copula
     Σ = cor.(getcorrelogram(pd), h)
     C = IDFCurves.getcopulatype(pd)(Σ)
 
+    # Computing vectors of marginal cdfs when data is available for every duration
+    idx = intersect(getyear.(data, tags)...)
+    y = getdata.(data, tags, idx')
     u = cdf.(getmarginalmodel(pd), d, y)
     for c in eachcol(u)
         ll += IDFCurves.logpdf(C, c)
