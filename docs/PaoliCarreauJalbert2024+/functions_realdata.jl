@@ -106,3 +106,108 @@ function plotCDFscomparison(pd_type::Type{<:MarginalScalingModel}, data::IDFdata
                 )
 
 end
+
+
+function draw_map(SS_stations::DataFrame, GS_stations::DataFrame, NS_stations::DataFrame, filename::String)
+
+    fig = plt.figure(figsize=(13, 7), constrained_layout=true)
+    
+    central_longitude = -(91 + 52 / 60)
+
+    # Création de la carte
+    ax = plt.subplot(projection=ccrs.PlateCarree(central_longitude=central_longitude))
+
+    # Définition des limites 
+    xlims = (-145, -50)
+    ylims = (38, 79)
+    ax.set_extent([xlims[1], xlims[2], ylims[1], ylims[2]])
+
+    # # Grille
+    gl = ax.gridlines(draw_labels=false, lw=1., zorder=12, color="gray", alpha=0.3, linestyle="--")
+
+    ## Ajout des features :
+
+    # Frontières politiques
+    country_bord = cfeat.NaturalEarthFeature(
+        category="cultural",
+        name="admin_0_boundary_lines_land",
+        scale="50m",
+        facecolor="none")
+
+    ax.add_feature(country_bord, edgecolor="gray", zorder=10)
+
+    # Provinces
+    states_provinces = cfeat.NaturalEarthFeature(category="cultural",
+            name="admin_1_states_provinces_lines",
+            scale="50m",
+            facecolor="none")
+
+    ax.add_feature(states_provinces, edgecolor="gray", zorder=10)
+
+    # Terre
+    land = cfeat.NaturalEarthFeature(
+        category="physical",
+        name="land",
+        scale="50m",
+        edgecolor="k",
+        facecolor=cfeat.COLORS["land"])
+
+    ax.add_feature(land, zorder=4)
+
+    # Ocean/mer
+    ocean = cfeat.NaturalEarthFeature(
+        category="physical",
+        name="ocean",
+        scale="50m",
+        edgecolor="none",
+        facecolor=cfeat.COLORS["water"])
+
+    ax.add_feature(ocean)
+
+    # Lacs
+    lakes = cfeat.NaturalEarthFeature(
+        category="physical",
+        name="lakes",
+        #scale="10m",
+        scale="50m",
+        #scale="110m",
+        edgecolor=cfeat.COLORS["water"],
+        facecolor=cfeat.COLORS["water"])
+
+    ax.add_feature(lakes, zorder=5)
+
+    # Rivières
+    rivers = cfeat.NaturalEarthFeature(
+        category="physical",
+        name="rivers_lake_centerlines",
+        #scale="10m",
+        scale="50m",
+        edgecolor=cfeat.COLORS["water"],
+        facecolor="none")
+
+    ax.add_feature(rivers, zorder=6)
+
+    # Define the xticks for longitude
+    lon_formatter = cticker.LongitudeFormatter()
+    ax.xaxis.set_major_formatter(lon_formatter)
+
+    # Define the yticks for latitude
+    lat_formatter = cticker.LatitudeFormatter()
+    ax.yaxis.set_major_formatter(lat_formatter)
+
+    # Titre
+    plt.title("Map of canadian stations and their respective scaling models", fontsize=15)
+
+    # Stations
+    ax.scatter(SS_stations.Lon, SS_stations.Lat, s=SS_stations.nyear, transform=ccrs.PlateCarree(),  c="blue", alpha=1., zorder=510, label = "Simple Scaling")
+    ax.scatter(GS_stations.Lon, GS_stations.Lat, s=GS_stations.nyear, transform=ccrs.PlateCarree(),  c="red", alpha=1., zorder=510, label = "General Scaling")
+    ax.scatter(NS_stations.Lon, NS_stations.Lat, s=NS_stations.nyear, transform=ccrs.PlateCarree(),  c="black", alpha=1., zorder=510, label = "No Scaling")
+
+    ax.legend(loc="upper right", fontsize="x-large")
+
+    # Enregistrement de la figure
+    plt.savefig(filename, dpi=600);
+    
+    plt.show()
+
+end
