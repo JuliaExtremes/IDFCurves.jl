@@ -10,10 +10,3 @@ function logpdf(C::IdentityCopula, u::AbstractVector{<:Real})
     return 0
 
 end
-
-function logpdf(C::IdentityCopula, u::AbstractArray{<:AbstractArray{<:Real}})
-    @assert all(0 .≤ vcat(u...) .≤ 1) 
-    
-    return 0
-
-end

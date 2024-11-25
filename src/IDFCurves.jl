@@ -1,6 +1,6 @@
 module IDFCurves
 
-using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim, PDMats, SpecialFunctions, Extremes, Combinatorics, StatsBase
+using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim, PDMats, SpecialFunctions, Extremes, Combinatorics, StatsBase, Logging
 import BesselK
 
 import Base: exponent, rand
@@ -11,7 +11,8 @@ import Statistics.cor
 include("structures.jl")
 include("utils.jl")
 include("data.jl")
-include("plots.jl")
+include(joinpath("plots", "plots.jl"))
+include(joinpath("plots", "plots_std.jl"))
 include("scalingtest.jl")
 include("misspecification.jl")
 
@@ -26,6 +27,9 @@ export
 
     SimpleScaling,
     GeneralScaling,
+    HybridScaling,
+    CompositeScaling,
+    TotalScaling,
     cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
 
     DependentScalingModel,
@@ -38,8 +42,12 @@ export
     ExponentialCorrelationStructure, MaternCorrelationStructure, UncorrelatedStructure,
     cor,
 
+    # dataitem
+    ParamComputation, BaseParamComputation, LinearParamComputation, NonDimLinearParamComputation, NonDimExpoParamComputation,
+    Covariate, CovariateStd, Covariates, DataItem, 
+
     #plots
-    qqplot, qqplotci, plotIDFCurves,
+    qqplot, qqplotci, plotIDFCurves, qqplot_std_data
 
     #test on scaling models
     scalingtest

@@ -1,38 +1,52 @@
 abstract type MarginalScalingModel <: ContinuousMultivariateDistribution end
 
+include(joinpath("dataitem", "paramcomputation.jl"))
+include(joinpath("dataitem", "covariate.jl"))
+include(joinpath("dataitem", "covariatestd.jl"))
+
 struct paramfun
     covariate::Vector{<:DataItem}
     fun::Function
     estimators::AbstractVector{<:Any}
 end
 
+struct Covariates
+    covariates::Vector{<:DataItem}
+    parameterization::Type{<:ParamComputation}
+
+    Covariates() = new(Vector{DataItem}(), LinearParamComputation)
+    Covariates(covariates::Vector{<:DataItem}, parameterization::Type{<:ParamComputation}) = new(covariates, parameterization)
+end
+
 include("simplescalingmodel.jl")
 include("generalscalingmodel.jl")
-
+include("hybridscalingmodel.jl")
+include("compositescalingmodel.jl")
+include("totalscalingmodel.jl")
 
 ### Methods
 
 """
-    cdf(pd::MarginalScalingModel, d::Real, x::Real)
+    cdf(pd::MarginalScalingModel, d::Real, x::Real, y::Real=0)
 
-Return the cdf of the marginal distribution for duration `d` of the model `pd` evaluated at `x`.
+Return the cdf of the marginal distribution for duration `d` and year `y` of the model `pd` evaluated at `x`.
 """
-function cdf(pd::MarginalScalingModel, d::Real, x::Real)
+function cdf(pd::MarginalScalingModel, d::Real, x::Real, y::Real=0)
 
     margdist = IDFCurves.getdistribution(pd, d)
-    return cdf.(margdist, x)
+    return cdf.(y == 0 ? margdist : margdist[y], x)
 
 end
 
 """
-    cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real})
+    cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real}, y::Real=0)
 
-Return the vector of the cdf of the marginal distribution for duration `d` of the model `pd` evaluated at every point in vector `x`.
+Return the vector of the cdf of the marginal distribution for duration `d` and year `y` of the model `pd` evaluated at every point in vector `x`.
 """
-function cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real})
+function cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real}, y::Real=0)
 
     margdist = IDFCurves.getdistribution(pd, d)
-    return cdf.(margdist, x)
+    return cdf.(y == 0 ? margdist : margdist[y], x)
 
 end
 
@@ -273,35 +287,6 @@ function variability_matrix(fd::MarginalScalingModel, data::IDFdata)
     return PDMat(Symmetric(J))
         
 end
-
-
-"""
-    (covariates::Vector{Variable})
-
-Establish the parameter as function of the corresponding covariates.
-
-"""
-function computeparamfunction(covariates::Vector{<:DataItem})::Function
-
-    fun =
-    if isempty(covariates)
-        function(β::Vector{<:Real})
-            return identity(β)
-        end
-    else
-        X = ones(length(covariates[1].value))
-
-        for cov in covariates
-            X = hcat(X, cov.value)
-        end
-        function(β::Vector{<:Real})
-            return X*β
-        end
-    end
-    return fun
-
-end
-
 
 """
     showparamfun(name::String, param::paramfun)::String

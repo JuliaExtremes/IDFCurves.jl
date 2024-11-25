@@ -36,13 +36,13 @@ function GeneralScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T) where 
     GeneralScaling{T, T}(d₀, μ₀, σ₀, ξ, α, δ)
 end
 
-function GeneralScaling(d₀::T, μ₀::Vector{Variable}, σ₀::Vector{Variable}, ξ::Vector{Variable}, α::Vector{Variable}, δ::Vector{Variable}) where {T <: Real}
-    μ₀_fun = computeparamfunction(μ₀)
-    σ₀_fun = computeparamfunction(σ₀)
-    ξ_fun = computeparamfunction(ξ)
-    α_fun = computeparamfunction(α)
-    δ_fun = computeparamfunction(δ)
-    return GeneralScaling{T, paramfun}(d₀, paramfun(μ₀, μ₀_fun, []), paramfun(σ₀, σ₀_fun, []), paramfun(ξ, ξ_fun, []), paramfun(α, α_fun, []), paramfun(δ, δ_fun, []))
+function GeneralScaling(d₀::T, μ₀::Covariates, σ₀::Covariates, ξ::Covariates, α::Covariates, δ::Covariates) where {T <: Real}
+    μ₀_fun = computeparamfunction(μ₀.parameterization, standardize.(μ₀.covariates))
+    σ₀_fun = computeparamfunction(σ₀.parameterization, standardize.(σ₀.covariates))
+    ξ_fun = computeparamfunction(ξ.parameterization, standardize.(ξ.covariates))
+    α_fun = computeparamfunction(α.parameterization, standardize.(α.covariates))
+    δ_fun = computeparamfunction(δ.parameterization, standardize.(δ.covariates))
+    return GeneralScaling{T, paramfun}(d₀, paramfun(μ₀.covariates, μ₀_fun, []), paramfun(σ₀.covariates, σ₀_fun, []), paramfun(ξ.covariates, ξ_fun, []), paramfun(α.covariates, α_fun, []), paramfun(δ.covariates, δ_fun, []))
 end
 
 function GeneralScaling(d₀::T, μ₀::paramfun, σ₀::paramfun, ξ::paramfun, α::paramfun, δ::paramfun) where {T <: Real}
@@ -89,6 +89,10 @@ params_number(::Type{<:GeneralScaling}) = 5
 
 params_number(pd::GeneralScaling) = 5 + (pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0) + (pd.σ₀ isa paramfun ? length(pd.σ₀.covariate) : 0) + (pd.ξ isa paramfun ? length(pd.ξ.covariate) : 0) + (pd.α isa paramfun ? length(pd.α.covariate) : 0) + (pd.δ isa paramfun ? length(pd.δ.covariate) : 0) 
 
+function getcovariatenumber(pd::GeneralScaling)::Int
+    return sum((pd.μ₀ isa paramfun ? length(pd.μ₀.covariate) : 0) + (pd.σ₀ isa paramfun ? length(pd.σ₀.covariate) : 0) + (pd.ξ isa paramfun ? length(pd.ξ.covariate) : 0) + (pd.α isa paramfun ? length(pd.α.covariate) : 0) + (pd.δ isa paramfun ? length(pd.δ.covariate) : 0))
+end
+
 ### Methods
 
 """
@@ -98,10 +102,10 @@ Return the marginal GEV distribution for duration `d`.
 """
 function getdistribution(pd::GeneralScaling, d::Real)
     μ₀ = (pd.μ₀ isa paramfun ? pd.μ₀.fun(pd.μ₀.estimators) : location(pd))
-    σ₀ = (pd.σ₀ isa paramfun ? pd.σ₀.fun(pd.σ₀.estimators) : scale(pd))
+    σ₀ = (pd.σ₀ isa paramfun ? exp.(pd.σ₀.fun(log.(pd.σ₀.estimators))) : scale(pd))
     ξ = (pd.ξ isa paramfun ? pd.ξ.fun(pd.ξ.estimators) : shape(pd)) 
-    α = (pd.α isa paramfun ? pd.α.fun(pd.α.estimators) : exponent(pd)) 
-    δ = (pd.δ isa paramfun ? pd.δ.fun(pd.δ.estimators) : offset(pd)) 
+    α = (pd.α isa paramfun ? logistic.(pd.α.fun(logit.(pd.α.estimators))) : exponent(pd)) 
+    δ = (pd.δ isa paramfun ? exp.(pd.δ.fun(log.(pd.δ.estimators))) : offset(pd)) 
     
     d₀ = duration(pd)
     
@@ -110,6 +114,7 @@ function getdistribution(pd::GeneralScaling, d::Real)
 
     μ = μ₀ .* s
     σ = σ₀ .* s
+    
     
     return GeneralizedExtremeValue.(μ, σ, ξ)
     
@@ -154,7 +159,7 @@ function construct_model(pd::GeneralScaling, d₀::Real, θ::AbstractVector{<:Re
     α = pd.α isa paramfun ? paramfun(pd.α.covariate, pd.α.fun, logistic.(θ[α_pos : α_pos + cov_α])) : logistic(θ[α_pos])
     δ = pd.δ isa paramfun ? paramfun(pd.δ.covariate, pd.δ.fun, exp.(θ[δ_pos : δ_pos + cov_δ])) : exp(θ[δ_pos])
 
-    return GeneralScaling{Real, paramfun}(d₀, μ₀, σ₀, ξ, α, δ)
+    return getcovariatenumber(pd) > 0 ? GeneralScaling{Real, paramfun}(d₀, μ₀, σ₀, ξ, α, δ) : GeneralScaling{Real, Real}(d₀, μ₀, σ₀, ξ, α, δ)
 end
 
 """
@@ -185,7 +190,7 @@ function construct_model(pd::GeneralScaling, d₀::Real, θ::AbstractVector{<:Re
     α = pd.α isa paramfun ? paramfun(pd.α.covariate, pd.α.fun, logistic.(θ_mixed[α_pos : α_pos + cov_α])) : logistic(θ_mixed[α_pos])
     δ = pd.δ isa paramfun ? paramfun(pd.δ.covariate, pd.δ.fun, exp.(θ_mixed[δ_pos : δ_pos + cov_δ])) : exp(θ_mixed[δ_pos])
 
-    return GeneralScaling{Real, paramfun}(d₀, μ₀, σ₀, ξ, α, δ)
+    return getcovariatenumber(pd) > 0 ? GeneralScaling{Real, paramfun}(d₀, μ₀, σ₀, ξ, α, δ) : GeneralScaling{Real, Real}(d₀, μ₀, σ₀, ξ, α, δ)
 end
 
 
@@ -202,7 +207,6 @@ function map_to_real_space(::Type{<:GeneralScaling}, θ::AbstractVector{<:Real})
     @assert θ[5] ≥ 0 "Duration offset must be non-negative"
 
     return [θ[1], log(θ[2]), θ[3], logit(θ[4]), log(θ[5])]
-
 end
 
 """
@@ -237,6 +241,24 @@ function map_to_real_space(pd::GeneralScaling, θ::AbstractVector{<:Real})
 
     return [μ₀..., σ₀..., ξ..., α..., δ...]
 
+end
+
+"""
+    map_to_bounds(::Type{<:GeneralScaling})
+
+Return the parameter bounds.
+"""
+function map_to_bounds(::Type{<:GeneralScaling})
+    return [-Inf, 0.0001, -Inf, 0.0001, 0.0], [Inf, Inf, Inf, 1, Inf]
+end
+
+"""
+    map_to_bounds(::Type{<:GeneralScaling})
+
+Return the parameter bounds.
+"""
+function map_to_bounds(pd::GeneralScaling)
+    return [-Inf, 0.0001, -Inf, 0.0001, 0.0], [Inf, Inf, Inf, 1, Inf]
 end
 
 """

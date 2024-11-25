@@ -28,9 +28,11 @@ Quantile-Quantile plot from ExtendedExtremes.jl
 function qqplot(pd::MarginalScalingModel, data::IDFdata, d::Real)
     @assert d>0 "duration must be positive."
 
+    tag = gettag(data, d)
+
     marginal = getdistribution(pd, d)
     
-    y = getdata(data, d)
+    y = getdata(data, tag)
 
     qqplot(marginal, y)
 end
@@ -254,6 +256,7 @@ function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real
                 end
             end
         catch e
+            println(e)
             continue
         end
     end
@@ -298,6 +301,7 @@ function get_layers_pointwise_estimations(model::DependentScalingModel, data::ID
                 end
             end
         catch e
+            println(e)
             continue
         end
     end
@@ -337,6 +341,7 @@ function plotIDFCurves(
         d_min::Union{Real, Nothing} = nothing,
         d_max::Union{Real, Nothing} = nothing,
         y_ticks::Union{Vector{<:Real}, Nothing} = nothing,
+        additional_layers::Union{Vector{<:Gadfly.Layer}, Nothing} = [],
         year::Real=.0)
 
     if isnothing(d_min)
@@ -354,6 +359,7 @@ function plotIDFCurves(
     layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max), year)
     
     append!(layers, dgev_return_levels ? get_layers_pointwise_estimations(model, data, T_values, durations, show_confidence_intervals, ribbon, α, year) :  get_layers_pointwise_estimations(data, T_values, durations, show_confidence_intervals, ribbon))
+    append!(layers, additional_layers)
 
     labels = get_durations_labels(durations)
     f_label(x) = labels[durations .≈ exp(x)][1]

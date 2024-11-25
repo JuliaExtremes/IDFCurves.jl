@@ -9,11 +9,13 @@ end
 
 function logpdf(C::GaussianCopula, u::AbstractVector{<:Real})
     @assert all(0 .≤ u .≤ 1) 
+
+    ϵ = 1e-8
+    u_clipped = clamp.(u, ϵ, 1 - ϵ)
     
     D = MvNormal(getcormatrix(C))
     
-    x = quantile.(Normal(), u)
-
+    x = quantile.(Normal(), u_clipped)
     return logpdf(D, x) - sum(logpdf.(Normal(), x))
 
 end

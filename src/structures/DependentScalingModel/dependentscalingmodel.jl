@@ -66,7 +66,7 @@ function quantile(pd::DependentScalingModel, d::Real, p::Real, y::Real)
     return quantile(getmarginalmodel(pd), d, p, y)
 end
 
-function loglikelihood(pd::DependentScalingModel, data)
+function loglikelihood(pd::DependentScalingModel, data, isPrint=false)
 
     tags = gettag(data)
     idx = getyear(data, tags[1])
@@ -77,14 +77,36 @@ function loglikelihood(pd::DependentScalingModel, data)
 
     # Marginal loglikelihood
     ll = loglikelihood(getmarginalmodel(pd), data)
-
-    # Σ = cor.(getcorrelogram(pd), h)
-    # C = IDFCurves.getcopulatype(pd)(Σ)
     
-    # u = cdf.(getmarginalmodel(pd), d, y)
-    # for c in eachcol(u)
-    #     ll += IDFCurves.logpdf(C, c)
-    # end
+    marginal = getmarginalmodel(pd)
+    if getcovariatenumber(marginal) == 0
+        Σ = cor.(getcorrelogram(pd), h)
+        C = IDFCurves.getcopulatype(pd)(Σ)
+        u = cdf.(getmarginalmodel(pd), d, y)
+        for c in eachcol(u)
+            ll += IDFCurves.logpdf(C, c)
+        end
+        return ll
+    end
+
+    Σ = cor.(getcorrelogram(pd), h)
+    C = IDFCurves.getcopulatype(pd)(Σ)
+    for year in [1]
+        u = []
+        for tag in gettag(data)
+            current_d = getduration(data, tag)
+            current_data = getdata(data, tag)
+            margdist = IDFCurves.getdistribution(getmarginalmodel(pd), current_d)
+
+            cdf_values = cdf(margdist[year], current_data)
+            push!(u, cdf_values)
+        end
+
+        matrix = transpose(hcat(u...))
+        for c in eachcol(matrix)
+            ll += IDFCurves.logpdf(C, c)
+        end
+    end
 
     return ll
 
@@ -192,13 +214,14 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
     end
 
     θ₀ = map_to_real_space(pd, initialvalues)
+    lower, upper = IDFCurves.map_to_bounds(IDFCurves.getmarginaltype(pd))
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
     # optimization
-    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+    θ̂ = perform_optimization(fobj, θ₀, lower, upper, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
 
     return model(θ̂)
 
@@ -210,6 +233,7 @@ function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialva
     end
 
     θ₀ = map_to_real_space(pd, initialvalues)
+    lower, upper = IDFCurves.map_to_bounds(IDFCurves.getmarginaltype(pd))
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
@@ -218,7 +242,7 @@ function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialva
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
     # optimization
-    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+    θ̂ = perform_optimization(fobj, θ₀, lower, upper, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
 
     return model(θ̂)
 
@@ -234,13 +258,14 @@ function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialva
     end
 
     θ₀ = map_to_real_space(pd, initialvalues)
+    lower, upper = IDFCurves.map_to_bounds(IDFCurves.getmarginalmodel(pd))
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ, fixedvalues)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
     # optimization
-    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+    θ̂ = perform_optimization(fobj, θ₀, lower, upper, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
 
     return model(θ̂)
 
@@ -314,8 +339,7 @@ Compute the Hessian matrix of the DependentScalingModel distribution `pd` associ
 """
 function hessian(pd::DependentScalingModel, data::IDFdata)
 
-    pd = getmarginalmodel(pd)
-    d₀ = duration(pd)
+    d₀ = duration(getmarginalmodel(pd))
     θ̂ = vcat(params(pd)...)
     
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(IDFCurves.construct_model(pd, d₀, map_to_real_space(pd, θ)), data)
@@ -356,7 +380,7 @@ function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real,
     θ̂ = vcat(params(pd)...)
     d₀ = duration(getmarginalmodel(pd))
 
-    function g(θ::DenseVector{<:Real}) 
+    function g(θ::DenseVector{<:Real})
         model = IDFCurves.construct_model(pd, d₀, IDFCurves.map_to_real_space(pd, θ))
         return quantile(model, d, p, y)
     end

@@ -66,6 +66,10 @@ params(pd::SimpleScaling) = (location(pd), scale(pd), shape(pd), exponent(pd))
 
 params_number(::Type{<:SimpleScaling}) = 4
 
+function getcovariatenumber(pd::SimpleScaling)::Int
+    return 0
+end
+
 
 ### Methods
 
@@ -130,6 +134,15 @@ function map_to_real_space(::Type{<:SimpleScaling}, θ::AbstractVector{<:Real})
 
     return [θ[1], log(θ[2]), θ[3], logit(θ[4])]
 
+end
+
+"""
+    map_to_bounds(::Type{<:SimpleScaling})
+
+Return the parameter bounds.
+"""
+function map_to_bounds(::Type{<:SimpleScaling})
+    return [-Inf, 0.0001, -Inf, 0.0001], [Inf, Inf, Inf, 1]
 end
 
 """
