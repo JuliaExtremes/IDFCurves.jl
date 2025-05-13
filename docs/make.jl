@@ -16,9 +16,9 @@ makedocs(sitename = "IDFCurves.jl",
 
 if CI
     deploydocs(
-    repo   = "https://github.com/JuliaExtremes/IDFCurves.jl.git",
-    devbranch = "dev",
-    versions = ["stable" => "v^", "v#.#", "main"],
+    repo   = "github.com/JuliaExtremes/QuantileMatching.jl.git",
+    devbranch = "main",
+    versions = ["stable" => "v^", "v#.#", "main", "dev"],
     push_preview = false,
     target = "build"
     )

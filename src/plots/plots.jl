@@ -176,19 +176,6 @@ function get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:R
     end
 
     return layers
-
-    data_return_levels = crossjoin( DataFrame(T = T_values),  DataFrame(d = durations_range) )
-    transform!(data_return_levels, [:T, :d] => ((x,y) -> quantile.(Ref(model), y, 1 .- 1 ./ x, Ref(year))) => :return_level)
-
-    layers = []
-    for T in reverse(T_values)
-        data = data_return_levels[data_return_levels[:,:T] .== T, :]
-        data[!,:return_level] .= data[!,:return_level] .* correction_factor
-        push!(layers, layer(data, x = :d, y = :return_level, color = :T, Geom.line()))
-    end
-
-    return layers
-
 end
 
 

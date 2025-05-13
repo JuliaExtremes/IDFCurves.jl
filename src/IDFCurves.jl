@@ -29,7 +29,7 @@ export
     GeneralScaling,
     HybridScaling,
     CompositeScaling,
-    cdf, duration, exponent, exponent_frequency, getdistribution, getquantile, location, loglikelihood, offset, flattening_offset, params, quantile, quantilecint, rand, scale, shape, params_number,
+    cdf, duration, exponent, exponent_frequency, getdistribution, getquantile, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
 
     DependentScalingModel,
     getcopulatype, getmarginalmodel, getcorrelogram, fit_mle, initialize, cl_bic, bic, parametercint,
