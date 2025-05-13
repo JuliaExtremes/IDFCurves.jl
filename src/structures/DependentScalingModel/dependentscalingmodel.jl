@@ -59,7 +59,7 @@ end
 
 Compute the quantile of level `p` for the duration `d` and year `y` of the scaling model `pd`. 
 """
-function quantile(pd::DependentScalingModel, d::Real, p::Real, y::Real)
+function quantile(pd::DependentScalingModel, d::Real, p::Real, y::Real=0)
     @assert 0<p<1 "The quantile level p must be in (0,1)."
     @assert d>0 "The duration must be positive."
 
@@ -69,11 +69,11 @@ end
 function loglikelihood(pd::DependentScalingModel, data, isPrint=false)
 
     tags = gettag(data)
-    idx = getyear(data, tags[1])
+    years = getyear(data, tags[1])
     d = getduration.(data, tags)
     h = IDFCurves.logdist(d) 
 
-    y = getdata.(data, tags, idx')
+    y = getdata.(data, tags, years')
 
     # Marginal loglikelihood
     ll = loglikelihood(getmarginalmodel(pd), data)
@@ -89,20 +89,21 @@ function loglikelihood(pd::DependentScalingModel, data, isPrint=false)
         return ll
     end
 
-    Σ = cor.(getcorrelogram(pd), h)
-    C = IDFCurves.getcopulatype(pd)(Σ)
-    for year in [1]
+    for (year_index, yr) in enumerate(years)
         u = []
-        for tag in gettag(data)
+        for tag in tags
             current_d = getduration(data, tag)
-            current_data = getdata(data, tag)
+            current_data = getdata(data, tag, yr)  # Get data for current tag and current year
             margdist = IDFCurves.getdistribution(getmarginalmodel(pd), current_d)
 
-            cdf_values = cdf(margdist[year], current_data)
-            push!(u, cdf_values)
+            current_cdf = cdf(margdist[year_index], current_data)
+            push!(u, current_cdf)
         end
 
         matrix = transpose(hcat(u...))
+        Σ = cor.(getcorrelogram(pd), h)  # Assumes time-invariant correlation structure
+        C = IDFCurves.getcopulatype(pd)(Σ)
+
         for c in eachcol(matrix)
             ll += IDFCurves.logpdf(C, c)
         end
@@ -346,7 +347,66 @@ function hessian(pd::DependentScalingModel, data::IDFdata)
 
     H = ForwardDiff.hessian(fobj, θ̂)
 
-    return PDMat(Symmetric(H))
+    # Try Cholesky; fallback to ridge regularization
+    try
+        return PDMat(Symmetric(H))
+    catch e
+        @warn "Hessian not positive definite — applying ridge regularization"
+        λ = 1e-4
+        H_reg = H + λ * I
+        return PDMat(Symmetric(H_reg))
+    end
+end
+
+"""
+    parametervar(pd::DependentScalingModel, data::IDFdata)::Array{Float64, 2}
+
+Compute the covariance parameters estimate of the fitted model `pd`.
+
+"""
+function parametervar(pd::DependentScalingModel, data::IDFdata)::Array{Float64, 2}
+
+    # Compute the parameters covariance matrix
+    V = inv(hessian(pd, data))
+
+    return V
+end
+
+
+"""
+    parametercint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
+
+Compute the approximate Wald parameter confidence intervals of level (1-`α`).
+"""
+function parametercint(pd::DependentScalingModel, data::IDFdata, clevel::Real=.95)::Array{Array{Float64,1},1}
+
+    @assert 0 < clevel < 1 "the confidence level should be between 0 and 1."
+
+    if isa(IDFCurves.getcorrelogram(pd), UncorrelatedStructure)
+        H = inv(IDFCurves.godambe(getmarginalmodel(pd), data))
+    else
+        H = inv(hessian(pd, data))
+    end
+
+    α = 1 - clevel
+    confint = Vector{Vector{Float64}}()
+    q = quantile.(Normal(0,1),[α/2, 1 - α/2])
+
+    θ̂ = params(getmarginalmodel(pd))
+    flat_idx = 0
+    for i in eachindex(θ̂)
+        if isa(θ̂[i], AbstractArray)
+            for j in 1:length(θ̂[i])
+                flat_idx += 1
+                push!(confint, θ̂[i][j] .+ q * sqrt(H[flat_idx, flat_idx]))
+            end
+        else
+            flat_idx += 1
+            push!(confint, θ̂[i] .+ q * sqrt(H[flat_idx, flat_idx]))
+        end
+    end
+
+    return confint
 
 end
 
@@ -373,7 +433,7 @@ Compute the quantile of level `p` variance for the duration `d` and year `y` of 
 
 This function uses the Hessian matrix `H` provided in the argument.   
 """
-function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real)
+function quantilevar(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=0)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration should be positive."
 
@@ -400,7 +460,7 @@ Compute the approximate Wald quantile confidence interval of level (1-`α`) of t
 
 This function uses the Hessian matrix `H` provided in the argument.  
 """
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=.0, α::Real=.05)
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=0, α::Real=.05)
     @assert 0<p<1 "the quantile level sould be in (0,1)."
     @assert d>0 "the duration sould be positive."
     @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
@@ -414,11 +474,32 @@ function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real
 end
 
 """
+    quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, q::Real, H::PDMat{<:Real}, y::Real=0, α::Real=.05)
+
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
+
+## Details
+
+This function uses the Hessian matrix `H` provided in the argument.  
+"""
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, q::Real, H::PDMat{<:Real}, y::Real=0, α::Real=.05)
+    @assert 0<p<1 "the quantile level sould be in (0,1)."
+    @assert d>0 "the duration sould be positive."
+    @assert 0<α<1 "the confidence level (1-α) should be in (0,1)."
+    
+    v = IDFCurves.quantilevar(pd, data, d, p, H, y)
+    
+    dist = Normal(q, sqrt(v))
+    return quantile.(dist, [α/2, 1-α/2])
+
+end
+
+"""
     quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `p` for the duration `d`.
 """
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, y::Real=.0, α::Real=.05)
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, y::Real=0, α::Real=.05)
     
     H = IDFCurves.hessian(pd, data)
 
@@ -426,11 +507,57 @@ function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real
 
 end
 
+"""
+    quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, q::Real, α::Real=.05)
+
+Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `p` for the duration `d`.
+"""
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, q::Real, y::Real=0, α::Real=.05)
+    
+    H = IDFCurves.hessian(pd, data)
+
+    return quantilecint(pd, data, d, p, q, H, y, α)
+
+end
+
 
 """
     bic(pd:::DependentScalingModel)
 
-Compute the Bayesian information criterion (BIC) of the fitted model by maximum likelihood method.
+Compute the composite likelihood Bayesian information criterion (CL-BIC) of the fitted model by maximum likelihood method.
+
+## Details
+
+The CL-BIC is defined as follows:
+
+``CL-BIC = dim(ϕ) \\log n - 2 \\log \\hat{L};``
+
+where ``dim(ϕ)`` is the effective number of estimated parameters, ``n`` is the number of data 
+and ``\\hat{L}`` is the maximized value of the likelihood function for the model. 
+
+"""
+function cl_bic(pd::DependentScalingModel, data::IDFdata)
+    n = 0
+    for tag in gettag(data)
+        n += length(getdata(data, tag))
+    end
+
+    try
+        H = IDFCurves.hessian(getmarginalmodel(pd), data)
+        G = IDFCurves.godambe(getmarginalmodel(pd), data)
+
+        return tr(H*inv(G))*log(n)-2*loglikelihood(pd, data)
+    catch e
+        println("Error calculating Hessian for cl_bic: ", e)
+        println("Falling back to simpler BIC calculation.")
+        return bic(pd, data) 
+    end
+end
+
+"""
+    bic(pd:::DependentScalingModel)
+
+Compute the likelihood Bayesian information criterion (BIC) of the fitted model by maximum likelihood method.
 
 ## Details
 

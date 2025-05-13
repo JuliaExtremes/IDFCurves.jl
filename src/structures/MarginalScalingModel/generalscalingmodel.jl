@@ -100,7 +100,7 @@ end
 
 Return the marginal GEV distribution for duration `d`.
 """
-function getdistribution(pd::GeneralScaling, d::Real)
+function getdistribution(pd::GeneralScaling, d::Real, print::Bool=false)
     μ₀ = (pd.μ₀ isa paramfun ? pd.μ₀.fun(pd.μ₀.estimators) : location(pd))
     σ₀ = (pd.σ₀ isa paramfun ? exp.(pd.σ₀.fun(log.(pd.σ₀.estimators))) : scale(pd))
     ξ = (pd.ξ isa paramfun ? pd.ξ.fun(pd.ξ.estimators) : shape(pd)) 
@@ -112,12 +112,39 @@ function getdistribution(pd::GeneralScaling, d::Real)
     ls = -α .* (log.(d .+ δ) .- log.(d₀ .+ δ))
     s = exp.(ls)
 
+    if print
+        println("μ₀ = ", μ₀)
+    end
+
     μ = μ₀ .* s
     σ = σ₀ .* s
     
-    
     return GeneralizedExtremeValue.(μ, σ, ξ)
     
+end
+
+
+"""
+    getquantile(pd::GeneralScaling, t::Real, d::Real)
+
+Return the quantile for duration `d` and return level `t`.
+"""
+function getquantile(pd::GeneralScaling, t::Real, d::Real)
+    μ₀ = (pd.μ₀ isa paramfun ? pd.μ₀.fun(pd.μ₀.estimators) : location(pd))
+    σ₀ = (pd.σ₀ isa paramfun ? exp.(pd.σ₀.fun(log.(pd.σ₀.estimators))) : scale(pd))
+    ξ = (pd.ξ isa paramfun ? pd.ξ.fun(pd.ξ.estimators) : shape(pd)) 
+    α = (pd.α isa paramfun ? logistic.(pd.α.fun(logit.(pd.α.estimators))) : exponent(pd)) 
+    δ = (pd.δ isa paramfun ? exp.(pd.δ.fun(log.(pd.δ.estimators))) : offset(pd)) 
+
+    p = (1 .- 1 ./ t)
+    ls = (-log(p)).^(-ξ)
+    
+    d₀ = duration(pd)
+    
+    ls = -α .* (log.(d .+ δ) .- log.(d₀ .+ δ))
+    s = exp.(ls)
+    
+    return (μ₀ .+ ((σ₀ ./ ξ) .* ((-log(p)).^(-ξ) .- 1))) .* s
 end
 
 

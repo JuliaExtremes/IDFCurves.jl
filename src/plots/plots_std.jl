@@ -45,52 +45,21 @@ function standardize(pd::MarginalScalingModel, data::IDFdata, d::Real)::Abstract
 
 end
 
-using Distributions, ForwardDiff, LinearAlgebra
-
-function quantilecint_test(fd::DependentScalingModel, data::IDFdata, duration::Real, p::Real, y::Real, α::Real=.05)
-    q = quantile.(fd, duration, p, y)
-    H = IDFCurves.hessian(fd, data)
-    v = IDFCurves.quantilevar(fd, data, duration, p, H, y)
-
-    dist = Normal(q, sqrt(v))
-    ci = quantile.(dist, [α/2, 1-α/2])
-
-    # Standardize the confidence intervals
-    pd = getmarginalmodel(fd)
-    marginal = getdistribution(pd, duration)[y]
-    
-    μ = location.(marginal)
-    σ = scale.(marginal)
-    ξ = shape.(marginal)
-
-    standardized_ci = 1 ./ ξ * log.(1 .+ ξ ./ σ .* (ci .- μ))
-
-    return standardized_ci    
-end
-
-function qqplot_std_data(fd::DependentScalingModel, data::IDFdata, durations::AbstractArray{<:Real})::Plot
-
-    z_all = Float64[]
-    # z_inf = Float64[]
-    # z_sup = Float64[]
-
+function qqplot_std_data(
+    fd::DependentScalingModel, 
+    data::IDFdata, 
+    durations::AbstractArray{<:Real}, 
+    title::String="Residual Quantile Plot", 
+    xaxis_title::String="Model", 
+    yaxis_title::String="Empirical", 
+    axis_scales::AbstractArray{<:Gadfly.Scale.ContinuousScale}=[
+        Scale.x_continuous(minvalue=-2, maxvalue=8),
+        Scale.y_continuous(minvalue=-2, maxvalue=5)
+    ])::Plot
     # Iterate over each duration and standardize the data
+    z_all = Float64[]
     for d in durations
         z = standardize(getmarginalmodel(fd), data, d)
-
-        # Calculate confidence intervals
-        # Confidence intervals dont work yet, they don't seem to cover model quantiles
-        # tag = gettag(data, d)
-        # y = getdata(data, tag)
-        # n = length(y)
-        # p = (1:n) ./ (n+1)
-        # for (i, pᵢ) in enumerate(p)
-        #     c = quantilecint_test(fd, data, d, pᵢ, i)
-
-        #     append!(z_inf, c[1])
-        #     append!(z_sup, c[2])
-        # end
-
         append!(z_all, z)
     end
 
@@ -113,24 +82,19 @@ function qqplot_std_data(fd::DependentScalingModel, data::IDFdata, durations::Ab
     lower_bound = mapslices(x -> quantile(x, 0.025), simulated_quantiles, dims=1)
     upper_bound = mapslices(x -> quantile(x, 0.975), simulated_quantiles, dims=1)
 
-    # Append confidence intervals to the DataFrame
     df.LowerBound = lower_bound[:]
     df.UpperBound = upper_bound[:]
-
-    # df[:,:Inf] = z_inf
-    # df[:,:Sup] = z_sup
     
 
     l1 = layer(df, x=:Model, y=:Empirical, Geom.point, Geom.abline(color="black", style=:dash), Theme(default_color="black", discrete_highlight_color=c->nothing))
     # Add a ribbon for the confidence intervals
     l2 = layer(df, x=:Model, ymin=:LowerBound, ymax=:UpperBound, Geom.ribbon, Theme(default_color="lightgray"))
-
-    # l2 = layer(df, x=:Model, ymin=:Inf, ymax=:Sup, Geom.ribbon, Theme(lowlight_color=c->"lightgray"))
-    p = plot(l1, l2, Guide.xlabel("Model"), Guide.ylabel("Empirical"), Guide.title("Residual Quantile Plot for durations: $durations"), Theme(background_color="white"))
-    p.scales = [
-        Scale.x_continuous(minvalue=-2, maxvalue=6),
-        Scale.y_continuous(minvalue=-5, maxvalue=10)
-    ]
+    p = plot(l1, l2, Guide.xlabel(xaxis_title), Guide.ylabel(yaxis_title), Guide.title(title), Theme(
+            line_width = 1.5pt, point_size = 4pt, major_label_font_size = 20pt, key_label_font_size = 20pt, 
+            key_title_font_size = 15pt, minor_label_font_size = 20pt, background_color="white"
+        )
+    )
+    p.scales = axis_scales
 
     return p
 end

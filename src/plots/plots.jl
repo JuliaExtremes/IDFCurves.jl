@@ -165,13 +165,25 @@ get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, dur
 
 Returns the layers associated to the IDF curves based on the given mode, for each return period in T_values.
 """
-function get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, durations_range::Vector{<:Real}, year::Real=.0)
+function get_layers_IDFCurves(model::DependentScalingModel, T_values::Vector{<:Real}, durations_range::Vector{<:Real}, correction_factor::Real=1.0, year::Real=.0)
     data_return_levels = crossjoin( DataFrame(T = T_values),  DataFrame(d = durations_range) )
     transform!(data_return_levels, [:T, :d] => ((x,y) -> quantile.(Ref(model), y, 1 .- 1 ./ x, Ref(year))) => :return_level)
 
     layers = []
     for T in reverse(T_values)
         data = data_return_levels[data_return_levels[:,:T] .== T, :]
+        push!(layers, layer(data, x = :d, y = :return_level, color = :T, Geom.line()))
+    end
+
+    return layers
+
+    data_return_levels = crossjoin( DataFrame(T = T_values),  DataFrame(d = durations_range) )
+    transform!(data_return_levels, [:T, :d] => ((x,y) -> quantile.(Ref(model), y, 1 .- 1 ./ x, Ref(year))) => :return_level)
+
+    layers = []
+    for T in reverse(T_values)
+        data = data_return_levels[data_return_levels[:,:T] .== T, :]
+        data[!,:return_level] .= data[!,:return_level] .* correction_factor
         push!(layers, layer(data, x = :d, y = :return_level, color = :T, Geom.line()))
     end
 
@@ -271,7 +283,7 @@ function get_layers_pointwise_estimations(data::IDFdata, T_values::Vector{<:Real
         end
     end
 
-    return layers
+    return layers, data_return_levels
 
 end
 
@@ -280,7 +292,7 @@ get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_
 
 Returns the layers associated to pointwise estimations of the return levels at the differents durations, for every return period in T_values.
 """
-function get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool, α::Real=.05, y::Real=.0)
+function get_layers_pointwise_estimations(model::DependentScalingModel, data::IDFdata, T_values::Vector{<:Real}, durations::Vector{<:Real}, show_confidence_intervals::Bool, ribbon::Bool, α::Real=.05, correction_factor::Real=1.0, y::Real=.0)
 
     if show_confidence_intervals
         data_return_levels = DataFrame(T = Float64[], d = Float64[], return_level = Float64[], conf_lower = Float64[], conf_upper = Float64[])
@@ -295,9 +307,9 @@ function get_layers_pointwise_estimations(model::DependentScalingModel, data::ID
                 q = quantile(model, d, p, y)
                 if show_confidence_intervals
                     conf_int = quantilecint(model, data, d, p, y, α)
-                    push!(data_return_levels, [T, d, q, conf_int[1], conf_int[2]])
+                    push!(data_return_levels, [T, d, q * correction_factor, conf_int[1] * correction_factor, conf_int[2] * correction_factor])
                 else 
-                    push!(data_return_levels, [T, d, q])
+                    push!(data_return_levels, [T, d, q * correction_factor])
                 end
             end
         catch e
@@ -316,7 +328,7 @@ function get_layers_pointwise_estimations(model::DependentScalingModel, data::ID
         end
     end
 
-    return layers
+    return layers, data_return_levels
 
 end
 
@@ -341,7 +353,12 @@ function plotIDFCurves(
         d_min::Union{Real, Nothing} = nothing,
         d_max::Union{Real, Nothing} = nothing,
         y_ticks::Union{Vector{<:Real}, Nothing} = nothing,
-        additional_layers::Union{Vector{<:Gadfly.Layer}, Nothing} = [],
+        additional_layers::Union{Vector{<:Gadfly.Layer}, Nothing} = nothing,
+        plotTitle::String = "Intensity-Duration-Frequency curves",
+        x_axis_title::String = "Rainfall duration",
+        y_axis_title::String = "Rainfall intensity (mm/h)",
+        color_key_title::String = "Return period T (years)",
+        correction_factor::Real=1.0,
         year::Real=.0)
 
     if isnothing(d_min)
@@ -356,10 +373,14 @@ function plotIDFCurves(
     durations = sort(durations)
     
     d_step = d_min/10
-    layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max), year)
+    layers = get_layers_IDFCurves(model, T_values, collect(d_min:d_step:d_max), correction_factor, year)
     
-    append!(layers, dgev_return_levels ? get_layers_pointwise_estimations(model, data, T_values, durations, show_confidence_intervals, ribbon, α, year) :  get_layers_pointwise_estimations(data, T_values, durations, show_confidence_intervals, ribbon))
-    append!(layers, additional_layers)
+    pointwise_layers, data = dgev_return_levels ? get_layers_pointwise_estimations(model, data, T_values, durations, show_confidence_intervals, ribbon, α, correction_factor, year) :  get_layers_pointwise_estimations(data, T_values, durations, show_confidence_intervals, ribbon)
+    append!(layers, pointwise_layers)
+    
+    if !isnothing(additional_layers)
+        append!(layers, additional_layers)
+    end
 
     labels = get_durations_labels(durations)
     f_label(x) = labels[durations .≈ exp(x)][1]
@@ -373,14 +394,17 @@ function plotIDFCurves(
         Scale.color_discrete_manual(palette...),
         Guide.xticks(ticks = log.(durations)),
         Guide.yticks(ticks = y_ticks),
-        Guide.xlabel("Rainfall duration"),
-        Guide.ylabel("Rainfall intensity (mm/h)"),
-        Guide.colorkey(title="Return period T (years)"),
+        Guide.xlabel(x_axis_title),
+        Guide.ylabel(y_axis_title),
+        Guide.title(plotTitle),
+        Guide.colorkey(title=color_key_title),
         Theme(line_width = 1.5pt, point_size = 4pt, major_label_font_size = 15pt, 
-            key_label_font_size = 12pt, key_title_font_size  =15pt, minor_label_font_size = 12pt)
-        )
+            key_label_font_size = 12pt, key_title_font_size  =15pt, minor_label_font_size = 12pt,
+            panel_fill = color("white"),  # Set the panel background to white
+            background_color = color("white")  # Set the overall background to white
+        ))
 
-    return p
+    return p, data
 
 end
 

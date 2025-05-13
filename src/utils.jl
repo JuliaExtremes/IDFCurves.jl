@@ -312,12 +312,20 @@ function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real}, lowe
     res = nothing
     try 
         res = with_logger(logger) do
-            Optim.optimize(fobj, grad_fobj, hessian_fobj, lower, upper, θ₀)
+            Optim.optimize(fobj, grad_fobj, hessian_fobj, θ₀)
         end
         @assert Optim.converged(res)
     catch e
-        res = with_logger(logger) do
-            Optim.optimize(fobj, lower, upper, θ₀)
+        if occursin("Cholesky factorization failed", string(e))
+            println("Switching to gradient-only optimization due to Cholesky failure.")
+            res = with_logger(logger) do
+                Optim.optimize(fobj, grad_fobj, θ₀, lower, upper, Optim.LBFGS())
+            end
+        else
+            println("Fallback to default optimization.")
+            res = with_logger(logger) do
+                Optim.optimize(fobj, θ₀)
+            end
         end
     end
 

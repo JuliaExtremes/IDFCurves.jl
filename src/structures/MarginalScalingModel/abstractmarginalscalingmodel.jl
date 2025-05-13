@@ -22,7 +22,6 @@ include("simplescalingmodel.jl")
 include("generalscalingmodel.jl")
 include("hybridscalingmodel.jl")
 include("compositescalingmodel.jl")
-include("totalscalingmodel.jl")
 
 ### Methods
 
@@ -190,11 +189,10 @@ function godambe(fd::MarginalScalingModel, data::IDFdata)
     
     H = IDFCurves.hessian(fd, data)
     
-    G = PDMat(PDMats.X_invA_Xt(J, H))
-    
-    return G
+    return H * inv(J) * H
     
 end
+
 
 """
     quantilevar(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real)
@@ -265,26 +263,36 @@ function variability_matrix(fd::MarginalScalingModel, data::IDFdata)
     # TODO: Handling missing data. Assuming here that all durations have the same number of observations.
     Y = stack(getdata.(data, gettag(data)), dims=1)
     
-    θ̂ = collect(params(fd))
-        
-    d, n = size(Y)
+    θ̂ = vcat(params(fd)...)
     
     J = zeros(length(θ̂), length(θ̂))
-        
-    scaling_model = scalingtype(fd)
-        
-    pd(θ) = getdistribution.(scaling_model(IDFCurves.duration(fd), θ...), getduration.(data, gettag(data)))
-    ll(θ, y) = sum(logpdf.(pd(θ), y))
-    u(θ, y) = ForwardDiff.gradient( θ -> ll(θ, y), θ)
     
-    for y in eachcol(Y)
-        
-        uᵢ = u(θ̂, y)
-        
+    model(θ) = IDFCurves.construct_model(fd, duration(fd), IDFCurves.map_to_real_space(fd, θ)) 
+    function ll(θ, y)
+        pd = model(θ)
+        ll_value = 0.0
+        for tag in gettag(data)
+            marginal = IDFCurves.getdistribution(pd, getduration(data, tag))
+            ll_value += logpdf.(length(marginal) == 1 ? marginal : marginal[y], getdata(data, tag)[y])
+        end
+        return ll_value
+    end
+    u(θ, y) = ForwardDiff.gradient(θ -> ll(θ, y), θ)
+    
+    for (i, y) in enumerate(eachcol(Y))
+        uᵢ = u(θ̂, i)
         J .+= uᵢ * uᵢ'
     end
+
+    epsilon = 1e-6
+    J_regularized = copy(J)
+    for i in 1:size(J,1)
+        if isapprox(J_regularized[i,i], 0.0, atol=1e-10)
+            J_regularized[i,i] += epsilon
+        end
+    end
     
-    return PDMat(Symmetric(J))
+    return PDMat(Symmetric(Matrix{Float64}(J_regularized)))
         
 end
 

@@ -29,11 +29,10 @@ export
     GeneralScaling,
     HybridScaling,
     CompositeScaling,
-    TotalScaling,
-    cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
+    cdf, duration, exponent, exponent_frequency, getdistribution, getquantile, location, loglikelihood, offset, flattening_offset, params, quantile, quantilecint, rand, scale, shape, params_number,
 
     DependentScalingModel,
-    getcopulatype, getmarginalmodel, getcorrelogram, fit_mle, initialize, bic,
+    getcopulatype, getmarginalmodel, getcorrelogram, fit_mle, initialize, cl_bic, bic, parametercint,
 
     EllipticalCopula,
     GaussianCopula, TCopula, IdentityCopula,
@@ -43,8 +42,8 @@ export
     cor,
 
     # dataitem
-    ParamComputation, BaseParamComputation, LinearParamComputation, NonDimLinearParamComputation, NonDimExpoParamComputation,
-    Covariate, CovariateStd, Covariates, DataItem, 
+    ParamComputation, BaseParamComputation, LinearParamComputation, QuadraticParamComputation, NonDimLinearParamComputation, NonDimQuadraticParamComputation, NonDimExpoParamComputation, FixedSlopeParamComputation,
+    Covariate, CovariateStd, Covariates, DataItem, standardize,
 
     #plots
     qqplot, qqplotci, plotIDFCurves, qqplot_std_data
