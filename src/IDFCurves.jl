@@ -29,7 +29,7 @@ export
     GeneralScaling,
     HybridScaling,
     CompositeScaling,
-    cdf, duration, exponent, exponent_frequency, getdistribution, getquantile, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
+    cdf, duration, exponent, getdistribution, getquantile, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number, location_exponent, scale_exponent,
 
     DependentScalingModel,
     getcopulatype, getmarginalmodel, getcorrelogram, fit_mle, initialize, cl_bic, bic, parametercint,
@@ -42,7 +42,7 @@ export
     cor,
 
     # dataitem
-    ParamComputation, BaseParamComputation, LinearParamComputation, QuadraticParamComputation, NonDimLinearParamComputation, NonDimQuadraticParamComputation, NonDimExpoParamComputation, FixedSlopeParamComputation,
+    ParamComputation, BaseParamComputation, LinearParamComputation, NonDimLinearParamComputation, NonDimQuadraticParamComputation, NonDimExpoParamComputation,
     Covariate, CovariateStd, Covariates, DataItem, standardize,
 
     #plots

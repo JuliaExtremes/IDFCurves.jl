@@ -100,7 +100,7 @@ end
 
 Return the marginal GEV distribution for duration `d`.
 """
-function getdistribution(pd::GeneralScaling, d::Real, print::Bool=false)
+function getdistribution(pd::GeneralScaling, d::Real)
     μ₀ = (pd.μ₀ isa paramfun ? pd.μ₀.fun(pd.μ₀.estimators) : location(pd))
     σ₀ = (pd.σ₀ isa paramfun ? exp.(pd.σ₀.fun(log.(pd.σ₀.estimators))) : scale(pd))
     ξ = (pd.ξ isa paramfun ? pd.ξ.fun(pd.ξ.estimators) : shape(pd)) 
@@ -111,10 +111,6 @@ function getdistribution(pd::GeneralScaling, d::Real, print::Bool=false)
     
     ls = -α .* (log.(d .+ δ) .- log.(d₀ .+ δ))
     s = exp.(ls)
-
-    if print
-        println("μ₀ = ", μ₀)
-    end
 
     μ = μ₀ .* s
     σ = σ₀ .* s
@@ -158,6 +154,18 @@ function construct_model(::Type{<:GeneralScaling}, d₀::Real, θ::AbstractVecto
     
     return GeneralScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), exp(θ[5]))
 
+end
+
+"""
+    construct_model(::Type{<:GeneralScaling}, d₀, θ, c)
+
+Construct a GeneralScaling marginal model from a set of transformed and fixed parameters in the real space.
+"""
+function construct_model(::Type{<:GeneralScaling}, d₀::Real, θ::AbstractVector{<:Real}, c::AbstractVector{<:Union{Nothing, Real}})
+    θ_mixed = [isnothing(fixed_param) ? param : fixed_param for (param, fixed_param) in zip(θ, c)]
+
+    @assert length(θ_mixed) == 5 "The parameter vector length must be 5. Verify that the reference duration is not included."
+    return GeneralScaling(d₀, θ_mixed[1], exp(θ_mixed[2]), θ_mixed[3], logistic(θ_mixed[4]), exp(θ_mixed[5]))
 end
 
 """
@@ -268,24 +276,6 @@ function map_to_real_space(pd::GeneralScaling, θ::AbstractVector{<:Real})
 
     return [μ₀..., σ₀..., ξ..., α..., δ...]
 
-end
-
-"""
-    map_to_bounds(::Type{<:GeneralScaling})
-
-Return the parameter bounds.
-"""
-function map_to_bounds(::Type{<:GeneralScaling})
-    return [-Inf, 0.0001, -Inf, 0.0001, 0.0], [Inf, Inf, Inf, 1, Inf]
-end
-
-"""
-    map_to_bounds(::Type{<:GeneralScaling})
-
-Return the parameter bounds.
-"""
-function map_to_bounds(pd::GeneralScaling)
-    return [-Inf, 0.0001, -Inf, 0.0001, 0.0], [Inf, Inf, Inf, 1, Inf]
 end
 
 """

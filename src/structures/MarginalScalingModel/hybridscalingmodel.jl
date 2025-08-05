@@ -109,9 +109,23 @@ end
 Construct a HybridScaling marginal model from a set of transformed parameters θ in the real space.
 """
 function construct_model(::Type{<:HybridScaling}, d₀::Real, θ::AbstractVector{<:Real})
-    @assert length(θ) == 5 "The parameter vector length must be 6. Verify that the reference duration is included."
+    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
     
     return HybridScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), logistic(θ[5]))
+
+end
+
+"""
+    construct_model(::Type{<:HybridScaling}, d₀, θ, c)
+
+Construct a HybridScaling marginal model from a set of transformed parameters θ in the real space.
+"""
+function construct_model(::Type{<:HybridScaling}, d₀::Real, θ::AbstractVector{<:Real}, c::AbstractVector{<:Union{Nothing, Real}})
+    θ_mixed = [isnothing(fixed_param) ? param : fixed_param for (param, fixed_param) in zip(θ, c)]
+
+    @assert length(θ_mixed) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
+
+    return HybridScaling(d₀, θ_mixed[1], exp(θ_mixed[2]), θ_mixed[3], logistic(θ_mixed[4]), logistic(θ_mixed[5]))
 
 end
 

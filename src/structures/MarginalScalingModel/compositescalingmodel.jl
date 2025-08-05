@@ -81,7 +81,7 @@ end
 
 Return the marginal GEV distribution for duration `d`.
 """
-function getdistribution(pd::CompositeScaling, d::Real, isPrint=false)
+function getdistribution(pd::CompositeScaling, d::Real)
     μ₀ = (pd.μ₀ isa paramfun ? pd.μ₀.fun(pd.μ₀.estimators) : location(pd))
     σ₀ = (pd.σ₀ isa paramfun ? exp.(pd.σ₀.fun(log.(pd.σ₀.estimators))) : scale(pd))
     ξ = (pd.ξ isa paramfun ? pd.ξ.fun(pd.ξ.estimators) : shape(pd)) 
@@ -89,8 +89,6 @@ function getdistribution(pd::CompositeScaling, d::Real, isPrint=false)
     α_σ = (pd.α_σ isa paramfun ? logistic.(pd.α_σ.fun(logit.(pd.α_σ.estimators))) : scale_exponent(pd)) 
     
     d₀ = duration(pd)
-    
-    # ls = log.(d .+ δ) .- log.(d₀ .+ δ)
     ls = log.(d) .- log.(d₀)
     α1 = -α_μ .* ls
     s_μ = exp.(α1)
@@ -111,9 +109,24 @@ end
 Construct a CompositeScaling marginal model from a set of transformed parameters θ in the real space.
 """
 function construct_model(::Type{<:CompositeScaling}, d₀::Real, θ::AbstractVector{<:Real})
-    @assert length(θ) == 5 "The parameter vector length must be 6. Verify that the reference duration is included."
+    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
     
     return CompositeScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), logistic(θ[5]))
+
+end
+
+
+"""
+    construct_model(::Type{<:CompositeScaling}, d₀, θ, c)
+
+Construct a CompositeScaling marginal model from a set of transformed parameters θ in the real space.
+"""
+function construct_model(::Type{<:CompositeScaling}, d₀::Real, θ::AbstractVector{<:Real}, c::AbstractVector{<:Union{Nothing, Real}})
+    θ_mixed = [isnothing(fixed_param) ? param : fixed_param for (param, fixed_param) in zip(θ, c)]
+
+    @assert length(θ) == 5 "The parameter vector length must be 5. Verify that the reference duration is included."
+    
+    return CompositeScaling(d₀, θ_mixed[1], exp(θ_mixed[2]), θ_mixed[3], logistic(θ_mixed[4]), logistic(θ_mixed[5]))
 
 end
 

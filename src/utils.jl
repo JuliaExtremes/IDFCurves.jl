@@ -302,7 +302,7 @@ end
 Performs the minimization of fobj, using Optim.jl and the derivatives computed with compute_derivatives(fobj). Returns the minimizer.
 A warning message is sent if optimization does not succeed.
 """
-function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real}, lower::AbstractArray{<:Real}, upper::AbstractArray{<:Real}; warn_message::String = "Optimization did not succeed. Returning the initial vector.")
+function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real}; warn_message::String = "Optimization did not succeed. Returning the initial vector.")
 
     grad_fobj, hessian_fobj = compute_derivatives(fobj)
 
@@ -319,7 +319,7 @@ function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real}, lowe
         if occursin("Cholesky factorization failed", string(e))
             println("Switching to gradient-only optimization due to Cholesky failure.")
             res = with_logger(logger) do
-                Optim.optimize(fobj, grad_fobj, θ₀, lower, upper, Optim.LBFGS())
+                Optim.optimize(fobj, grad_fobj, θ₀, Optim.LBFGS())
             end
         else
             println("Fallback to default optimization.")

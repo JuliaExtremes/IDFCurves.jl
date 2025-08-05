@@ -225,9 +225,9 @@ end
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `q` for the duration `d`.
 """
-function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, α::Real=.05)
-    
-    return quantilecint(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, α)
+function quantilecint(fd::MarginalScalingModel, data::IDFdata, d::Real, p::Real; y::Real=0, α::Real=.05)
+
+    return quantilecint(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data, d, p, y=y, α=α)
 
 end
 
@@ -240,9 +240,9 @@ Compute the approximate Wald quantile confidence interval of level (1-`α`) of t
 
 This function uses the Hessian matrix `H` provided in the argument.  
 """
-function quantilecint(pd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, α::Real=.05)
-    
-    return quantilecint(DependentScalingModel(pd, UncorrelatedStructure(), IdentityCopula), data, d, p, H, α)
+function quantilecint(pd::MarginalScalingModel, data::IDFdata, d::Real, p::Real, H::PDMat{<:Real}, y::Real=0, α::Real=.05)
+
+    return quantilecint(DependentScalingModel(pd, UncorrelatedStructure(), IdentityCopula), data, d, p, H, y, α)
 
 end
 
@@ -283,16 +283,8 @@ function variability_matrix(fd::MarginalScalingModel, data::IDFdata)
         uᵢ = u(θ̂, i)
         J .+= uᵢ * uᵢ'
     end
-
-    epsilon = 1e-6
-    J_regularized = copy(J)
-    for i in 1:size(J,1)
-        if isapprox(J_regularized[i,i], 0.0, atol=1e-10)
-            J_regularized[i,i] += epsilon
-        end
-    end
     
-    return PDMat(Symmetric(Matrix{Float64}(J_regularized)))
+    return PDMat(Symmetric(Matrix{Float64}(J)))
         
 end
 

@@ -19,11 +19,11 @@ A mathematical framework for studying rainfall intensity-duration-frequency rela
 """
 struct SimpleScaling{T<:Real, U<:Union{Real, paramfun}} <: MarginalScalingModel
     d₀::T # reference duration
-    μ₀::T 
-    σ₀::T
-    ξ::T
-    α::T # scaling exponent (defining slope of the IDF curve)
-    SimpleScaling{T, U}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T<:Real, U<:Union{Real, paramfun}} = new{T, U}(d₀, μ₀, σ₀, ξ, α)
+    μ₀::U 
+    σ₀::U
+    ξ::U
+    α::U # scaling exponent (defining slope of the IDF curve)
+    SimpleScaling{T, U}(d₀::T, μ₀::U, σ₀::U, ξ::U, α::U) where {T<:Real, U<:Union{Real, paramfun}} = new{T, U}(d₀, μ₀, σ₀, ξ, α)
 end
 
 function SimpleScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T <: Real}
@@ -100,13 +100,13 @@ function getdistribution(pd::SimpleScaling, d::Real)
     
     d₀ = duration(pd)
     
-    ls = -α * (log(d) - log(d₀))
-    s = exp(ls)
+    ls = -α .* (log.(d) .- log.(d₀))
+    s = exp.(ls)
 
-    μ = μ₀ * s
-    σ = σ₀ * s
+    μ = μ₀ .* s
+    σ = σ₀ .* s
     
-    return GeneralizedExtremeValue(μ, σ, ξ)
+    return GeneralizedExtremeValue.(μ, σ, ξ)
     
 end
 
@@ -254,24 +254,6 @@ function map_to_real_space(pd::SimpleScaling, θ::AbstractVector{<:Real})
 
     return [μ₀..., σ₀..., ξ..., α...]
 
-end
-
-"""
-    map_to_bounds(::Type{<:SimpleScaling})
-
-Return the parameter bounds.
-"""
-function map_to_bounds(::Type{<:SimpleScaling})
-    return [-Inf, 0.0001, -Inf, 0.0001], [Inf, Inf, Inf, 1]
-end
-
-"""
-    map_to_bounds(::Type{<:SimpleScaling})
-
-Return the parameter bounds.
-"""
-function map_to_bounds(pd::SimpleScaling)
-    return [-Inf, 0.0001, -Inf, 0.0001], [Inf, Inf, Inf, 1]
 end
 
 """

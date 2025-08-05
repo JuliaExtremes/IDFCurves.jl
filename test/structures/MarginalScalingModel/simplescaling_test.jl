@@ -1,6 +1,3 @@
-using IDFCurves
-using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFunctions, Test
-
 @testset "SimpleScaling" begin
 
     @testset "SimpleScaling construction" begin
@@ -63,7 +60,6 @@ using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFuncti
     end
 
     @testset "Base.show(io, SimpleScaling)" begin
-        # print dGEV does not throw
         pd = SimpleScaling(1, 100, 1, 0, .8)
         buffer = IOBuffer()
         @test_logs Base.show(buffer, pd)
@@ -199,9 +195,80 @@ using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFuncti
 
         @testset "quantilecint" begin
             @test quantilecint(fd, data, 24, .95) ≈ [3.613737526616065, 4.100402261105994] atol = 1e-4
-            @test quantilecint(fd, data, 24, .95, .1) ≈ [3.652858933876735, 4.061280853845323] atol = 1e-4
+            @test quantilecint(fd, data, 24, .95, y=0, α=.1) ≈ [3.652858933876735, 4.061280853845323] atol = 1e-4
         end
         
     end
 
+    @testset "fitting a simple scaling non-stationary model" begin
+        df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
+        tags = names(df)[2:10]
+        durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+        duration_dict = Dict(zip(tags, durations))
+        data = IDFdata(df, "Year", duration_dict)
+
+        rcp = CSV.read(joinpath("..", "data","RCPdata.csv"), DataFrame)
+        rcp_filtered = rcp[2017 .>= rcp.Year .>= 1943, :]
+        rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 1994, :]
+        rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 1995, :]
+        rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 2003, :]
+
+        pd = SimpleScaling(
+            1.0,
+            Covariates([Covariate("t", rcp_filtered[:, Symbol("Year")])], BaseParamComputation),
+            Covariates(),
+            Covariates(),
+            Covariates(),
+        )
+
+        init_values = [18.1366, 1.0, 5.2874, 0.0486, 0.6942]
+            
+        Σ = UncorrelatedStructure()
+        C = IdentityCopula
+        dsm = DependentScalingModel(pd, Σ, C) 
+        fd = IDFCurves.fit_mle(dsm, data, 1,  init_values)
+
+        @testset "non-stationary model construction" begin
+            @test pd isa SimpleScaling
+            @test duration(pd) == 1.0
+            @test params_number(pd) == 5  # 4 base + 1 time covariate
+
+            # Check that location parameter is time-varying
+            @test length(pd.μ₀.covariate) == 1  # One time covariate
+            @test pd.μ₀.covariate[1].name == "t"
+        end
+
+        @testset "model fitting with initial values" begin
+            @test [params(fd)...] ≈ [[18.1366, -0.0753], [5.2874], [0.0486], [0.6942]] rtol=.1
+
+            fd2 = IDFCurves.fit_mle(dsm, data, 1, [20, 1, 5, .0, .76])
+            @test [params(fd2)...] ≈ [[18.1366, -0.0753], [5.2874], [0.0486], [0.6942]] rtol=.1
+        end
+
+        @testset "quantile computation" begin
+            q_1950 = quantile(getmarginalmodel(fd), 24, 0.95, 1)
+            q_2000 = quantile(getmarginalmodel(fd), 24, 0.95, 50)
+        
+            @test eltype(q_1950) <: Real
+            @test eltype(q_2000) <: Real
+            @test all(isfinite, q_1950)
+            @test all(isfinite, q_2000)
+            
+            # Due to negative time trend, quantiles should decrease over time
+            @test all(q_2000 .< q_1950)
+        end
+
+        @testset "hessian and parameter confidence intervals" begin
+            H = IDFCurves.hessian(fd, data)
+            @test size(H) == (5, 5)
+            
+            param_cints = parametercint(fd, data)
+            @test param_cints ≈ [
+                [17.2287, 19.0434], 
+                [-0.8339, 0.6834], 
+                [4.61735, 5.9544], 
+                [-0.015, 0.1129], 
+                [0.6765, 0.7123]] rtol=.05
+        end
+    end
 end

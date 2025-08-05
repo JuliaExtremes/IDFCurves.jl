@@ -73,14 +73,3 @@ function initialize(::Type{<:UncorrelatedStructure}, data::IDFdata)
     return Float64[]
 
 end
-
-"""
-    initialize(::Type{<:UncorrelatedStructure}, data::IDFdata)
-
-Returs an empty vector.
-"""
-function initialize(::UncorrelatedStructure, data::IDFdata)
-
-    return Float64[]
-
-end

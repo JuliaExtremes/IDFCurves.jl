@@ -215,14 +215,13 @@ function fit_mle(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real, i
     end
 
     θ₀ = map_to_real_space(pd, initialvalues)
-    lower, upper = IDFCurves.map_to_bounds(IDFCurves.getmarginaltype(pd))
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
     # optimization
-    θ̂ = perform_optimization(fobj, θ₀, lower, upper, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
 
     return model(θ̂)
 
@@ -234,7 +233,6 @@ function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialva
     end
 
     θ₀ = map_to_real_space(pd, initialvalues)
-    lower, upper = IDFCurves.map_to_bounds(IDFCurves.getmarginaltype(pd))
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
@@ -243,7 +241,7 @@ function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialva
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
     # optimization
-    θ̂ = perform_optimization(fobj, θ₀, lower, upper, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
 
     return model(θ̂)
 
@@ -259,14 +257,13 @@ function fit_mle(pd::DependentScalingModel, data::IDFdata, d₀::Real, initialva
     end
 
     θ₀ = map_to_real_space(pd, initialvalues)
-    lower, upper = IDFCurves.map_to_bounds(IDFCurves.getmarginalmodel(pd))
 
     model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ, fixedvalues)
     fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
     @assert fobj(θ₀) < Inf "The initial value vector is not a member of the set of possible solutions. At least one data lies outside the distribution support."
 
     # optimization
-    θ̂ = perform_optimization(fobj, θ₀, lower, upper, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
+    θ̂ = perform_optimization(fobj, θ₀, warn_message = "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values.")
 
     return model(θ̂)
 
@@ -499,12 +496,9 @@ end
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `p` for the duration `d`.
 """
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, y::Real=0, α::Real=.05)
-    
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real; y::Real=0, α::Real=.05)
     H = IDFCurves.hessian(pd, data)
-
     return quantilecint(pd, data, d, p, H, y, α)
-
 end
 
 """
@@ -512,12 +506,9 @@ end
 
 Compute the approximate Wald quantile confidence interval of level (1-`α`) of the quantile of level `p` for the duration `d`.
 """
-function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, q::Real, y::Real=0, α::Real=.05)
-    
+function quantilecint(pd::DependentScalingModel, data::IDFdata, d::Real, p::Real, q::Real; y::Real=0, α::Real=.05)
     H = IDFCurves.hessian(pd, data)
-
     return quantilecint(pd, data, d, p, q, H, y, α)
-
 end
 
 

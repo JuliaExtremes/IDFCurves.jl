@@ -56,6 +56,7 @@ function qqplot_std_data(
         Scale.x_continuous(minvalue=-2, maxvalue=8),
         Scale.y_continuous(minvalue=-2, maxvalue=5)
     ])::Plot
+    
     # Iterate over each duration and standardize the data
     z_all = Float64[]
     for d in durations
@@ -71,14 +72,12 @@ function qqplot_std_data(
     n = length(z_all)
     simulated_quantiles = zeros(Float64, n_samples, n)
 
-
-    # Bootstrap simulation: generate quantiles from the Gumbel distribution
+    # Generate quantiles from the Gumbel distribution
     for i in 1:n_samples
         simulated_data = rand(Gumbel(), n)  # Simulate data from the Gumbel distribution
         simulated_quantiles[i, :] = sort(simulated_data)
     end
 
-    # Compute the 5th and 95th percentile confidence intervals for each quantile
     lower_bound = mapslices(x -> quantile(x, 0.025), simulated_quantiles, dims=1)
     upper_bound = mapslices(x -> quantile(x, 0.975), simulated_quantiles, dims=1)
 
@@ -87,7 +86,6 @@ function qqplot_std_data(
     
 
     l1 = layer(df, x=:Model, y=:Empirical, Geom.point, Geom.abline(color="black", style=:dash), Theme(default_color="black", discrete_highlight_color=c->nothing))
-    # Add a ribbon for the confidence intervals
     l2 = layer(df, x=:Model, ymin=:LowerBound, ymax=:UpperBound, Geom.ribbon, Theme(default_color="lightgray"))
     p = plot(l1, l2, Guide.xlabel(xaxis_title), Guide.ylabel(yaxis_title), Guide.title(title), Theme(
             line_width = 1.5pt, point_size = 4pt, major_label_font_size = 20pt, key_label_font_size = 20pt, 

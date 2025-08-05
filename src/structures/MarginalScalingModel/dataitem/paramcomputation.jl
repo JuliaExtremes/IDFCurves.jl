@@ -2,7 +2,6 @@ abstract type ParamComputation end
 
 struct BaseParamComputation <: ParamComputation end
 struct LinearParamComputation <: ParamComputation end
-struct QuadraticParamComputation <: ParamComputation end
 struct NonDimLinearParamComputation <: ParamComputation end
 struct NonDimQuadraticParamComputation <: ParamComputation end
 struct NonDimExpoParamComputation <: ParamComputation end

@@ -1,6 +1,3 @@
-using IDFCurves
-using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFunctions, Test
-
 @testset "DependentScaling" begin
 
     @testset "get subtypes of DependentScalingModel" begin
@@ -198,12 +195,12 @@ using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFuncti
 
         @testset "quantilecint(::DependentScalingModel)" begin
 
-            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 0, 0.99, 0.95)
-            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 1, 0.95)
-            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 0.99, 0)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 0, 0.99, 0.95, y=0, α=0.05)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 1, 0.95, y=0, α=0.05)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 0.99, y=0, α=0)
 
-            q_cint = IDFCurves.quantilecint(fd, data, 1, 0.99, 0.05)
-            @test Distributions.mean(q_cint) ≈ IDFCurves.quantile( IDFCurves.getmarginalmodel(fd), 1, 0.99)
+            q_cint = IDFCurves.quantilecint(fd, data, 1, 0.99, y=0, α=0.05)
+            @test Distributions.mean(q_cint) ≈ IDFCurves.quantile( IDFCurves.getmarginalmodel(fd), 1, 0.99, 0)
             @test all( q_cint .≈ [41.68545615870751, 49.09591917590525] ) 
             
         end
@@ -218,7 +215,10 @@ using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFuncti
         duration_dict = Dict(zip(tags, durations))
         data = IDFdata(df, "Year", duration_dict)
 
-        abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
+        pd = SimpleScaling(1, 1, 1, 0, .8)
+        Σ = UncorrelatedStructure()
+        C = IdentityCopula
+        abstract_model = DependentScalingModel(pd, Σ, C)
 
         d₀ = 1.0
         initialvalues = [20, 5, 0.00001, .76]
@@ -244,5 +244,4 @@ using CSV, DataFrames, Distributions, ForwardDiff, PDMats, Random, SpecialFuncti
             @test [params(getmarginalmodel(fd2))...] ≈ [18.161000347306484, 5.299451673789118, 0.04, 0.6945575661249878] rtol = .01
         end
     end
-
 end
