@@ -2,6 +2,8 @@
 
     include("simplescaling_test.jl")
     include("generalscaling_test.jl")
+    include("compositescaling_test.jl")
+    include("hybridscaling_test.jl")
 
     @testset "scalingtype" begin
         ss = SimpleScaling(1., 20., 5., 0.05, 0.76)

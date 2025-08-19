@@ -130,7 +130,6 @@
             @test all( θ[1:5] .≈ IDFCurves.map_to_real_space(GeneralScaling, params_vector[1:5]) )
             @test all( θ[6:7] .≈ IDFCurves.map_to_real_space(MaternCorrelationStructure, params_vector[6:7]) )
 
-            
         end
 
         abstract_model = DependentScalingModel{SimpleScaling, UncorrelatedStructure, IdentityCopula}
@@ -185,7 +184,6 @@
 
         end
 
-
         @testset "quantilevar(::DependentScalingModel)" begin
 
             @test_throws AssertionError IDFCurves.quantilevar(fd, data, 0, 0.99)
@@ -197,16 +195,53 @@
 
         @testset "quantilecint(::DependentScalingModel)" begin
 
-            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 0, 0.99, 0.95)
-            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 1, 0.95)
-            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 0.99, 0)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 0, 0.99, 0.95, y=0, α=0.05)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 1, 0.95, y=0, α=0.05)
+            @test_throws AssertionError IDFCurves.quantilecint(fd, data, 1, 0.99, y=0, α=0)
 
-            q_cint = IDFCurves.quantilecint(fd, data, 1, 0.99, 0.05)
-            @test Distributions.mean(q_cint) ≈ IDFCurves.quantile( IDFCurves.getmarginalmodel(fd), 1, 0.99)
+            q_cint = IDFCurves.quantilecint(fd, data, 1, 0.99, y=0, α=0.05)
+            @test Distributions.mean(q_cint) ≈ IDFCurves.quantile( IDFCurves.getmarginalmodel(fd), 1, 0.99, 0)
             @test all( q_cint .≈ [41.68545615870751, 49.09591917590525] ) 
             
         end
 
     end
 
+    @testset "fitting a dependent scaling model with constrained parameters" begin
+
+        df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
+        tags = names(df)[2:10]
+        durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+        duration_dict = Dict(zip(tags, durations))
+        data = IDFdata(df, "Year", duration_dict)
+
+        pd = SimpleScaling(1, 1, 1, 0, .8)
+        Σ = UncorrelatedStructure()
+        C = IdentityCopula
+        abstract_model = DependentScalingModel(pd, Σ, C)
+
+        d₀ = 1.0
+        initialvalues = [20, 5, 0.00001, .76]
+        fixedvalues = [nothing, nothing, 0.0, nothing]
+
+        @testset "initial shape parameter adjustment" begin
+            initialvalues_test = copy(initialvalues)
+            fixedvalues_test = copy(fixedvalues)
+
+            fd = IDFCurves.fit_mle(abstract_model, data, d₀, initialvalues_test, fixedvalues_test)
+            
+            # Check if the initial shape parameter has been adjusted
+            @test initialvalues_test[3] == 0.0001
+            @test fixedvalues_test[3] == 0.0001
+        end
+
+        @testset "optimization returns expected model" begin
+            initialvalues_test = copy(initialvalues)
+            fd1 = IDFCurves.fit_mle(abstract_model, data, d₀, initialvalues_test)
+            fd2 = IDFCurves.fit_mle(abstract_model, data, d₀, initialvalues_test, [nothing, nothing, 0.04, nothing])
+
+            @test all([params(getmarginalmodel(fd1))...] .!= [params(getmarginalmodel(fd2))...])
+            @test [params(getmarginalmodel(fd2))...] ≈ [18.161000347306484, 5.299451673789118, 0.04, 0.6945575661249878] rtol = .01
+        end
+    end
 end

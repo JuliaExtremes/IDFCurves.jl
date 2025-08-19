@@ -19,6 +19,7 @@ Base.Broadcast.broadcastable(obj::MaternCorrelationStructure) = Ref(obj)
 params(C::MaternCorrelationStructure) = (C.ν, C.ρ)
 
 params_number(::Type{<:MaternCorrelationStructure}) = 2
+params_number(::MaternCorrelationStructure) = 2
 
 function cor(C::MaternCorrelationStructure, d::Real)
     @assert d ≥ 0 "distance must be non-negative."
@@ -37,7 +38,19 @@ end
 Construct an MaternCorrelationStructure from a set of transformed parameters θ in the real space.
 """
 function construct_model(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
-    @assert length(θ) == 2 "The parameter vector length must be 1 for a Matern correlation structure."
+    @assert length(θ) == 2 "The parameter vector length must be 2 for a Matern correlation structure."
+
+    return MaternCorrelationStructure(exp(θ[1]), exp(θ[2]))
+
+end
+
+"""
+    construct_model(::MaternCorrelationStructure, θ)
+
+Construct an MaternCorrelationStructure from a set of transformed parameters θ in the real space.
+"""
+function construct_model(::MaternCorrelationStructure, θ::AbstractVector{<:Real})
+    @assert length(θ) == 2 "The parameter vector length must be 2 for a Matern correlation structure."
 
     return MaternCorrelationStructure(exp(θ[1]), exp(θ[2]))
 
@@ -49,7 +62,22 @@ end
 Map the parameter(s) from the MaternCorrelationStructure parameter space to the real space.
 """
 function map_to_real_space(::Type{<:MaternCorrelationStructure}, θ::AbstractVector{<:Real})
-    @assert length(θ) == 2 "The parameter vector length must be 1 for an exponential correlation structure."
+    @assert length(θ) == 2 "The parameter vector length must be 2 for an Matern correlation structure."
+
+    @assert θ[1] > 0 "Matern correlogram parameter ν must be positive"   
+    @assert θ[2] >0 "Matern correlogram parameter ρ must be positive"
+
+    return [log(θ[1]), log(θ[2])]
+
+end
+
+"""
+    map_to_real_space(θ)
+
+Map the parameter(s) from the MaternCorrelationStructure parameter space to the real space.
+"""
+function map_to_real_space(pd::MaternCorrelationStructure, θ::AbstractVector{<:Real})
+    @assert length(θ) == 2 "The parameter vector length must be 1 for an Matern correlation structure."
 
     @assert θ[1] > 0 "Matern correlogram parameter ν must be positive"   
     @assert θ[2] >0 "Matern correlogram parameter ρ must be positive"

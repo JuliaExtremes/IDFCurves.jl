@@ -13,7 +13,6 @@ function logpdf(C::GaussianCopula, u::AbstractVector{<:Real})
     D = MvNormal(getcormatrix(C))
     
     x = quantile.(Normal(), u)
-
     return logpdf(D, x) - sum(logpdf.(Normal(), x))
 
 end

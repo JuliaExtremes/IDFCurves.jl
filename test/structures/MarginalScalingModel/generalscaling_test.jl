@@ -36,6 +36,21 @@
 
     end
 
+    @testset "construct_model(::Type{<:GeneralScaling}, θ, c)" begin
+
+        θ = [0., 0., 0., 0.]
+        c = [1., 1., .5, .5]
+        @test_throws AssertionError IDFCurves.construct_model(GeneralScaling, 1, θ, c) 
+        
+        θ = [1., 1., 1., 1., 1.]
+        c = [1., 0., 0., 0., 0.]
+        pd = IDFCurves.construct_model(GeneralScaling, 1, θ, c)
+        @test pd isa GeneralScaling
+        @test duration(pd) == 1
+        @test all([params(pd)...] .≈  [1., 1., 0., .5, 1.])
+
+    end
+
     @testset "map_to_real_space(::Type{<:GeneralScaling}, θ)" begin
 
         @test_throws AssertionError IDFCurves.map_to_real_space(GeneralScaling, [1., -1, 0., 0.5, 0.1])
@@ -179,12 +194,86 @@
 
         @testset "quantilecint" begin
             @test quantilecint(fd, data, 24, .95) ≈ [3.2642, 3.7346] atol = 1e-4
-            @test quantilecint(fd, data, 24, .95, .1) ≈ [3.3020, 3.6968] atol = 1e-4
+            @test quantilecint(fd, data, 24, .95, y=0, α=.1) ≈ [3.3020, 3.6968] atol = 1e-4
 
             @test quantilecint(fd, data, 24, .95, H) ≈ [3.2642, 3.7346] atol = 1e-4
-            @test quantilecint(fd, data, 24, .95, H, .1) ≈ [3.3020, 3.6968] atol = 1e-4
+            @test quantilecint(fd, data, 24, .95, H, 0, .1) ≈ [3.3020, 3.6968] atol = 1e-4
         end
         
+    end
+    
+    @testset "fitting a general scaling non-stationary model" begin
+        df = CSV.read(joinpath("..", "data","702S006.csv"), DataFrame)
+        tags = names(df)[2:10]
+        durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+        duration_dict = Dict(zip(tags, durations))
+        data = IDFdata(df, "Year", duration_dict)
+
+        rcp = CSV.read(joinpath("..", "data/covariates","RCPdata.csv"), DataFrame)
+        rcp_filtered = rcp[2017 .>= rcp.Year .>= 1943, :]
+        rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 1994, :]
+        rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 1995, :]
+        rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 2003, :]
+
+        pd = GeneralScaling(
+            1.0,
+            Covariates([Covariate("t", rcp_filtered[:, Symbol("Year")])], BaseParamComputation),
+            Covariates(),
+            Covariates(),
+            Covariates(),
+            Covariates(),
+        )
+
+        init_values = [18.1366, 1.0, 5.2874, 0.0486, 0.6942, 0.5]
+            
+        Σ = UncorrelatedStructure()
+        C = IdentityCopula
+        dsm = DependentScalingModel(pd, Σ, C) 
+        fd = IDFCurves.fit_mle(dsm, data, 1,  init_values)
+
+        @testset "non-stationary model construction" begin
+            @test pd isa GeneralScaling
+            @test duration(pd) == 1.0
+            @test params_number(pd) == 6  # 5 base + 1 time covariate
+
+            # Check that location parameter is time-varying
+            @test length(pd.μ₀.covariate) == 1  # One time covariate
+            @test pd.μ₀.covariate[1].name == "t"
+        end
+
+        @testset "model fitting with initial values" begin
+            @test [params(fd)...] ≈ [[19.7909, -0.0037], [5.5937], [0.0404], [0.7609], [0.0681]] rtol=.1
+
+            fd2 = IDFCurves.fit_mle(dsm, data, 1, [20, 1, 5, .0, .76, 0.5])
+            @test [params(fd2)...] ≈ [[19.7909, -0.0037], [5.5937], [0.0404], [0.7609], [0.0681]] rtol=.1
+        end
+
+        @testset "quantile computation" begin
+            q_1950 = quantile(getmarginalmodel(fd), 24, 0.95, 1)
+            q_2000 = quantile(getmarginalmodel(fd), 24, 0.95, 50)
+        
+            @test eltype(q_1950) <: Real
+            @test eltype(q_2000) <: Real
+            @test all(isfinite, q_1950)
+            @test all(isfinite, q_2000)
+            
+            # Due to negative time trend, quantiles should decrease over time
+            @test all(q_2000 .< q_1950)
+        end
+
+        @testset "hessian and parameter confidence intervals" begin
+            H = IDFCurves.hessian(fd, data)
+            @test size(H) == (6, 6)
+            
+            param_cints = parametercint(fd, data)
+            @test param_cints ≈ [
+                [18.4896, 21.0922],
+                [-0.8482, 0.8408],
+                [4.7949, 6.3926],
+                [-0.0269, 0.1078],
+                [0.7309, 0.7910],
+                [0.0415, 0.0948]] rtol=.05
+        end
     end
 
 end
