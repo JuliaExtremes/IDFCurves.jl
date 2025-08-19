@@ -387,8 +387,8 @@ function plotIDFCurves(
         Guide.colorkey(title=color_key_title),
         Theme(line_width = 1.5pt, point_size = 4pt, major_label_font_size = 15pt, 
             key_label_font_size = 12pt, key_title_font_size  =15pt, minor_label_font_size = 12pt,
-            panel_fill = color("white"),  # Set the panel background to white
-            background_color = color("white")  # Set the overall background to white
+            panel_fill = colorant"white",  # Set the panel background to white
+            background_color = colorant"white"  # Set the overall background to white
         ))
 
     return p, data

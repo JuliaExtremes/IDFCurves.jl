@@ -209,7 +209,7 @@
         duration_dict = Dict(zip(tags, durations))
         data = IDFdata(df, "Year", duration_dict)
 
-        rcp = CSV.read(joinpath("..", "data","RCPdata.csv"), DataFrame)
+        rcp = CSV.read(joinpath("..", "data/covariates","RCPdata.csv"), DataFrame)
         rcp_filtered = rcp[2017 .>= rcp.Year .>= 1943, :]
         rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 1994, :]
         rcp_filtered = rcp_filtered[rcp_filtered.Year .!= 1995, :]
