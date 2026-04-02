@@ -26,6 +26,7 @@ export
 
     SimpleScaling,
     GeneralScaling,
+    UniversalScaling,
     cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
 
     DependentScalingModel,

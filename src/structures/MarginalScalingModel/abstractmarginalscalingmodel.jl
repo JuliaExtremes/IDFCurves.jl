@@ -2,6 +2,7 @@ abstract type MarginalScalingModel <: ContinuousMultivariateDistribution end
 
 include("simplescalingmodel.jl")
 include("generalscalingmodel.jl")
+include("universalscalingmodel.jl")
 
 
 ### Methods
