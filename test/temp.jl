@@ -5,10 +5,6 @@ using Distributions, Test
 
 using IDFCurves
 
-d₀, μ₀, σ₀, ξ, α, δ, τ = (3, 1., 1., 0., .5, 1., 1.)
-
-
-
 import IDFCurves.largescale_offset
 
 """
@@ -54,8 +50,20 @@ end
 end
 
 
+"""
+    scaling_factor(sm::GeneralScaling, d::Real)
 
-function scaling(sm::GeneralScaling, d::Real)
+Compute the scaling factor for duration `d` under the General Scaling model `sm`.
+
+### Details
+
+The scaling factor is defined as
+
+```math
+s(d) = \frac{(d+\\delta)^{-\\alpha}}{(d_0+\\delta)^{-\\alpha}}.
+```
+"""
+function scaling_factor(sm::GeneralScaling, d::Real)
 
     @assert d>0 "Duration should be positive, got d = $d."
 
@@ -68,6 +76,23 @@ function scaling(sm::GeneralScaling, d::Real)
     return s
 
 end
+
+@testset "scaling_factor(sm::GeneralScaling, d::Real)" begin
+    import IDFCurves.scaling_factor
+
+    d₀, μ₀, σ₀, ξ, α, δ = (.5, 1., 1., 0., .5, .5)
+    pd = GeneralScaling(d₀, μ₀, σ₀, ξ, α, δ)
+
+    @test_throws AssertionError scaling_factor(pd, -1) 
+    
+    # No scaling
+    @test scaling_factor(pd, d₀) ≈ 1.
+
+    #Scaling
+    @test scaling_factor(pd, 3.5) ≈ .5
+end
+
+
 
 pd = GeneralScaling(d₀, μ₀, σ₀, ξ, α, δ)
 @time scaling(pd, 1)

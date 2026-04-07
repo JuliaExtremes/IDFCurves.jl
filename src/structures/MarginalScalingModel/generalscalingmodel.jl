@@ -80,26 +80,45 @@ params_number(::Type{<:GeneralScaling}) = 5
 ### Methods
 
 """
+    scaling_factor(sm::GeneralScaling, d::Real)
+
+Compute the scaling factor for duration `d` under the General Scaling model `sm`.
+
+### Details
+
+The scaling factor is defined as
+
+```math
+s(d) = \frac{(d+\\delta)^{-\\alpha}}{(d_0+\\delta)^{-\\alpha}}.
+```
+"""
+function scaling_factor(sm::GeneralScaling, d::Real)
+
+    @assert d>0 "Duration should be positive, got d = $d."
+
+    d₀ = duration(sm)
+    α = exponent(sm)
+    δ = offset(sm)
+
+    s = exp(-α * log1p((d - d₀) / (d₀ + δ)))
+
+    return s
+
+end
+
+"""
     getdistribution(pd::GeneralScaling, d::Real)
 
 Return the marginal GEV distribution for duration `d`.
 """
-function getdistribution(pd::GeneralScaling, d::Real)
+function getdistribution(sm::GeneralScaling, d::Real)
     
-    μ₀ = location(pd)
-    σ₀ = scale(pd)
-    ξ = shape(pd)
-    α = exponent(pd)
-    δ = offset(pd)
-    
-    d₀ = duration(pd)
-    
-    ls = -α * (log(d + δ) - log(d₀ + δ))
-    s = exp(ls)
+    s = scaling_factor(sm, d)
 
-    μ = μ₀ * s
-    σ = σ₀ * s
-    
+    μ = location(sm) * s
+    σ = scale(sm) * s
+    ξ = shape(sm)
+
     return GeneralizedExtremeValue(μ, σ, ξ)
     
 end
