@@ -17,9 +17,9 @@ struct UniversalScaling{T<:Real} <: MarginalScalingModel
     μ₀::T 
     σ₀::T
     ξ::T
-    α::T # duration exponent (defining slope of the IDF curve)
-    δ::T # duration offset (defining concavity of the IDF curve)
-    τ::T # minimum intensity (defining convexity of the IDF curve)
+    α::T # duration exponent (defining slope of the log-log IDF curve)
+    δ::T # duration offset (defining concavity of the log-log IDF curve)
+    τ::T # large-scale offset (defining convexity of the log-log IDF curve)
     UniversalScaling{T}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T, τ::T) where {T<:Real} = new{T}(d₀, μ₀, σ₀, ξ, α, δ, τ)
 end
 
@@ -29,7 +29,7 @@ function UniversalScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T, δ::T, τ::
     @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
     @assert σ₀ > 0 "Scale must be positive"
     @assert δ ≥ 0 "Duration offset must be non-negative"
-    @assert τ ≥ 0 "Minimum intensity must be non-negative"
+    @assert τ ≥ 0 "Large-scale offset must be non-negative"
         
     return UniversalScaling{T}(d₀, μ₀, σ₀, ξ, α, δ, τ)
         
@@ -70,13 +70,15 @@ scale(pd::UniversalScaling) = pd.σ₀
 shape(pd::UniversalScaling) = pd.ξ
 
 """
-    minimum_intensity(pd::UniversalScaling)
+    largescale_offset(pd::UniversalScaling)
 
-Return the minimum intensity
+Return the large-scale offset τ
 """
-minimum_intensity(pd::UniversalScaling) = pd.τ
+largescale_offset(pd::UniversalScaling) = pd.τ
 
-params(pd::UniversalScaling) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd), minimum_intensity(pd))
+
+
+params(pd::UniversalScaling) = (location(pd), scale(pd), shape(pd), exponent(pd), offset(pd), largescale_offset(pd))
 
 params_number(::Type{<:UniversalScaling}) = 6
 
@@ -89,14 +91,17 @@ Return the marginal GEV distribution for duration `d`.
 """
 function getdistribution(pd::UniversalScaling, d::Real)
     
-    μ₀ = location(pd)
-    σ₀ = scale(pd)
-    ξ = shape(pd)
-    α = exponent(pd)
-    δ = offset(pd)
-    τ = minimum_intensity(pd)
-    
-    d₀ = duration(pd)
+
+    d₀ = duration(pd) 
+    μ₀, σ₀, ξ, α, δ, τ = params(pd)
+
+
+    # μ₀ = location(pd)
+    # σ₀ = scale(pd)
+    # ξ = shape(pd)
+    # α = exponent(pd)
+    # δ = offset(pd)
+    # τ = largescale_offset(pd)
     
     ls = log((d + δ)^-α + τ) - log((d₀ + δ)^-α + τ)
     s = exp(ls)
@@ -167,7 +172,7 @@ function Base.show(io::IO, obj::UniversalScaling)
         ", ξ = ", round(shape(obj), digits=4),
         ", α = ", round(exponent(obj), digits=4),
         ", δ = ", round(offset(obj), digits=4),
-        ", τ = ", round(minimum_intensity(obj), digits=4),
+        ", τ = ", round(largescale_offset(obj), digits=4),
         ")")
 end
 

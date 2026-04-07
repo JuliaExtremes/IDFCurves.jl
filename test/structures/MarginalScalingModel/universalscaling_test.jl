@@ -1,16 +1,16 @@
 @testset "UniversalScaling" begin
 
     @testset "UniversalScaling construction" begin
-        import IDFCurves: minimum_intensity
+        import IDFCurves: largescale_offset
         pd = UniversalScaling(60, 100, 1, 0, .8, 5, 10)
-        @test location(pd) == 100
-        @test scale(pd) == 1
-        @test shape(pd) == 0
+        @test location(pd) ≈ 100.
+        @test scale(pd) ≈ 1.
+        @test shape(pd) ≈ 0.
         @test exponent(pd) ≈ .8 
-        @test offset(pd) == 5
-        @test duration(pd) == 60
-        @test minimum_intensity(pd) == 10
-        @test all([params(pd)...] .≈ [100, 1, 0, .8, 5, 10])
+        @test offset(pd) ≈ 5.
+        @test duration(pd) ≈ 60.
+        @test largescale_offset(pd) ≈ 10.
+        @test all([params(pd)...] .≈ [100., 1., 0., .8, 5., 10.])
         @test params_number(UniversalScaling) == 6
     end
 
