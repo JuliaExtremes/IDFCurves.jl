@@ -14,6 +14,21 @@
         @test params_number(UniversalScaling) == 6
     end
 
+    @testset "scaling_factor(sm::UniversalScaling, d::Real)" begin
+        import IDFCurves.scaling_factor
+
+        d₀, μ₀, σ₀, ξ, α, δ, τ = (3, 1., 1., 0., .5, 1., .5)
+        pd = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
+
+        @test_throws AssertionError scaling_factor(pd, -1) 
+        
+        # No scaling
+        @test scaling_factor(pd, d₀) ≈ 1.
+
+        #Scaling
+        @test scaling_factor(pd, 15.) ≈ .75
+end
+
     @testset "getdistribution(::UniversalScaling)" begin
         pd = UniversalScaling(60, 100, 1, 0, .8, 5, 10)
         

@@ -85,29 +85,45 @@ params_number(::Type{<:UniversalScaling}) = 6
 ### Methods
 
 """
-    getdistribution(pd::UniversalScaling, d::Real)
+    scaling_factor(sm::UniversalScaling, d::Real)
 
-Return the marginal GEV distribution for duration `d`.
+Compute the scaling factor for duration `d` under the Universal Scaling model `sm`.
+
+### Details
+
+The scaling factor is defined as
+
+```math
+s(d) = \frac{(d+\\delta)^{-\\alpha}+\\tau}{(d_0+\\delta)^{-\\alpha}+\\tau}.
+```
 """
-function getdistribution(pd::UniversalScaling, d::Real)
-    
+function scaling_factor(sm::UniversalScaling, d::Real)
+    @assert d>0 "Duration should be positive, got d = $d."
 
-    d₀ = duration(pd) 
-    μ₀, σ₀, ξ, α, δ, τ = params(pd)
+    d₀ = duration(sm)
+    α = exponent(sm)
+    δ = offset(sm)
+    τ = largescale_offset(sm)
 
+    s = (exp(-α * log(d + δ)) + τ) / (exp(-α * log(d₀ + δ)) + τ)
 
-    # μ₀ = location(pd)
-    # σ₀ = scale(pd)
-    # ξ = shape(pd)
-    # α = exponent(pd)
-    # δ = offset(pd)
-    # τ = largescale_offset(pd)
-    
-    ls = log((d + δ)^-α + τ) - log((d₀ + δ)^-α + τ)
-    s = exp(ls)
+    return s
 
-    μ = μ₀ * s
-    σ = σ₀ * s
+end
+
+# TODO: move in MarginalScalingModel
+"""
+    getdistribution(sm::UniversalScaling, d::Real)
+
+Return the marginal GEV distribution for duration `d` under the scaling model `sm`.
+"""
+function getdistribution(sm::UniversalScaling, d::Real)
+
+    s = scaling_factor(sm, d)
+
+    μ = location(sm) * s
+    σ = scale(sm) * s
+    ξ = shape(sm)
 
     return GeneralizedExtremeValue(μ, σ, ξ)
     

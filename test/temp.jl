@@ -9,15 +9,28 @@ d₀, μ₀, σ₀, ξ, α, δ, τ = (3, 1., 1., 0., .5, 1., 1.)
 
 
 
-import IDFCurves.minimum_intensity
+import IDFCurves.largescale_offset
 
-function scaling(sm::UniversalScaling, d::Real)
+"""
+    scaling_factor(sm::UniversalScaling, d::Real)
+
+Compute the scaling factor for duration `d` under the Universal Scaling model `sm`.
+
+### Details
+
+The scaling factor is defined as
+
+```math
+s(d) = \frac{(d+\\delta)^{-\\alpha}+\\tau}{(d_0+\\delta)^{-\\alpha}+\\tau}.
+```
+"""
+function scaling_factor(sm::UniversalScaling, d::Real)
     @assert d>0 "Duration should be positive, got d = $d."
 
     d₀ = duration(sm)
     α = exponent(sm)
     δ = offset(sm)
-    τ = minimum_intensity(sm)
+    τ = largescale_offset(sm)
 
     s = (exp(-α * log(d + δ)) + τ) / (exp(-α * log(d₀ + δ)) + τ)
 
@@ -25,8 +38,21 @@ function scaling(sm::UniversalScaling, d::Real)
 
 end
 
-pd = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
-@time scaling(pd, 3)
+@testset "scaling_factor(sm::UniversalScaling, d::Real)" begin
+    import IDFCurves.scaling_factor
+
+    d₀, μ₀, σ₀, ξ, α, δ, τ = (3, 1., 1., 0., .5, 1., .5)
+    pd = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
+
+    @test_throws AssertionError scaling_factor(pd, -1) 
+    
+    # No scaling
+    @test scaling_factor(pd, d₀) ≈ 1.
+
+    #Scaling
+    @test scaling_factor(pd, 15.) ≈ .75
+end
+
 
 
 function scaling(sm::GeneralScaling, d::Real)
