@@ -50,13 +50,7 @@
         @test all([params(pd)...] .≈ [1., 1., 0., 0.5, 1.])
 
         θ = [1., 0., 0., 0., -Inf]
-        @test offset(IDFCurves.construct_model(GeneralScaling, 1, θ)) == 0.
-        @test_logs (:warn,) IDFCurves.construct_model(GeneralScaling, 1, θ, final_model=true)
-
-        θ = [1., 0., 0., 0., log(1e-15)]
-        pd = IDFCurves.construct_model(GeneralScaling, 1, θ, final_model=true)
-        @test pd isa SimpleScaling
-        @test all([params(pd)...] .≈ [1., 1., 0., 0.5])
+        @test offset(IDFCurves.construct_model(GeneralScaling, 1, θ)) ≈ 0.
 
     end
 

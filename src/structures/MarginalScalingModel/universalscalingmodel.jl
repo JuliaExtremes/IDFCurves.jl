@@ -116,27 +116,11 @@ end
 
 Construct a UniversalScaling marginal model from a set of transformed parameters θ in the real space.
 """
-function construct_model(::Type{<:UniversalScaling}, d₀::Real, θ::AbstractVector{<:Real};
-                            final_model::Bool = false)
+function construct_model(::Type{<:UniversalScaling}, d₀::Real, θ::AbstractVector{<:Real})
     @assert length(θ) == 6 "The parameter vector length must be 6. Verify that the reference duration is not included."
-
-    if final_model && exp(θ[5]) <= 1e-8
-        @warn "The value for δ is smaller than 1e-8 so it is set to 0."
-        return UniversalScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), 0., exp(θ[6]))
-
-    elseif final_model && exp(θ[6]) <= 1e-8
-        @warn "The value for τ is smaller than 1e-8 so it is set to 0."
-        return UniversalScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), exp(θ[5]), 0.)
-
-    elseif final_model && exp(θ[5]) <= 1e-8 && exp(θ[6]) <= 1e-8
-        @warn "The values for δ and τ are smaller than 1e-8 so they are set to 0."
-        return UniversalScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), 0., 0.)
-
-    else
-        return UniversalScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), exp(θ[5]), exp(θ[6]))
-    end
-
+    return UniversalScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]), exp(θ[5]), exp(θ[6]))
 end
+
 
 """
     map_to_real_space(::Type{<:UniversalScaling}, θ)
