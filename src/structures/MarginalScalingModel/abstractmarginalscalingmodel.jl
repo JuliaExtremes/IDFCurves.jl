@@ -2,6 +2,7 @@ abstract type MarginalScalingModel <: ContinuousMultivariateDistribution end
 
 include("simplescalingmodel.jl")
 include("generalscalingmodel.jl")
+include("universalscalingmodel.jl")
 
 
 ### Methods
@@ -28,6 +29,23 @@ function cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real})
     margdist = IDFCurves.getdistribution(pd, d)
     return cdf.(margdist, x)
 
+end
+
+"""
+    getdistribution(sm::MarginalScalingModel, d::Real)
+
+Return the marginal GEV distribution for duration `d` under the scaling model `sm`.
+"""
+function getdistribution(sm::MarginalScalingModel, d::Real)
+
+    s = scaling_factor(sm, d)
+
+    μ = location(sm) * s
+    σ = scale(sm) * s
+    ξ = shape(sm)
+
+    return GeneralizedExtremeValue(μ, σ, ξ)
+    
 end
 
 """

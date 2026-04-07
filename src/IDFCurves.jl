@@ -26,7 +26,8 @@ export
 
     SimpleScaling,
     GeneralScaling,
-    cdf, duration, exponent, getdistribution, location, loglikelihood, offset, params, quantile, quantilecint, rand, scale, shape, params_number,
+    UniversalScaling,
+    cdf, duration, exponent, getdistribution, location, loglikelihood, offset, largescale_offset, params, quantile, quantilecint, rand, scale, shape, params_number,
 
     DependentScalingModel,
     getcopulatype, getmarginalmodel, getcorrelogram, fit_mle, initialize,
