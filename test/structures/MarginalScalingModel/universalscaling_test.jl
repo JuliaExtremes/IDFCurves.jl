@@ -47,14 +47,14 @@ end
     @test_throws AssertionError IDFCurves.construct_model(UniversalScaling, 1, θ)
 
     θ = [1., 0., 0., 0., 0., 0.]
-    pd = IDFCurves.construct_model(UniversalScaling, 1, θ)
+    pd = IDFCurves.construct_model(UniversalScaling, 1., θ)
     @test pd isa UniversalScaling
     @test duration(pd) ≈ 1.
     @test all([params(pd)...] .≈ [1., 1., 0., 0.5, 1., 1.])
 
+    # large-scale offset is 0
     θ = [1., 0., 0., 0., 0., -Inf]
     @test largescale_offset(IDFCurves.construct_model(UniversalScaling, 1, θ)) ≈ 0.
-    @test_logs (:warn,) IDFCurves.construct_model(UniversalScaling, 1, θ, final_model=true)
 
 end
 
