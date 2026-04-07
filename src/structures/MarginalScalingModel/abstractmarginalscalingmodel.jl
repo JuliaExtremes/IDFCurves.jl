@@ -32,6 +32,23 @@ function cdf(pd::MarginalScalingModel, d::Real, x::AbstractVector{<:Real})
 end
 
 """
+    getdistribution(sm::MarginalScalingModel, d::Real)
+
+Return the marginal GEV distribution for duration `d` under the scaling model `sm`.
+"""
+function getdistribution(sm::MarginalScalingModel, d::Real)
+
+    s = scaling_factor(sm, d)
+
+    μ = location(sm) * s
+    σ = scale(sm) * s
+    ξ = shape(sm)
+
+    return GeneralizedExtremeValue(μ, σ, ξ)
+    
+end
+
+"""
     loglikelihood(pd::MarginalScalingModel, data::IDFdata)
 
  Return the loglikelihood of the parameters in `pd` as a function of `data``    

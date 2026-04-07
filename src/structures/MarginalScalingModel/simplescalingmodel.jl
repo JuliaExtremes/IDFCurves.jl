@@ -95,22 +95,22 @@ function scaling_factor(sm::SimpleScaling, d::Real)
 
 end
 
-"""
-    getdistribution(sm::SimpleScaling, d::Real)
+# """
+#     getdistribution(sm::SimpleScaling, d::Real)
 
-Return the marginal GEV distribution for duration `d` according to model pd.
-"""
-function getdistribution(sm::SimpleScaling, d::Real)
+# Return the marginal GEV distribution for duration `d` according to model pd.
+# """
+# function getdistribution(sm::SimpleScaling, d::Real)
 
-    s = scaling_factor(sm, d)
+#     s = scaling_factor(sm, d)
 
-    μ = location(sm) * s
-    σ = scale(sm) * s
-    ξ = shape(sm)
+#     μ = location(sm) * s
+#     σ = scale(sm) * s
+#     ξ = shape(sm)
 
-    return GeneralizedExtremeValue(μ, σ, ξ)
+#     return GeneralizedExtremeValue(μ, σ, ξ)
 
-end
+# end
 
 """
     construct_model(::Type{<:SimpleScaling}, θ)
