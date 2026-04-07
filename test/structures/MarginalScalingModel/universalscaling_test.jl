@@ -42,36 +42,43 @@ end
 
     @testset "construct_model(::Type{<:UniversalScaling}, θ)" begin
 
-        # θ = [1., 0., 0., 0., 0.]
-        # @test_throws AssertionError IDFCurves.construct_model(UniversalScaling, 1, θ) 
-        
-        # θ = [1., 0., 0., 0., 0., 0.]
-        # pd = IDFCurves.construct_model(UniversalScaling, 1, θ)
-        # @test pd isa UniversalScaling
-        # @test duration(pd) == 1
-        # @test all([params(pd)...] .≈  [1., 1., 0., .5, 1.])
+    # Number of parameters
+    θ = [1., 0., 0., 0., 0.]
+    @test_throws AssertionError IDFCurves.construct_model(UniversalScaling, 1, θ)
 
-        # θ = [1., 0., 0., 0., -Inf]
-        # @test offset(IDFCurves.construct_model(UniversalScaling, 1, θ)) == 0.
-        # @test_logs (:warn,) IDFCurves.construct_model(UniversalScaling, 1, θ, final_model = true)
+    θ = [1., 0., 0., 0., 0., 0.]
+    pd = IDFCurves.construct_model(UniversalScaling, 1, θ)
+    @test pd isa UniversalScaling
+    @test duration(pd) ≈ 1.
+    @test all([params(pd)...] .≈ [1., 1., 0., 0.5, 1., 1.])
 
-        # θ = [1., 0., 0., 0., log(1e-15)]
-        # pd = IDFCurves.construct_model(UniversalScaling, 1, θ, final_model = true)
-        # @test pd isa SimpleScaling
-        # @test all([params(pd)...] .≈  [1., 1., 0., .5])
+    θ = [1., 0., 0., 0., 0., -Inf]
+    @test largescale_offset(IDFCurves.construct_model(UniversalScaling, 1, θ)) ≈ 0.
+    @test_logs (:warn,) IDFCurves.construct_model(UniversalScaling, 1, θ, final_model=true)
 
-    end
+end
 
     @testset "map_to_real_space(::Type{<:UniversalScaling}, θ)" begin
+    
+    # Number of parameters
+    @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., -1, 0., 0.5, 0.1]) 
 
-        # @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., -1, 0., 0.5, 0.1]) 
-        # @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., 1., 0., 0., 0.1]) 
-        # @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., 1., 0., 0.5, -0.1])
-        
-        # θ = [1., 1., 0., .5, 1.]
-        # @test IDFCurves.map_to_real_space(UniversalScaling, θ) ≈ [1., 0., 0., 0., 0.]
-        
-    end
+    # Negative scale
+    @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., -1, 0., 0.5, 0.1, 1.]) 
+
+    # Null exponent
+    @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., 1., 0., 0., 0.1, 1.]) 
+
+    # Negative offset
+    @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., 1., 0., 0.5, -0.1, 1.])
+
+    # Negative large-scale offset
+    @test_throws AssertionError IDFCurves.map_to_real_space(UniversalScaling, [1., 1., 0., 0.5, 0.1, -1.])
+
+    θ = [1., 1., 0., .5, 1., 1.]
+    @test IDFCurves.map_to_real_space(UniversalScaling, θ) ≈ [1., 0., 0., 0., 0., 0.]
+
+end
 
     @testset "Base.show(io, UniversalScaling)" begin
         # print UniversalScaling does not throw
@@ -89,26 +96,19 @@ end
 
     @testset "loglikelihood(::UniversalScaling)" begin
 
-        d₀ = 3
-        μ₀ = 1
-        σ₀ = 1
-        ξ = 0
-        α = .5
-        δ = 1
-        τ = .5
+        d₀, μ₀, σ₀, ξ, α, δ, τ = (3, 1., 1., 0., .5, 1., .5)
         
-        pd = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
-        data = rand(pd, [1, 3], 3, tags=["1", "3"])
+        sm = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
+        data = rand(sm, [1, 3], 3, tags=["1", "3"])
         y₁ = getdata(data, "1")
         y₃ = getdata(data, "3")
 
-        scaling(d::Real) = (exp(-α * log(d + δ)) + τ) / (exp(-α * log(d₀ + δ)) + τ)
-        s₁ = scaling(1)
-        s₃ = scaling(3)
+        s₁ = IDFCurves.scaling_factor(sm, 1)
+        s₃ = IDFCurves.scaling_factor(sm, 3)
 
         ll = sum(logpdf.(GeneralizedExtremeValue(s₁*μ₀, s₁*σ₀, ξ), y₁)) + sum(logpdf.(GeneralizedExtremeValue(s₃*μ₀, s₃*σ₀, ξ), y₃))
 
-        @test loglikelihood(pd, data) ≈ ll
+        @test loglikelihood(sm, data) ≈ ll
     end
 
     @testset "quantile(::UniversalScaling)" begin
@@ -120,44 +120,20 @@ end
 
     @testset "rand(::UniversalScaling)" begin
         
-        # pd = UniversalScaling(60, 100, 1, .1, .8, 5, 10)
+        pd = UniversalScaling(60, 100, 1, .1, .8, 5, 10)
 
-        # n = 1
-        # d = [.5, 1, 24]
-        # tag = ["1", "2", "3"]
-        # data = rand(pd, d)
+        n = 3
+        d = [.5, 1, 24]
+        tag = ["10", "11", "12"]
+        x = [10, 11, 12]
+        data = rand(pd, d, n, tags = tag, x = [10, 11, 12])
 
-        # @test issetequal(gettag(data), tag)
-        # for i in eachindex(tag)
-        #     @test getduration(data, tag[i]) ≈ d[i]
-        #     @test getyear(data, tag[i]) == collect(1:n) 
-        #     @test length(getdata(data, tag[i])) == n
-        # end
-
-        # n = 3
-        # d = [.5, 1, 24]
-        # tag = ["1", "2", "3"]
-        # data = rand(pd, d, n)
-
-        # @test issetequal(gettag(data), tag)
-        # for i in eachindex(tag)
-        #     @test getduration(data, tag[i]) ≈ d[i]
-        #     @test getyear(data, tag[i]) == collect(1:n)
-        #     @test length(getdata(data, tag[i])) == n
-        # end
-
-        # n = 3
-        # d = [.5, 1, 24]
-        # tag = ["10", "11", "12"]
-        # x = [10, 11, 12]
-        # data = rand(pd, d, n, tags = tag, x = [10, 11, 12])
-
-        # @test issetequal(gettag(data), tag)
-        # for i in eachindex(tag)
-        #     @test getduration(data, tag[i]) ≈ d[i]
-        #     @test getyear(data, tag[i]) == x
-        #     @test length(getdata(data, tag[i])) == n
-        # end
+        @test issetequal(gettag(data), tag)
+        for i in eachindex(tag)
+            @test getduration(data, tag[i]) ≈ d[i]
+            @test getyear(data, tag[i]) == x
+            @test length(getdata(data, tag[i])) == n
+        end
 
     end
 

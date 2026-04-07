@@ -111,24 +111,6 @@ function scaling_factor(sm::UniversalScaling, d::Real)
 
 end
 
-# # TODO: move in MarginalScalingModel
-# """
-#     getdistribution(sm::UniversalScaling, d::Real)
-
-# Return the marginal GEV distribution for duration `d` under the scaling model `sm`.
-# """
-# function getdistribution(sm::UniversalScaling, d::Real)
-
-#     s = scaling_factor(sm, d)
-
-#     μ = location(sm) * s
-#     σ = scale(sm) * s
-#     ξ = shape(sm)
-
-#     return GeneralizedExtremeValue(μ, σ, ξ)
-    
-# end
-
 """
     construct_model(::Type{<:UniversalScaling}, d₀, θ)
 
@@ -167,7 +149,7 @@ function map_to_real_space(::Type{<:UniversalScaling}, θ::AbstractVector{<:Real
     @assert 0 < θ[4] < 1 "Scaling exponent must be between 0 and 1"
     @assert θ[2] > 0 "Scale must be positive"
     @assert θ[5] ≥ 0 "Duration offset must be non-negative"
-    @assert θ[6] ≥ 0 "Minimum intensity must be non-negative"
+    @assert θ[6] ≥ 0 "Large-scale offset must be non-negative"
 
     return [θ[1], log(θ[2]), θ[3], logit(θ[4]), log(θ[5]), log(θ[6])]
 
