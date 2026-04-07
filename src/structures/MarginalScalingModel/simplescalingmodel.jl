@@ -19,20 +19,20 @@ A mathematical framework for studying rainfall intensity-duration-frequency rela
 """
 struct SimpleScaling{T<:Real} <: MarginalScalingModel
     d₀::T # reference duration
-    μ₀::T 
+    μ₀::T
     σ₀::T
     ξ::T
     α::T # scaling exponent (defining slope of the IDF curve)
     SimpleScaling{T}(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T<:Real} = new{T}(d₀, μ₀, σ₀, ξ, α)
 end
 
-function SimpleScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T <: Real}
-        
+function SimpleScaling(d₀::T, μ₀::T, σ₀::T, ξ::T, α::T) where {T<:Real}
+
     @assert 0 < α < 1 "Scaling exponent must be between 0 and 1"
     @assert σ₀ > 0 "Scale must be positive"
-        
+
     return SimpleScaling{T}(d₀, μ₀, σ₀, ξ, α)
-        
+
 end
 
 SimpleScaling(d₀::Real, μ₀::Real, σ₀::Real, ξ::Real, α::Real) = SimpleScaling(promote(d₀, μ₀, σ₀, ξ, α)...)
@@ -70,27 +70,46 @@ params_number(::Type{<:SimpleScaling}) = 4
 ### Methods
 
 """
-    getdistribution(pd::SimpleScaling, d::Real)
+    scaling_factor(sm::SimpleScaling, d::Real)
+
+Compute the scaling factor for duration `d` under the Simple Scaling model `sm`.
+
+### Details
+
+The scaling factor is defined as
+
+```math
+s(d) = \frac{(d)^{-\\alpha}}{(d_0)^{-\\alpha}}.
+```
+"""
+function scaling_factor(sm::SimpleScaling, d::Real)
+
+    @assert d > 0 "Duration should be positive, got d = $d."
+
+    d₀ = duration(sm)
+    α = exponent(sm)
+
+    s = exp(-α * log1p((d - d₀) / d₀))
+
+    return s
+
+end
+
+"""
+    getdistribution(sm::SimpleScaling, d::Real)
 
 Return the marginal GEV distribution for duration `d` according to model pd.
 """
-function getdistribution(pd::SimpleScaling, d::Real)
-    
-    μ₀ = location(pd)
-    σ₀ = scale(pd)
-    ξ = shape(pd)
-    α = exponent(pd)
-    
-    d₀ = duration(pd)
-    
-    ls = -α * (log(d) - log(d₀))
-    s = exp(ls)
+function getdistribution(sm::SimpleScaling, d::Real)
 
-    μ = μ₀ * s
-    σ = σ₀ * s
-    
+    s = scaling_factor(sm, d)
+
+    μ = location(sm) * s
+    σ = scale(sm) * s
+    ξ = shape(sm)
+
     return GeneralizedExtremeValue(μ, σ, ξ)
-    
+
 end
 
 """
@@ -99,7 +118,7 @@ end
 Construct a SimpleScaling marginal model from a set of transformed parameters θ in the real space.
 """
 function construct_model(::Type{<:SimpleScaling}, d₀::Real, θ::AbstractVector{<:Real};
-                            final_model::Bool = false)
+    final_model::Bool=false)
     @assert length(θ) == 4 "The parameter vector length must be 4. Verify that the reference duration is not included."
 
     return SimpleScaling(d₀, θ[1], exp(θ[2]), θ[3], logistic(θ[4]))
@@ -128,7 +147,7 @@ Override of the show function for the objects of type SimpleScaling.
 
 """
 function Base.show(io::IO, obj::SimpleScaling)
-    println(io, 
+    println(io,
         typeof(obj), "(",
         "d₀ = ", duration(obj),
         ", μ₀ = ", round(location(obj), digits=4),
@@ -146,35 +165,35 @@ The initialization is done by fitting a Gumbel distribution independently for ea
     regression over μ and σ. ξ is initialized at 0 as a default.
 """
 function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
-    
+
     # step 1 : computing Gumbel parameters separately for each duration
-    log_μ_values = Dict{String, Real}()
-    log_σ_values = Dict{String, Real}()
+    log_μ_values = Dict{String,Real}()
+    log_σ_values = Dict{String,Real}()
     duration_tags = gettag(data)
     for tag in duration_tags
         try
             global fm = Extremes.gevfit(getdata(data, tag))
-        catch e 
+        catch e
             global fm = Extremes.gevfitpwm(getdata(data, tag))
         end
-        log_μ_values[tag] = log( fm.θ̂[1] )
+        log_μ_values[tag] = log(fm.θ̂[1])
         log_σ_values[tag] = fm.θ̂[2]
     end
 
     # step 2 : computing μ_d₀, σ_d₀ et α using regression
-    regression_data = DataFrame(is_μ_value = Bool[], is_σ_value = Bool[], log_d = Float64[], param_value = Float64[])
+    regression_data = DataFrame(is_μ_value=Bool[], is_σ_value=Bool[], log_d=Float64[], param_value=Float64[])
     for tag in duration_tags
         push!(regression_data, [true, false, log(getduration(data, tag) / d₀), log_μ_values[tag]])
         push!(regression_data, [false, true, log(getduration(data, tag) / d₀), log_σ_values[tag]])
     end
-    X = Matrix(regression_data[:,1:3])
-    y = Vector(regression_data[:,4])
+    X = Matrix(regression_data[:, 1:3])
+    y = Vector(regression_data[:, 4])
     regression_res = X \ y
 
-    return [ exp(regression_res[1]), 
-                maximum([0.001, exp(regression_res[2])]), # avoids possible numerical errors
-                0.,
-                maximum([0.001, minimum([0.999, - regression_res[3]])]) # avoids possible domain errors
-            ]
+    return [exp(regression_res[1]),
+        maximum([0.001, exp(regression_res[2])]), # avoids possible numerical errors
+        0.,
+        maximum([0.001, minimum([0.999, -regression_res[3]])]) # avoids possible domain errors
+    ]
 
 end
