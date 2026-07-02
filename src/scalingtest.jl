@@ -66,13 +66,23 @@ function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata)
 end
 
 """
-    cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
+    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
 
-Compute the Cramer - Von Mises criterion between the distribution `pd` and the data vector `x`. 
+Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
+
+# Details
+
+The statistic is
+
+    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
+
+where `x_(i)` denotes the ordered sample.
 """
 function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
-    x̃ = sort(x)
     n = length(x)
+    n > 0 || throw(ArgumentError("x must contain at least one observation."))
+
+    x̃ = sort(x)
 
     ω² = 1/(12*n) + sum( ((2*i-1)/(2*n) - cdf(pd,x̃[i]) )^2 for i=1:n)
 
