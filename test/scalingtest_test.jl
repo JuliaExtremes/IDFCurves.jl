@@ -60,25 +60,51 @@ end
     @test isapprox(λs[3], 1 / (9π^2), rtol = 5e-3)
 end
 
+
 @testset "zolotarev_approx()" begin
 
-    λs = Float64[]
-    @test_throws AssertionError IDFCurves.zolotarev_approx(λs , 1.)
+    λs = [0.0, -1.0]
+    @test_throws ArgumentError IDFCurves.zolotarev_approx(λs, 1.0)
 
-    λs = [1]
-    @test isapprox( IDFCurves.zolotarev_approx(λs , Distributions.quantile(Distributions.Chisq(1), 0.99)), 0.99, rtol = 1e-2 )
+    λs = [1.0]
+    x = Distributions.quantile(Distributions.Chisq(1), 0.99)
+    @test isapprox(
+        IDFCurves.zolotarev_approx(λs, x),
+        0.99;
+        rtol = 1e-2,
+    )
 
-    λs = fill(1,10)
-    @test_logs (:warn,"Zolotarev approximation is outside its validity domain. No conclusion can be made from a small p-value.") IDFCurves.zolotarev_approx(λs , 0.)
-    @test isapprox( IDFCurves.zolotarev_approx(λs , Distributions.quantile(Distributions.Chisq(10), 0.99)), 0.99, rtol = 1e-2 )
+    λs = fill(1.0, 10)
+
+    @test_throws ArgumentError IDFCurves.zolotarev_approx(λs, 0.0)
+
+    x = Distributions.quantile(Distributions.Chisq(10), 0.50)
+    @test_logs (:warn, r"outside its recommended upper-tail domain") begin
+        IDFCurves.zolotarev_approx(λs, x)
+    end
+
+    x = Distributions.quantile(Distributions.Chisq(10), 0.99)
+    @test isapprox(
+        IDFCurves.zolotarev_approx(λs, x),
+        0.99;
+        rtol = 1e-2,
+    )
 
     λs = Float64[]
     for k in 1:10
-        append!(λs, fill(1/2^k, 2*k^2))
+        append!(λs, fill(1 / 2^k, 2k^2))
     end
-    @test isapprox( IDFCurves.zolotarev_approx(λs , 16.51), 0.99, rtol = 1e-2 ) # value 16.51 was obtained by simulation.
+
+    # The value 16.51 was obtained by simulation.
+    @test isapprox(
+        IDFCurves.zolotarev_approx(λs, 16.51),
+        0.99;
+        rtol = 1e-2,
+    )
 
 end
+
+
 
 # data at Mtl Trudeau
 df = IDFCurves.dataset("702S006")

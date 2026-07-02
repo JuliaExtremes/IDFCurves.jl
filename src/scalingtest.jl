@@ -206,36 +206,88 @@ end
 
 
 
-"""
-zolotarev_approx(λs::Vector{<:Real} , x::Real)
+# """
+# zolotarev_approx(λs::Vector{<:Real} , x::Real)
 
-Return an approximation of the CDF of the sum of the λ_i X_i^2, where the X_i^2 are N(0,1), evaluated at x.
+# Return an approximation of the CDF of the sum of the λ_i X_i^2, where the X_i^2 are N(0,1), evaluated at x.
 
-## Detail
+# ### Detail
 
-The approximation is valid for high quantiles only, larger than .95.
-"""
-function zolotarev_approx(λs::Vector{<:Real} , x::Real)
+# The approximation is valid for high quantiles only, larger than .95.
+# """
+# function zolotarev_approx(λs::Vector{<:Real} , x::Real)
     
-    @assert length(λs) >= 1 "The vector of λ must contain at elast one element for the Zolotarev approximation to be valid."
+#     @assert length(λs) >= 1 "The vector of λ must contain at elast one element for the Zolotarev approximation to be valid."
 
-    # taking multiplicity into account
-    γs = unique(λs)
-    multiplicities = [count(==(γ), λs) for γ in γs]
+#     # taking multiplicity into account
+#     γs = unique(λs)
+#     multiplicities = [count(==(γ), λs) for γ in γs]
 
-    q = length(γs)
-    γ₁ = γs[1]
+#     q = length(γs)
+#     γ₁ = γs[1]
     
-    term1 = - sum([ 0.5 * multiplicities[i] * log(1 - γs[i]/γ₁) for i in 2:q])
-    term2 = - log(SpecialFunctions.gamma(0.5 * multiplicities[1]))
-    term3 = (0.5 * multiplicities[1] - 1) * log( x/(2*γ₁) )
-    term4 = - (x/(2*γ₁)) 
+#     term1 = - sum([ 0.5 * multiplicities[i] * log(1 - γs[i]/γ₁) for i in 2:q])
+#     term2 = - log(SpecialFunctions.gamma(0.5 * multiplicities[1]))
+#     term3 = (0.5 * multiplicities[1] - 1) * log( x/(2*γ₁) )
+#     term4 = - (x/(2*γ₁)) 
 
-    approx_cdf = maximum([1 - exp(term1 + term2 + term3 + term4), 0 ])
+#     approx_cdf = maximum([1 - exp(term1 + term2 + term3 + term4), 0 ])
 
-    if term2 < term4 && approx_cdf > .95
-        @warn "Zolotarev approximation is outside its validity domain. No conclusion can be made from a small p-value."
-    end
+#     if term2 < term4 && approx_cdf > .95
+#         @warn "Zolotarev approximation is outside its validity domain. No conclusion can be made from a small p-value."
+#     end
         
+#     return approx_cdf
+# end
+
+"""
+    zolotarev_approx(λs::AbstractVector{<:Real}, x::Real; tail_threshold = 0.95)
+
+Return a Zolotarev upper-tail approximation of the CDF of the sum of λᵢ Zᵢ² where the `Zᵢ` are independent standard normal random variables.
+
+The approximation is intended for large values of `x`, corresponding to CDF values close to one.
+"""
+function zolotarev_approx(
+    λs::AbstractVector{<:Real},
+    x::Real;
+    tail_threshold::Real = 0.95,
+    atol::Real = 1e-12,
+    rtol::Real = 1e-10,
+)
+    x > 0 || throw(ArgumentError("x must be positive."))
+
+    # Keep only positive eigenvalues and sort them in decreasing order.
+    λ = sort(filter(λᵢ -> λᵢ > 0, Float64.(λs)); rev = true)
+
+    length(λ) >= 1 || throw(ArgumentError(
+        "The vector of eigenvalues must contain at least one positive element.",
+    ))
+
+    γ₁ = λ[1]
+
+    # Multiplicity of the largest eigenvalue, up to numerical tolerance.
+    m₁ = count(λᵢ -> isapprox(λᵢ, γ₁; atol = atol, rtol = rtol), λ)
+
+    # Eigenvalues strictly smaller than the largest one.
+    λrest = λ[(m₁ + 1):end]
+
+    log_product_term =
+        isempty(λrest) ? 0.0 :
+        -sum(0.5 * log1p(-λᵢ / γ₁) for λᵢ in λrest)
+
+    log_tail =
+        log_product_term -
+        loggamma(0.5 * m₁) +
+        (0.5 * m₁ - 1) * log(x / (2γ₁)) -
+        x / (2γ₁)
+
+    approx_cdf = 1 - exp(log_tail)
+
+    approx_cdf = clamp(approx_cdf, 0.0, 1.0)
+
+    if approx_cdf < tail_threshold
+        @warn "Zolotarev approximation is outside its recommended upper-tail domain." approx_cdf tail_threshold
+    end
+
     return approx_cdf
 end
