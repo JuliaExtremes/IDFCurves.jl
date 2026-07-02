@@ -33,18 +33,31 @@ end
 end
 
 @testset "approx_eigenvalues()" begin
-    
-    ρ(u,v) = u*v
+
+    # Brownian bridge kernel:
+    # ρ(u, v) = min(u, v) - u*v
+    #
+    # It is obtained from CvMKernel by setting the correction term to zero.
+    g(u) = [0.0]
+    Ainv = zeros(1, 1)
+
+    ρ = IDFCurves.CvMKernel(g, Ainv)
 
     λs = IDFCurves.approx_eigenvalues(ρ, 10)
+
     @test length(λs) == 10
-    @test λs[6] >= λs[7]
+    @test issorted(λs; rev = true)
+    @test all(λs .>= -sqrt(eps(Float64)))
 
     λs = IDFCurves.approx_eigenvalues(ρ, 100)
-    @test length(λs) == 100
-    @test isapprox(λs[1], 1/3, rtol=1e-3)
-    @test abs(λs[2]) <= 0.001
 
+    @test length(λs) == 100
+    @test issorted(λs; rev = true)
+
+    # Exact eigenvalues of the Brownian bridge covariance kernel
+    @test isapprox(λs[1], 1 / π^2, rtol = 2e-3)
+    @test isapprox(λs[2], 1 / (4π^2), rtol = 3e-3)
+    @test isapprox(λs[3], 1 / (9π^2), rtol = 5e-3)
 end
 
 @testset "zolotarev_approx()" begin
