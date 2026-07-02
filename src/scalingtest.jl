@@ -148,31 +148,32 @@ function get_g(fd::MarginalScalingModel,  d::Real)
 
 end
 
-"""
-    approx_eigenvalues(ρ::Function, q::Integer)
+# """
+#     approx_eigenvalues(ρ::Function, q::Integer)
 
-Approximate the `q` larger eigenvalues of the correlation kernel `ρ(u, v)`.
+# Approximate the `q` larger eigenvalues of the correlation kernel `ρ(u, v)`.
 
-### Details
+# ### Details
 
-`ρ(u,v)` is a correlation function where  ```0 ≤ u ≤ 1``` and ```0 ≤ v ≤ 1.```
+# `ρ(u,v)` is a correlation function where  ```0 ≤ u ≤ 1``` and ```0 ≤ v ≤ 1.```
 
-### Reference
+# ### Reference
 
-Schlesinger, S. (1957). Approximating Eigenvalues and Eigenfunctions of Symmetric Kernels. *Journal of the Society for Industrial and Applied Mathematics*, 5(1), 1–14. http://www.jstor.org/stable/2098687
-"""
-function approx_eigenvalues(ρ::Function, q::Integer)
+# Schlesinger, S. (1957). Approximating Eigenvalues and Eigenfunctions of Symmetric Kernels. *Journal of the Society for Industrial and Applied Mathematics*, 5(1), 1–14. http://www.jstor.org/stable/2098687
+# """
+# function approx_eigenvalues(ρ::Function, q::Integer)
     
-    K = zeros(Float64,q,q)
+#     K = zeros(Float64,q,q)
     
-    for i in 1:q
-        for j in 1:q
-            K[i,j] = (1/q) * ρ( (2*i-1)/(2*q) , (2*j-1)/(2*q) )
-        end
-    end
+#     for i in 1:q
+#         for j in 1:q
+#             K[i,j] = (1/q) * ρ( (2*i-1)/(2*q) , (2*j-1)/(2*q) )
+#         end
+#     end
 
-    return reverse( (eigvals(Symmetric(K))) )
-end
+#     return reverse( (eigvals(Symmetric(K))) )
+# end
+
 
 """
     approx_eigenvalues(ρ, q::Integer)
@@ -180,40 +181,28 @@ end
 Approximate the eigenvalues of the integral operator with kernel `ρ(u, v)` on
 `[0, 1]`, using a midpoint Nyström approximation with `q` quadrature points.
 
-The integral operator is
-
-    (Tf)(u) = ∫₀¹ ρ(u, v) f(v) dv.
-
 The returned eigenvalues are sorted in decreasing order.
-
-### Details
-
-The kernel `ρ(u, v)` is assumed to be symmetric and positive semidefinite, with
-`0 ≤ u ≤ 1` and `0 ≤ v ≤ 1`.
-
-### Reference
-
-Schlesinger, S. (1957). Approximating Eigenvalues and Eigenfunctions of
-Symmetric Kernels. *Journal of the Society for Industrial and Applied
-Mathematics*, 5(1), 1--14.
 """
-function approx_eigenvalues(ρ, q::Integer)
+function approx_eigenvalues(ρ::K, q::Integer) where {K}
     q > 0 || throw(ArgumentError("q must be positive."))
 
-    K = Matrix{Float64}(undef, q, q)
+    Kmat = Matrix{Float64}(undef, q, q)
 
     for j in 1:q
         v = (2j - 1) / (2q)
+
         for i in 1:j
             u = (2i - 1) / (2q)
-            K[i, j] = ρ(u, v) / q
+            Kmat[i, j] = ρ(u, v) / q
         end
     end
 
-    λ = eigvals(Symmetric(K, :U))
+    λ = eigvals(Symmetric(Kmat, :U))
 
     return reverse(λ)
 end
+
+
 
 
 
