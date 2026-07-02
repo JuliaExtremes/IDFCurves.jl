@@ -122,57 +122,48 @@ function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
 end
 
 """
-    get_g(fd::MarginalScalingModel, d::Float64)
+    get_g(fd::MarginalScalingModel, d::Real)
 
-Returns the g function that intervenes in the kernel expression.
-The function returns the gradient of the CDF of the model distribution for duration d, evaluated at θ̂ which is the estimated parameter vector
+Return the function `g` involved in the covariance kernel of the training-validation Cramér--von Mises statistic.
+
+For `0 < u < 1`, `g(u)` returns the gradient, with respect to the model
+parameters, of the CDF of the marginal distribution at duration `d`, evaluated at
+
+    x = F̂_d^{-1}(u),
+
+where `F̂_d` is the fitted marginal distribution at duration `d`.
 """
-function get_g(fd::MarginalScalingModel,  d::Real)
+function get_g(fd::MarginalScalingModel, d::Real)
 
     pd_type = typeof(fd)
     d₀ = duration(fd)
     θ̂ = collect(params(fd))
 
-    function g(u)
-        @assert 0 < u < 1 "g is only defined between 0 and 1"
+    # Fitted marginal distribution at the validation duration.
+    pd = getdistribution(fd, d)
 
-        x = quantile(getdistribution(fd, d), u) # attention fd doit être un marginalscalingmodel -> à modifier lorsque arg sera un DependentScalingModel.
+    function g(u::Real)
+        0 < u < 1 || throw(ArgumentError("g is only defined for 0 < u < 1."))
+
+        x = quantile(pd, u)
+
         function F(θ::AbstractVector{<:Real})
-            return cdf( construct_model( pd_type, d₀, map_to_real_space(pd_type,θ) ) , d , x )
+            return cdf(
+                construct_model(
+                    pd_type,
+                    d₀,
+                    map_to_real_space(pd_type, θ),
+                ),
+                d,
+                x,
+            )
         end
 
         return ForwardDiff.gradient(F, θ̂)
     end
 
     return g
-
 end
-
-# """
-#     approx_eigenvalues(ρ::Function, q::Integer)
-
-# Approximate the `q` larger eigenvalues of the correlation kernel `ρ(u, v)`.
-
-# ### Details
-
-# `ρ(u,v)` is a correlation function where  ```0 ≤ u ≤ 1``` and ```0 ≤ v ≤ 1.```
-
-# ### Reference
-
-# Schlesinger, S. (1957). Approximating Eigenvalues and Eigenfunctions of Symmetric Kernels. *Journal of the Society for Industrial and Applied Mathematics*, 5(1), 1–14. http://www.jstor.org/stable/2098687
-# """
-# function approx_eigenvalues(ρ::Function, q::Integer)
-    
-#     K = zeros(Float64,q,q)
-    
-#     for i in 1:q
-#         for j in 1:q
-#             K[i,j] = (1/q) * ρ( (2*i-1)/(2*q) , (2*j-1)/(2*q) )
-#         end
-#     end
-
-#     return reverse( (eigvals(Symmetric(K))) )
-# end
 
 
 """
@@ -202,43 +193,6 @@ function approx_eigenvalues(ρ::K, q::Integer) where {K}
     return reverse(λ)
 end
 
-
-
-
-
-# """
-# zolotarev_approx(λs::Vector{<:Real} , x::Real)
-
-# Return an approximation of the CDF of the sum of the λ_i X_i^2, where the X_i^2 are N(0,1), evaluated at x.
-
-# ### Detail
-
-# The approximation is valid for high quantiles only, larger than .95.
-# """
-# function zolotarev_approx(λs::Vector{<:Real} , x::Real)
-    
-#     @assert length(λs) >= 1 "The vector of λ must contain at elast one element for the Zolotarev approximation to be valid."
-
-#     # taking multiplicity into account
-#     γs = unique(λs)
-#     multiplicities = [count(==(γ), λs) for γ in γs]
-
-#     q = length(γs)
-#     γ₁ = γs[1]
-    
-#     term1 = - sum([ 0.5 * multiplicities[i] * log(1 - γs[i]/γ₁) for i in 2:q])
-#     term2 = - log(SpecialFunctions.gamma(0.5 * multiplicities[1]))
-#     term3 = (0.5 * multiplicities[1] - 1) * log( x/(2*γ₁) )
-#     term4 = - (x/(2*γ₁)) 
-
-#     approx_cdf = maximum([1 - exp(term1 + term2 + term3 + term4), 0 ])
-
-#     if term2 < term4 && approx_cdf > .95
-#         @warn "Zolotarev approximation is outside its validity domain. No conclusion can be made from a small p-value."
-#     end
-        
-#     return approx_cdf
-# end
 
 """
     zolotarev_approx(λs::AbstractVector{<:Real}, x::Real; tail_threshold = 0.95)

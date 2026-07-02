@@ -11,7 +11,7 @@ end
 
     g = IDFCurves.get_g(fd, 1)
 
-    @test_throws AssertionError g(0)
+    @test_throws ArgumentError g(0)
 
     f1(θ::AbstractArray) = [exp(θ[1]), exp(θ[2]), IDFCurves.logistic(θ[3])-.5, IDFCurves.logistic(θ[4])]
     jac = ForwardDiff.jacobian(f1, [log(IDFCurves.location(fd)), log(IDFCurves.scale(fd)), IDFCurves.logit(IDFCurves.shape(fd)+0.5), IDFCurves.logit(IDFCurves.exponent(fd))])
