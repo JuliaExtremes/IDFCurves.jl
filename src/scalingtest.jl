@@ -146,6 +146,36 @@ function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
 
 end
 
+"""
+    cvmkernel(g, A)
+
+Return the covariance kernel used in the limiting distribution of the
+training-validation Cramér--von Mises statistic.
+
+The returned function is
+
+    ρ(u, v) = min(u, v) - u*v + g(u)' * A^{-1} * g(v),
+
+where `A` is typically `a * Î_m`. Equivalently, if `H` is the observed
+information matrix summed over the training sample and `ℓ` is the validation
+sample size, one may use `A = H / ℓ`.
+
+The matrix factorization of `A` is computed once and reused each time the kernel
+is evaluated.
+"""
+function cvmkernel(g, A::AbstractMatrix)
+    Afact = factorize(A)
+
+    function ρ(u::Real, v::Real)
+        gu = g(u)
+        gv = g(v)
+
+        return min(u, v) - u * v + dot(gu, Afact \ gv)
+    end
+
+    return ρ
+end
+
 
 
 
