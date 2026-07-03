@@ -177,8 +177,6 @@ function cvmkernel(g, A::AbstractMatrix)
 end
 
 
-
-
 """
     approx_eigenvalues(ρ, q::Integer)
 
