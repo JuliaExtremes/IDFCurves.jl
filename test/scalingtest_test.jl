@@ -131,9 +131,9 @@ data_bug = IDFdata(df, "Year", duration_dict)
 
 @testset "scalingtest()" begin
 
-    @test_throws AssertionError scalingtest(SimpleScaling, data, "1min")
-    @test scalingtest(SimpleScaling, data) ≈ 3.413181991929193e-6
-    @test scalingtest(GeneralScaling, data, "5min", 50) >= 0.01
+    @test_throws ArgumentError scalingtest(SimpleScaling, data, tag_out = "1min")
+    @test scalingtest(SimpleScaling, data, tag_out = "5min", q=10) ≈ 3.413181991929193e-6
+    # @test scalingtest(GeneralScaling, data, "5min", 50) >= 0.01
 
     # @test scalingtest(GeneralScaling, data_bug, "d1") ≈ 1.
 

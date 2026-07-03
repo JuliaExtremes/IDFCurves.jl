@@ -22,79 +22,83 @@ function (ρ::CvMKernel)(u::Real, v::Real)
     return min(u, v) - u*v + dot(gu, ρ.Ainv, gv)
 end
 
-
-
-
-
-
-
-
 """
-    scalingtest(fd::Type{<:MarginalScalingModel}, data::IDFdata;
-        tag_out::String, q::Integer)
+    scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
+        tag_out = nothing, q::Integer = 100)
 
-Performs the testing procedure in order to state if the model fd may be rejected considering the data. It returns the p-value of the test.
-d_out is the duration to be put in the validation set. By default it will be set to the smallest duration in the data.
-q is the number of eigenvalues to compute when using the Zolotarev approximation for the p-value.
+Perform the training-validation Cramér--von Mises goodness-of-fit test for a
+scaling model.
+
+The duration identified by `tag_out` is used as the validation duration. If
+`tag_out` is not provided, the smallest observed duration is used.
+
+The argument `q` is the number of quadrature points used to approximate the
+eigenvalues of the covariance kernel for the Zolotarev approximation.
 """
-function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, tag_out::String, q::Integer)
-# function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata; tag_out::String=String[], q::Integer = 100)
-    @assert tag_out in gettag(data) "duration $tag_out does not correspond to an observed duration."
+function scalingtest(
+    pd_type::Type{<:MarginalScalingModel},
+    data::IDFdata;
+    tag_out = nothing,
+    q::Integer = 100,
+)
 
+    q > 0 || throw(ArgumentError("q must be positive."))
+
+    tags = gettag(data)
+
+    if tag_out === nothing
+        durations = [getduration(data, tag) for tag in tags]
+        tag_out = tags[argmin(durations)]
+    elseif !(tag_out in tags)
+        throw(ArgumentError(
+            "duration tag $tag_out does not correspond to an observed duration.",
+        ))
+    end
+
+    # Validation duration and validation data
     d_out = getduration(data, tag_out)
-
     y = getdata(data, tag_out)
     ℓ = length(y)
 
+    ℓ > 0 || throw(ArgumentError(
+        "The validation sample must contain at least one observation.",
+    ))
+
+    # Training data
     train_data = excludeduration(data, d_out)
 
+    # Fit the scaling model using the training durations only
     fitted_model = fit_mle(pd_type, train_data, d_out)
 
     # Test statistic
-    F_θ̂ = getdistribution(fitted_model, d_out) #TODO: Make it general for an eventual DependentScalingModel
-    S = cvmcriterion(F_θ̂, y)
+    Fθ̂ = getdistribution(fitted_model, d_out)
+    S = cvmcriterion(Fθ̂, y)
 
-    # Computing the p-value
-
-    # Fisher information matrix (normalized)
-    # try 
-    #     H = hessian(fitted_model, train_data)
-    #     global norm_I_Fisher = H / ℓ
-    # catch e
-    #     return 1.
-    # end
+    # Observed information matrix.
+    #
+    # If H is the observed information summed over the training sample, then
+    # H / ℓ corresponds to
+    #
+    #     (m / ℓ) * Î_m = a * Î_m,
+    #
+    # which is the matrix entering the covariance kernel.
     H = hessian(fitted_model, train_data)
-    norm_I_Fisher = H / ℓ
+    A = Symmetric(H / ℓ)
 
-    # Kernel function ρ
+    # Covariance kernel
     g = get_g(fitted_model, d_out)
-    ρ(u,v) = minimum([u,v]) - u*v + g(u)' * ( norm_I_Fisher \ g(v) )
+    ρ = cvmkernel(g, A)
 
-    # Approximating the first `q` eigenvalues of the correlation kernel 
-    λs = approx_eigenvalues(ρ, q) # TODO test if error when Fisher Information Matrix sigular ?
+    # Eigenvalues of the covariance kernel
+    λs = approx_eigenvalues(ρ, q)
 
-    # Zolotarev approximation of the cdf in the tail
+    # Zolotarev approximation of the CDF in the upper tail
     cdf_approx = zolotarev_approx(λs, S)
 
-    # retuning the p-value
+    # Return the p-value
     return 1 - cdf_approx
-
 end
 
-function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, tag_out::String)
-
-    return scalingtest(pd_type, data, tag_out, 100)
-
-end
-
-function scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata)
-
-    d_out = minimum(getduration.(data, gettag(data)))
-    tag_out = gettag(data, d_out)
-
-    return scalingtest(pd_type, data, tag_out, 100)
-
-end
 
 """
     cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
