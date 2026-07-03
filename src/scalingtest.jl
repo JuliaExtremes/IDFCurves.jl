@@ -1,28 +1,4 @@
 """
-    CvMKernel(g, Ainv)
-
-Callable covariance kernel for the limiting process of the training-validation
-Cramér--von Mises statistic.
-
-The kernel is
-
-    ρ(u, v) = min(u, v) - u*v + g(u)' * Ainv * g(v),
-
-where `Ainv` is typically `(a * Î)^{-1}`, where Î is the estimated Fisher information matrix
-"""
-struct CvMKernel{G,A}
-    g::G
-    Ainv::A
-end
-
-function (ρ::CvMKernel)(u::Real, v::Real)
-    gu = ρ.g(u)
-    gv = ρ.g(v)
-
-    return min(u, v) - u*v + dot(gu, ρ.Ainv, gv)
-end
-
-"""
     scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
         tag_out = nothing, q::Integer = 100)
 
@@ -99,36 +75,11 @@ function scalingtest(
     return 1 - cdf_approx
 end
 
-
-"""
-    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
-
-Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
-
-# Details
-
-The statistic is
-
-    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
-
-where `x_(i)` denotes the ordered sample.
-"""
-function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
-    n = length(x)
-    n > 0 || throw(ArgumentError("x must contain at least one observation."))
-
-    x̃ = sort(x)
-
-    ω² = 1/(12*n) + sum( ((2*i-1)/(2*n) - cdf(pd,x̃[i]) )^2 for i=1:n)
-
-    return ω²
-
-end
-
 """
     get_g(fd::MarginalScalingModel, d::Real)
 
-Return the function `g` involved in the covariance kernel of the training-validation Cramér--von Mises statistic.
+Return the function `g` involved in the covariance kernel of the
+training-validation Cramér--von Mises statistic.
 
 For `0 < u < 1`, `g(u)` returns the gradient, with respect to the model
 parameters, of the CDF of the marginal distribution at duration `d`, evaluated at
@@ -168,6 +119,34 @@ function get_g(fd::MarginalScalingModel, d::Real)
 
     return g
 end
+
+
+"""
+    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
+
+Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
+
+# Details
+
+The statistic is
+
+    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
+
+where `x_(i)` denotes the ordered sample.
+"""
+function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
+    n = length(x)
+    n > 0 || throw(ArgumentError("x must contain at least one observation."))
+
+    x̃ = sort(x)
+
+    ω² = 1/(12*n) + sum( ((2*i-1)/(2*n) - cdf(pd,x̃[i]) )^2 for i=1:n)
+
+    return ω²
+
+end
+
+
 
 
 """
