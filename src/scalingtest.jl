@@ -75,6 +75,8 @@ function scalingtest(
     return 1 - cdf_approx
 end
 
+# Covariance kernel
+
 """
     get_g(fd::MarginalScalingModel, d::Real)
 
@@ -118,32 +120,6 @@ function get_g(fd::MarginalScalingModel, d::Real)
     end
 
     return g
-end
-
-
-"""
-    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
-
-Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
-
-# Details
-
-The statistic is
-
-    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
-
-where `x_(i)` denotes the ordered sample.
-"""
-function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
-    n = length(x)
-    n > 0 || throw(ArgumentError("x must contain at least one observation."))
-
-    x̃ = sort(x)
-
-    ω² = 1/(12*n) + sum( ((2*i-1)/(2*n) - cdf(pd,x̃[i]) )^2 for i=1:n)
-
-    return ω²
-
 end
 
 """
@@ -204,6 +180,35 @@ function approx_eigenvalues(ρ::K, q::Integer) where {K}
     return reverse(λ)
 end
 
+
+# Cramér-von Mises statistic
+
+"""
+    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
+
+Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
+
+# Details
+
+The statistic is
+
+    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
+
+where `x_(i)` denotes the ordered sample.
+"""
+function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
+    n = length(x)
+    n > 0 || throw(ArgumentError("x must contain at least one observation."))
+
+    x̃ = sort(x)
+
+    ω² = 1/(12*n) + sum( ((2*i-1)/(2*n) - cdf(pd,x̃[i]) )^2 for i=1:n)
+
+    return ω²
+
+end
+
+# Computing p-values
 
 """
     zolotarev_approx(λs::AbstractVector{<:Real}, x::Real; tail_threshold = 0.95)
