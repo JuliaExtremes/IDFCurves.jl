@@ -228,3 +228,78 @@ function getKendalldata(obj::IDFdata)
     return df_kendall
 
 end
+
+"""
+    _common_years(data::IDFdata, tags::AbstractVector{<:AbstractString})
+
+Extract the common years vector of the records in `data` corresponding to the `tags`.
+"""
+function _common_years(data::IDFdata, tags::AbstractVector{<:AbstractString})
+
+    isempty(tags) && throw(ArgumentError("The data set must contain at least one duration."))
+
+    common = Set(getyear(data, tags[1]))
+
+    for tag in tags[2:end]
+        intersect!(common, Set(getyear(data, tag)))
+    end
+
+    return sort!(collect(common))
+end
+
+"""
+    _restrict_years(data::IDFdata, years::AbstractVector{<:Integer}; tags = gettag(data))
+
+Return a new `IDFdata` struct restrained to the `years` for each `tags`.    
+"""
+function _restrict_years(
+    data::IDFdata,
+    years::AbstractVector{<:Integer};
+    tags=gettag(data),
+)
+
+    new_tag = String.(collect(tags))
+
+    new_duration = Dict{String,Float64}()
+    new_year = Dict{String,Vector{Int64}}()
+    new_data = Dict{String,Vector{Float64}}()
+
+    years_vec = Int64.(collect(years))
+
+    for tag in new_tag
+        new_duration[tag] = Float64(getduration(data, tag))
+        new_year[tag] = copy(years_vec)
+        new_data[tag] = [Float64(getdata(data, tag, year)) for year in years_vec]
+    end
+
+    return IDFdata(new_tag, new_duration, new_year, new_data)
+end
+
+"""
+    _validation_tag(data::IDFdata, tag_out)
+
+The function returns the tag if it exists in `data`, otherwise, the function throws an error.
+"""
+function _validation_tag(data::IDFdata, tag_out)
+
+    tags = gettag(data)
+
+    if tag_out in tags
+        return tag_out
+    else
+        throw(ArgumentError("duration tag $tag_out does not correspond to an observed duration."))
+    end
+end
+
+"""
+    _validation_tag(data::IDFdata)
+
+    The tag corresponding to the minimal duration in `data` is returned.   
+"""
+function _validation_tag(data::IDFdata)
+
+    tags = gettag(data)
+    durations = [getduration(data, tag) for tag in tags]
+    return tags[argmin(durations)]
+
+end
