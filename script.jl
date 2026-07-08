@@ -24,125 +24,11 @@ incomplete_data = IDFdata(df_missing, "Year", duration_dict)
 
 
 
-# @time scalingtest(SimpleScaling, data, tag_out = "5min", q=100)
+@time scalingtest(SimpleScaling, data, tag_out = "5min")
 # @time scalingtest(GeneralScaling, data, tag_out = "5min", q=100) 
 
 
-
-import IDFCurves: excludeduration, fit_mle, cvmcriterion, hessian, get_g, cvmkernel, _validation_tag, CvMDistribution
-
-
-struct CvMValidationTest{
-    M,
-    S<:Real,
-    D<:ContinuousUnivariateDistribution,
-}
-    fitted_model::M
-    test_statistic::S
-    null_distribution::D
-end
-
-function Base.show(io::IO, test_struct::CvMValidationTest)
-    println(io, "CvMValidationTest(")
-    println(io, "  test_statistic = ", test_struct.test_statistic)
-    println(io, "  null_distribution = ", typeof(test_struct.null_distribution))
-    println(io, "  fitted_model = ", typeof(test_struct.fitted_model))
-    print(io, ")")
-end
-
-
-"""
-    pvalue(test)
-
-Return the upper-tail p-value of the validation statistic.
-"""
-function pvalue(test_struct::CvMValidationTest)
-    return ccdf(test_struct.null_distribution, test_struct.test_statistic)
-end
-
-"""
-    decision_threshold(test, α = 0.05)
-
-Return the rejection threshold at level `α`.
-"""
-function decision_threshold(test_struct::CvMValidationTest, α::Real = 0.05)
-    0 < α < 1 || throw(ArgumentError("The test level should be in (0, 1), got $α."))
-
-    return quantile(test_struct.null_distribution, 1. - α)
-end
-
-"""
-    decision(test, α = 0.05)
-
-Return whether the validation test rejects the null hypothesis at level `α`.
-"""
-function decision(test_struct::CvMValidationTest, α::Real = 0.05)
-    threshold = decision_threshold(test_struct, α)
-
-    return test_struct.test_statistic > threshold
-end
-
-
-@testset "CvMValidationTest" begin
-
-    import IDFCurves: CvMValidationTest, pvalue, decision_threshold, decision
-
-    fitted_model = (; name = "dummy model")
-    test_struct = CvMValidationTest(fitted_model, 1.96, Normal(0,1))
-
-    @test test_struct.fitted_model == fitted_model
-    @test test_struct.test_statistic == 1.96
-    @test test_struct.null_distribution == Normal()
-
-    @test pvalue(test_struct) ≈ ccdf(Normal(), 1.96)
-    @test pvalue(test_struct) ≈ 0.024997895148220435
-
-    @test decision_threshold(test_struct, 0.05) ≈ quantile(Normal(), 0.95)
-    @test decision_threshold(test_struct, 0.05) ≈ 1.6448536269514717
-
-    @test decision(test_struct, 0.05)
-    @test !decision(test_struct, 0.01)
-
-    @test_throws ArgumentError decision_threshold(test_struct, 0.0)
-    @test_throws ArgumentError decision_threshold(test_struct, 1.0)
-    @test_throws ArgumentError decision(test_struct, 0.0)
-    @test_throws ArgumentError decision(test_struct, 1.0)
-end
-
-@testset "CvMValidationTest show" begin
-    test_struct = CvMValidationTest(:model, 1.96, Normal())
-
-    str = sprint(show, test_struct)
-
-    @test occursin("CvMValidationTest(", str)
-    @test occursin("  test_statistic = 1.96", str)
-    @test occursin("  null_distribution = Normal{Float64}", str)
-    @test occursin("  fitted_model = Symbol", str)
-    @test endswith(str, ")")
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+import IDFCurves: excludeduration, fit_mle, cvmcriterion, hessian, get_g, cvmkernel, _validation_tag, CvMDistribution, CvMValidationTest, pvalue, decision, decision_threshold
 
 
 function scalingtest(
@@ -206,24 +92,43 @@ end
 
 
 """
-    approx_eigenvalues(ρ, q::Integer)
+    approx_eigenvalues(ρ, q; nquad = max(5q, q + 20), eigentol = sqrt(eps(Float64)))
 
-Approximate the eigenvalues of the integral operator with kernel `ρ(u, v)` on
-`[0, 1]`, using a midpoint Nyström approximation with `q` quadrature points.
+Approximate the largest `q` eigenvalues of the integral operator with kernel
+`ρ(u, v)` on `[0, 1]`, using a midpoint Nyström approximation with `nquad`
+quadrature points.
 
-The returned eigenvalues are sorted in decreasing order.
+### Details
+
+The returned eigenvalues are sorted in decreasing order. The ignored tail is
+not approximated.
+
+The method is a quadrature-based Nyström approximation for the eigenvalues of
+a compact integral operator; see Atkinson (1975).
+
+#### Reference
+
+Atkinson, K. E. (1975). Convergence rates for approximate eigenvalues of compact integral operators. *SIAM Journal on Numerical Analysis, 12(2), 213–222*. https://doi.org/10.1137/0712020
 """
-function approx_eigenvalues(ρ::K, q::Integer; eigentol::Real=sqrt(eps(Float64))) where {K}
+function approx_eigenvalues(
+    ρ::K,
+    q::Integer;
+    nquad::Integer = max(5q, q + 20),
+    eigentol::Real = sqrt(eps(Float64))) where {K}
+
     q > 0 || throw(ArgumentError("q must be positive."))
+    nquad >= q || throw(ArgumentError("nquad must be at least q."))
+    eigentol >= 0 || throw(ArgumentError("eigentol must be non-negative."))
+    isfinite(eigentol) || throw(ArgumentError("eigentol must be finite."))
 
-    Kmat = Matrix{Float64}(undef, q, q)
+    Kmat = Matrix{Float64}(undef, nquad, nquad)
 
-    for j in 1:q
-        v = (2j - 1) / (2q)
+    for j in 1:nquad
+        v = (2j - 1) / (2nquad)
 
         for i in 1:j
-            u = (2i - 1) / (2q)
-            Kmat[i, j] = ρ(u, v) / q
+            u = (2i - 1) / (2nquad)
+            Kmat[i, j] = ρ(u, v) / nquad
         end
     end
 
@@ -236,8 +141,19 @@ function approx_eigenvalues(ρ::K, q::Integer; eigentol::Real=sqrt(eps(Float64))
         throw(ArgumentError("Negative eigenvalue beyond numerical tolerance."))
     end
 
-    return reverse(λraw)
+    λ = sort([λ for λ in λraw if λ > eigentol * scale]; rev = true)
+
+    length(λ) >= q || throw(ArgumentError("Fewer than q positive eigenvalues were found."))
+
+    return λ[1:q]
 end
+
+
+
+
+
+
+
 
 function cvm_distribution(λ::AbstractVector{<:Real};
     eigentol::Real=sqrt(eps(Float64)))

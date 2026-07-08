@@ -208,32 +208,61 @@ function cvmkernel(g, A::AbstractMatrix)
     return ρ
 end
 
-
 """
-    approx_eigenvalues(ρ, q::Integer)
+    approx_eigenvalues(ρ, q; nquad = max(5q, q + 20), eigentol = sqrt(eps(Float64)))
 
-Approximate the eigenvalues of the integral operator with kernel `ρ(u, v)` on
-`[0, 1]`, using a midpoint Nyström approximation with `q` quadrature points.
+Approximate the largest `q` eigenvalues of the integral operator with kernel
+`ρ(u, v)` on `[0, 1]`, using a midpoint Nyström approximation with `nquad`
+quadrature points.
 
-The returned eigenvalues are sorted in decreasing order.
+### Details
+
+The returned eigenvalues are sorted in decreasing order. The ignored tail is
+not approximated.
+
+The method is a quadrature-based Nyström approximation for the eigenvalues of
+a compact integral operator; see Atkinson (1975).
+
+#### Reference
+
+Atkinson, K. E. (1975). Convergence rates for approximate eigenvalues of compact integral operators. *SIAM Journal on Numerical Analysis, 12(2), 213–222*. https://doi.org/10.1137/0712020
 """
-function approx_eigenvalues(ρ::K, q::Integer) where {K}
+function approx_eigenvalues(
+    ρ::K,
+    q::Integer;
+    nquad::Integer = max(5q, q + 20),
+    eigentol::Real = sqrt(eps(Float64))) where {K}
+    
     q > 0 || throw(ArgumentError("q must be positive."))
+    nquad >= q || throw(ArgumentError("nquad must be at least q."))
+    eigentol >= 0 || throw(ArgumentError("eigentol must be non-negative."))
+    isfinite(eigentol) || throw(ArgumentError("eigentol must be finite."))
 
-    Kmat = Matrix{Float64}(undef, q, q)
+    Kmat = Matrix{Float64}(undef, nquad, nquad)
 
-    for j in 1:q
-        v = (2j - 1) / (2q)
+    for j in 1:nquad
+        v = (2j - 1) / (2nquad)
 
         for i in 1:j
-            u = (2i - 1) / (2q)
-            Kmat[i, j] = ρ(u, v) / q
+            u = (2i - 1) / (2nquad)
+            Kmat[i, j] = ρ(u, v) / nquad
         end
     end
 
-    λ = eigvals(Symmetric(Kmat, :U))
+    λraw = eigvals(Symmetric(Kmat, :U))
 
-    return reverse(λ)
+    λmax = maximum(abs, λraw)
+    scale = max(λmax, 1.0)
+
+    if any(λ -> λ < -eigentol * scale, λraw)
+        throw(ArgumentError("Negative eigenvalue beyond numerical tolerance."))
+    end
+
+    λ = sort([λ for λ in λraw if λ > eigentol * scale]; rev = true)
+
+    length(λ) >= q || throw(ArgumentError("Fewer than q positive eigenvalues were found."))
+
+    return λ[1:q]
 end
 
 
@@ -272,6 +301,8 @@ end
 Return a Zolotarev upper-tail approximation of the CDF of the sum of λᵢ Zᵢ² where the `Zᵢ` are independent standard normal random variables.
 
 The approximation is intended for large values of `x`, corresponding to CDF values close to one.
+
+Note: we do not use this approximation anymore and now rely on a method similar to GeneralizedChisqDistribution.jl to give p-values over the whole range.
 """
 function zolotarev_approx(
     λs::AbstractVector{<:Real},
