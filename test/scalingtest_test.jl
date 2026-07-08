@@ -1,3 +1,45 @@
+
+
+@testset "CvMValidationTest" begin
+
+    import IDFCurves: CvMValidationTest, pvalue, decision_threshold, decision
+
+    fitted_model = (; name = "dummy model")
+    test_struct = CvMValidationTest(fitted_model, 1.96, Normal(0,1))
+
+    @test test_struct.fitted_model == fitted_model
+    @test test_struct.test_statistic == 1.96
+    @test test_struct.null_distribution == Normal()
+
+    @test pvalue(test_struct) ≈ ccdf(Normal(), 1.96)
+    @test pvalue(test_struct) ≈ 0.024997895148220435
+
+    @test decision_threshold(test_struct, 0.05) ≈ quantile(Normal(), 0.95)
+    @test decision_threshold(test_struct, 0.05) ≈ 1.6448536269514717
+
+    @test decision(test_struct, 0.05)
+    @test !decision(test_struct, 0.01)
+
+    @test_throws ArgumentError decision_threshold(test_struct, 0.0)
+    @test_throws ArgumentError decision_threshold(test_struct, 1.0)
+    @test_throws ArgumentError decision(test_struct, 0.0)
+    @test_throws ArgumentError decision(test_struct, 1.0)
+end
+
+@testset "CvMValidationTest show" begin
+    test_struct = CvMValidationTest(:model, 1.96, Normal())
+
+    str = sprint(show, test_struct)
+
+    @test occursin("CvMValidationTest(", str)
+    @test occursin("  test_statistic = 1.96", str)
+    @test occursin("  null_distribution = Normal{Float64}", str)
+    @test occursin("  fitted_model = Symbol", str)
+    @test endswith(str, ")")
+end
+
+
+
 @testset "cvmcriterion()" begin
     distrib = Normal(0,1)
     x = [-0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3]

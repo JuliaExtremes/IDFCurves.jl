@@ -1,3 +1,59 @@
+
+struct CvMValidationTest{
+    M,
+    S<:Real,
+    D<:ContinuousUnivariateDistribution,
+}
+    fitted_model::M
+    test_statistic::S
+    null_distribution::D
+end
+
+function Base.show(io::IO, test_struct::CvMValidationTest)
+    println(io, "CvMValidationTest(")
+    println(io, "  test_statistic = ", test_struct.test_statistic)
+    println(io, "  null_distribution = ", typeof(test_struct.null_distribution))
+    println(io, "  fitted_model = ", typeof(test_struct.fitted_model))
+    print(io, ")")
+end
+
+
+"""
+    pvalue(test)
+
+Return the upper-tail p-value of the validation statistic.
+"""
+function pvalue(test_struct::CvMValidationTest)
+    return ccdf(test_struct.null_distribution, test_struct.test_statistic)
+end
+
+"""
+    decision_threshold(test, α = 0.05)
+
+Return the rejection threshold at level `α`.
+"""
+function decision_threshold(test_struct::CvMValidationTest, α::Real = 0.05)
+    0 < α < 1 || throw(ArgumentError("The test level should be in (0, 1), got $α."))
+
+    return quantile(test_struct.null_distribution, 1. - α)
+end
+
+"""
+    decision(test, α = 0.05)
+
+Return whether the validation test rejects the null hypothesis at level `α`.
+"""
+function decision(test_struct::CvMValidationTest, α::Real = 0.05)
+    threshold = decision_threshold(test_struct, α)
+
+    return test_struct.test_statistic > threshold
+end
+
+
+
+
+
+
 """
     scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
         tag_out = nothing, q::Integer = 100)
