@@ -4,9 +4,7 @@
 using Pkg
 pkg"activate ."
 
-using DataFrames, Distributions, IDFCurves, GeneralizedChisqDistribution, LinearAlgebra, Test, Random, StatsBase
-
-
+using DataFrames, Distributions, IDFCurves,LinearAlgebra, Test, Random, StatsBase
 
 
 # data at Mtl Trudeau
@@ -15,6 +13,11 @@ tags = names(df)[2:10]
 durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
 duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
+
+
+
+
+
 
 
 df_missing = deepcopy(df)
@@ -264,109 +267,4 @@ res = scalingtest_bootstrap(
 
 
 
-
-
-
-
-
-
-## Replacing the Zolotarev approximation for p-value larger than 1e-8
-
-using GeneralizedChisqDistribution
-
-function _positive_eigenvalues(eigvals::AbstractVector{<:Real};
-    eigentol::Real=sqrt(eps(Float64)))
-
-    λraw = collect(float.(eigvals))
-    isempty(λraw) && return Float64[]
-
-    λmax = maximum(abs, λraw)
-    scale = max(λmax, 1.0)
-
-    if any(λ -> λ < -eigentol * scale, λraw)
-        throw(ArgumentError("Negative eigenvalue beyond numerical tolerance."))
-    end
-
-    return sort([λ for λ in λraw if λ > eigentol * scale]; rev=true)
-end
-
-
-using Distributions
-
-λ = rand(Gamma(1, 1), 1000)
-
-@time _positive_eigenvalues(λ)
-
-
-
-
-
-function cvm_distribution(eigvals::AbstractVector{<:Real};
-    eigentol::Real=sqrt(eps(Float64)))
-
-    λ = _positive_eigenvalues(eigvals; eigentol=eigentol)
-
-    isempty(λ) && throw(ArgumentError("At least one positive eigenvalue is required."))
-
-    ν = ones(Int, length(λ))
-    δ = zeros(length(λ))
-
-    return GeneralizedChisq(λ, ν, δ, 0.0, 0.0)
-end
-
-function cvm_pvalue_gchisq(S::Real, eigvals::AbstractVector{<:Real};
-    eigentol::Real=sqrt(eps(Float64)))
-
-    S <= 0 && return 1.0
-
-    d = cvm_distribution(eigvals; eigentol=eigentol)
-
-    # return clamp(1 - cdf(d, S), 0.0, 1.0)
-    return clamp(ccdf(d, S), 0.0, 1.0)
-end
-
-
-@testset "GeneralizedChisq one-weight test" begin
-    λ = 0.7
-
-    for S in [0.01, 0.1, 0.5, 1.0, 2.0, 5.0]
-        p_gchisq = cvm_pvalue_gchisq(S, [λ])
-        p_exact = ccdf(Chisq(1), S / λ)
-
-        @test p_gchisq ≈ p_exact atol = 1e-6
-    end
-end
-
-@testset "GeneralizedChisq two unequal positive weights, upper tail" begin
-    # Reference values for Q = 0.7χ²₁ + 0.2χ²₁.
-    #
-    # These values were computed with R using the CompQuadForm package:
-    #
-    #     library(CompQuadForm)
-    #
-    #     p <- c(1e-2, 1e-4, 1e-6, 1e-8, 1e-10)
-    #
-    #     q <- sapply(p, function(pp) {
-    #         uniroot(
-    #             function(x) {
-    #                 CompQuadForm::davies(
-    #                     q = x,
-    #                     lambda = c(0.7, 0.2),
-    #                     h = c(1, 1),
-    #                     delta = c(0, 0),
-    #                     sigma = 0,
-    #                     lim = 50000,
-    #                     acc = 1e-12
-    #                 )$Qq - pp
-    #             },
-    #             lower = 0,
-    #             upper = 100,
-    #             tol = 1e-12
-    #         )$root
-    #     })
-    #
-    #     data.frame(q = q, p = p)
-    #
-    # The reported probabilities are upper-tail probabilities P(Q > q).
-end
 
