@@ -32,7 +32,7 @@ end
 
 Return the rejection threshold at level `α`.
 """
-function decision_threshold(test_struct::CvMValidationTest, α::Real = 0.05)
+function decision_threshold(test_struct::CvMValidationTest, α::Real=0.05)
     0 < α < 1 || throw(ArgumentError("The test level should be in (0, 1), got $α."))
 
     return quantile(test_struct.null_distribution, 1. - α)
@@ -43,7 +43,7 @@ end
 
 Return whether the validation test rejects the null hypothesis at level `α`.
 """
-function decision(test_struct::CvMValidationTest, α::Real = 0.05)
+function decision(test_struct::CvMValidationTest, α::Real=0.05)
     threshold = decision_threshold(test_struct, α)
 
     return test_struct.test_statistic > threshold
@@ -56,7 +56,7 @@ end
 
 """
     scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
-        tag_out = nothing, q::Integer = 100)
+        tag_out = nothing, q::Integer = 20, nquad::Integer = max(5q, q + 20))
 
 Perform the training-validation Cramér--von Mises goodness-of-fit test for a
 scaling model.
@@ -64,28 +64,18 @@ scaling model.
 The duration identified by `tag_out` is used as the validation duration. If
 `tag_out` is not provided, the smallest observed duration is used.
 
-The argument `q` is the number of quadrature points used to approximate the
-eigenvalues of the covariance kernel for the Zolotarev approximation.
+The argument `q` is the number of retained eigenvalues used in the finite
+approximation of the Cramér--von Mises null distribution.
 """
 function scalingtest(
     pd_type::Type{<:MarginalScalingModel},
     data::IDFdata;
     tag_out = nothing,
-    q::Integer = 100,
+    q::Integer = 20,
 )
-
     q > 0 || throw(ArgumentError("q must be positive."))
 
-    tags = gettag(data)
-
-    if tag_out === nothing
-        durations = [getduration(data, tag) for tag in tags]
-        tag_out = tags[argmin(durations)]
-    elseif !(tag_out in tags)
-        throw(ArgumentError(
-            "duration tag $tag_out does not correspond to an observed duration.",
-        ))
-    end
+    tag_out = _validation_tag(data, tag_out)
 
     # Validation duration and validation data
     d_out = getduration(data, tag_out)
@@ -103,17 +93,14 @@ function scalingtest(
     fitted_model = fit_mle(pd_type, train_data, d_out)
 
     # Test statistic
-    Fθ̂ = getdistribution(fitted_model, d_out)
-    S = cvmcriterion(Fθ̂, y)
+    F = getdistribution(fitted_model, d_out)
+    S = cvmcriterion(F, y)
 
     # Observed information matrix.
     #
     # If H is the observed information summed over the training sample, then
-    # H / ℓ corresponds to
-    #
-    #     (m / ℓ) * Î_m = a * Î_m,
-    #
-    # which is the matrix entering the covariance kernel.
+    # H / ℓ corresponds to the scaled information matrix entering the
+    # covariance kernel.
     H = hessian(fitted_model, train_data)
     A = Symmetric(H / ℓ)
 
@@ -122,13 +109,12 @@ function scalingtest(
     ρ = cvmkernel(g, A)
 
     # Eigenvalues of the covariance kernel
-    λs = approx_eigenvalues(ρ, q)
+    λ = approx_eigenvalues(ρ, q)
 
-    # Zolotarev approximation of the CDF in the upper tail
-    cdf_approx = zolotarev_approx(λs, S)
+    # Test statistic distribution
+    pd = CvMDistribution(λ)
 
-    # Return the p-value
-    return 1 - cdf_approx
+    return CvMValidationTest(fitted_model, S, pd)
 end
 
 # Covariance kernel
@@ -230,9 +216,9 @@ Atkinson, K. E. (1975). Convergence rates for approximate eigenvalues of compact
 function approx_eigenvalues(
     ρ::K,
     q::Integer;
-    nquad::Integer = max(5q, q + 20),
-    eigentol::Real = sqrt(eps(Float64))) where {K}
-    
+    nquad::Integer=max(5q, q + 20),
+    eigentol::Real=sqrt(eps(Float64))) where {K}
+
     q > 0 || throw(ArgumentError("q must be positive."))
     nquad >= q || throw(ArgumentError("nquad must be at least q."))
     eigentol >= 0 || throw(ArgumentError("eigentol must be non-negative."))
@@ -258,7 +244,7 @@ function approx_eigenvalues(
         throw(ArgumentError("Negative eigenvalue beyond numerical tolerance."))
     end
 
-    λ = sort([λ for λ in λraw if λ > eigentol * scale]; rev = true)
+    λ = sort([λ for λ in λraw if λ > eigentol * scale]; rev=true)
 
     length(λ) >= q || throw(ArgumentError("Fewer than q positive eigenvalues were found."))
 
@@ -287,7 +273,7 @@ function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
 
     x̃ = sort(x)
 
-    ω² = 1/(12*n) + sum( ((2*i-1)/(2*n) - cdf(pd,x̃[i]) )^2 for i=1:n)
+    ω² = 1/(12*n) + sum(((2*i-1)/(2*n) - cdf(pd, x̃[i]))^2 for i=1:n)
 
     return ω²
 
@@ -307,14 +293,14 @@ Note: we do not use this approximation anymore and now rely on a method similar 
 function zolotarev_approx(
     λs::AbstractVector{<:Real},
     x::Real;
-    tail_threshold::Real = 0.95,
-    atol::Real = 1e-12,
-    rtol::Real = 1e-10,
+    tail_threshold::Real=0.95,
+    atol::Real=1e-12,
+    rtol::Real=1e-10,
 )
     x > 0 || throw(ArgumentError("x must be positive."))
 
     # Keep only positive eigenvalues and sort them in decreasing order.
-    λ = sort(filter(λᵢ -> λᵢ > 0, Float64.(λs)); rev = true)
+    λ = sort(filter(λᵢ -> λᵢ > 0, Float64.(λs)); rev=true)
 
     length(λ) >= 1 || throw(ArgumentError(
         "The vector of eigenvalues must contain at least one positive element.",
@@ -323,10 +309,10 @@ function zolotarev_approx(
     γ₁ = λ[1]
 
     # Multiplicity of the largest eigenvalue, up to numerical tolerance.
-    m₁ = count(λᵢ -> isapprox(λᵢ, γ₁; atol = atol, rtol = rtol), λ)
+    m₁ = count(λᵢ -> isapprox(λᵢ, γ₁; atol=atol, rtol=rtol), λ)
 
     # Eigenvalues strictly smaller than the largest one.
-    λrest = λ[(m₁ + 1):end]
+    λrest = λ[(m₁+1):end]
 
     log_product_term =
         isempty(λrest) ? 0.0 :

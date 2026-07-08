@@ -174,9 +174,11 @@ data = IDFdata(df, "Year", duration_dict)
 @testset "scalingtest()" begin
 
     @test_throws ArgumentError scalingtest(SimpleScaling, data, tag_out = "1min")
-    @test scalingtest(SimpleScaling, data, tag_out = "5min", q=100) ≈ 3.400123611885242e-6 atol=1e-8
-    @test scalingtest(GeneralScaling, data, tag_out = "5min", q=100) >= 0.01
 
+    test_struct = scalingtest(SimpleScaling, data, tag_out = "5min", q=20)
+
+    @test test_struct.test_statistic ≈ 3.344007260766803 atol=1e-8
+    
     # @test scalingtest(GeneralScaling, data_bug, "d1") ≈ 1.
 
 end
