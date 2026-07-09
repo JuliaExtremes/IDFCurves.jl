@@ -75,7 +75,11 @@ function scalingtest(
 )
     q > 0 || throw(ArgumentError("q must be positive."))
 
-    tag_out = _validation_tag(data, tag_out)
+    if tag_out === nothing
+        tag_out = _validation_tag(data)
+    else
+        tag_out = _validation_tag(data, tag_out)
+    end
 
     # Validation duration and validation data
     d_out = getduration(data, tag_out)
@@ -334,3 +338,155 @@ function zolotarev_approx(
 
     return approx_cdf
 end
+
+
+
+
+
+"""
+    scalingtest_bootstrap(fitted_model::MarginalScalingModel, data::IDFdata;
+        tag_out = nothing, B::Integer = 999, rng = Random.default_rng())
+
+Generate dependence-aware bootstrap replicates of the training-validation
+Cramér--von Mises goodness-of-fit test.
+
+The bootstrap resamples entire yearly rank vectors across durations. This
+preserves the empirical cross-duration dependence while imposing the fitted
+scaling model on the marginal distributions through `fitted_model`.
+
+The duration identified by `tag_out` is used as the validation duration. If
+`tag_out` is not provided, the smallest observed duration is used.
+
+The function returns a vector of `CvMValidationTest` objects, one for each
+bootstrap sample.
+"""
+function scalingtest_bootstrap(
+    fitted_model::MarginalScalingModel,
+    data::IDFdata;
+    tag_out = nothing,
+    B::Integer = 999,
+    rng = Random.default_rng(),
+)
+    B > 0 || throw(ArgumentError("B must be positive."))
+
+    pd_type = scalingtype(fitted_model)
+
+    tags = gettag(data)
+    if tag_out === nothing
+        tag_out = _validation_tag(data)
+    else
+        tag_out = _validation_tag(data, tag_out)
+    end
+
+    # Restrict the bootstrap to complete years across all durations.
+    years = _common_years(data, tags)
+
+    length(years) > 0 || throw(ArgumentError(
+        "There is no common year across all durations.",
+    ))
+
+    data_common = _restrict_years(data, years; tags = tags)
+
+    # Empirical cross-duration dependence, represented by yearly rank vectors.
+    U = _pseudoobs_matrix(data_common, tags)
+    n = size(U, 1)
+
+    Tstar = Vector{CvMValidationTest}(undef, B)
+
+    # Generate bootstrap indices sequentially to avoid sharing the RNG across threads.
+    bootstrap_indices = [rand(rng, 1:n, n) for _ in 1:B]
+
+    for b in 1:B
+        idx = bootstrap_indices[b]
+        Ustar = U[idx, :]
+
+        data_star = _idfdata_from_pseudoobs(data_common, fitted_model, Ustar)
+
+        Tstar[b] = scalingtest(pd_type, data_star; tag_out = tag_out)
+    end
+
+    return Tstar
+end
+
+
+"""
+    _pseudoobs_matrix(data::IDFdata, tags::AbstractVector{<:AbstractString})
+
+Return the matrix of rank-based pseudo-observations for the durations identified by `tags`.
+
+### Details
+
+Each column corresponds to one duration and is obtained as `tiedrank(y) / (n + 1)`.
+All durations must have the same number of common years.
+"""
+function _pseudoobs_matrix(
+    data::IDFdata,
+    tags::AbstractVector{<:AbstractString},
+)
+
+    n = length(getdata(data, tags[1]))
+    p = length(tags)
+
+    U = Matrix{Float64}(undef, n, p)
+
+    for (j, tag) in enumerate(tags)
+        y = getdata(data, tag)
+
+        length(y) == n || throw(ArgumentError(
+            "All durations must have the same number of common years.",
+        ))
+
+        # Rank transformation
+        U[:, j] .= StatsBase.tiedrank(y) ./ (n + 1)
+    end
+
+    return U
+end
+
+"""
+    _idfdata_from_pseudoobs(template, fitted_model, U)
+
+Transform pseudo-observations into an `IDFdata` object using the fitted marginal
+scaling model.
+
+Each column of `U` corresponds to one duration in `template`. For duration `d`,
+pseudo-observations are mapped back to the data scale with
+
+    quantile(getdistribution(fitted_model, d), U[i, j]).
+
+The returned `IDFdata` keeps the duration tags and durations from `template`,
+uses bootstrap years `1:n`, and contains the transformed observations.
+"""
+function _idfdata_from_pseudoobs(
+    template::IDFdata,
+    fitted_model::MarginalScalingModel,
+    U::AbstractMatrix{<:Real},
+)
+    n, p = size(U)
+
+    tags = gettag(template)
+    
+    p == length(tags) || throw(ArgumentError(
+        "The number of columns in U must match the number of duration tags in template.",
+    ))
+
+    new_tag = String.(collect(tags))
+
+    new_duration = Dict{String,Float64}()
+    new_year = Dict{String,Vector{Int64}}()
+    new_data = Dict{String,Vector{Float64}}()
+
+    bootstrap_years = collect(Int64, 1:n)
+
+    for (j, tag) in enumerate(new_tag)
+        d = getduration(template, tag)
+        pd = getdistribution(fitted_model, d)
+
+        new_duration[tag] = Float64(d)
+        new_year[tag] = copy(bootstrap_years)
+        new_data[tag] = [Float64(quantile(pd, U[i, j])) for i in 1:n]
+    end
+
+    return IDFdata(new_tag, new_duration, new_year, new_data)
+end
+

@@ -1,7 +1,7 @@
 module IDFCurves
 
 using CSV, DataFrames, Distributions, ForwardDiff, Gadfly, LinearAlgebra, LogExpFunctions, Optim, PDMats, SpecialFunctions, Extremes, Combinatorics, StatsBase
-import BesselK, QuadGK
+import BesselK, QuadGK, Random
 
 import Base: exponent, rand
 import Distributions: ContinuousUnivariateDistribution, cdf, ccdf,  dof, mean, location, loglikelihood, logpdf, params, quantile, rand, scale, shape, std, var

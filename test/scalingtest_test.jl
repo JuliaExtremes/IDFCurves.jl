@@ -182,3 +182,45 @@ data = IDFdata(df, "Year", duration_dict)
     # @test scalingtest(GeneralScaling, data_bug, "d1") ≈ 1.
 
 end
+
+@testset "_pseudoobs_matrix()" begin
+
+    new_tags = ["5min", "10min"]
+    new_durations = Dict("5min" => 5/60, "10min" => 10/60)
+    new_years = Dict("5min" => collect(2000:2002), "10min" => collect(2000:2002))
+    new_obs = Dict("5min" => [3.0, 1.0, 2.0], "10min" => [10.0, 20.0, 20.0])
+    new_data = IDFdata(new_tags, new_durations, new_years, new_obs)
+
+    u = IDFCurves._pseudoobs_matrix(new_data, ["5min", "10min"])
+
+    @test u[:, 1] ≈ [3/4, 1/4, 2/4]
+    @test u[:, 2] ≈ [1/4, 2.5/4, 2.5/4]
+
+end
+
+@testset "_idfdata_from_pseudoobs()" begin
+
+    import IDFCurves: _idfdata_from_pseudoobs 
+
+    U = [0.1  0.2  0.3  0.4  0.5  0.6  0.7  0.8  0.9]
+
+    fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
+
+    new_data = _idfdata_from_pseudoobs(data, fd, U)
+
+    @test gettag(new_data) == tags
+
+    for tag in tags
+        @test getduration(new_data, tag) == getduration(data, tag)
+        @test getyear(new_data, tag) == collect(1:size(U, 1))
+    end
+
+    for (j, tag) in enumerate(tags)
+        d = getduration(data, tag)
+        pd = getdistribution(fd, d)
+
+        expected = [Float64(quantile(pd, U[i, j])) for i in axes(U, 1)]
+
+        @test getdata(new_data, tag) ≈ expected
+    end
+end
