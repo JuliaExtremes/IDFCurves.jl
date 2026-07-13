@@ -41,9 +41,11 @@
 
     end
 
-    @testset "excludeduration(::IDFdata, d)" begin
+    @testset "excludeduration(::IDFdata, tag_out::String)" begin
 
-        s2 = IDFCurves.excludeduration(s, 1)
+        @test_throws ArgumentError IDFCurves.excludeduration(s, "nonextistant_tag")
+
+        s2 = IDFCurves.excludeduration(s, "1h")
         @test getdata(s2) == Dict("30min" => y[:, 1], "24h" => y[:, 3])
         @test getduration(s2) == Dict("30min" => 0.5, "24h" => 24.)
         @test getyear(s2) == Dict("30min" => years, "24h" => years)

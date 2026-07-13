@@ -91,7 +91,7 @@ function scalingtest(
     ))
 
     # Training data
-    train_data = excludeduration(data, d_out)
+    train_data = excludeduration(data, tag_out)
 
     # Fit the scaling model using the training durations only
     fitted_model = fit_mle(pd_type, train_data, d_out)

@@ -163,20 +163,28 @@ function gettag(data::IDFdata, d::Real)
 end
 
 """
-    excludeduration(data::IDFdata, d::Real)
+    excludeduration(data::IDFdata, tag_out::String)
 
-Remove the data of `data` corresponding to the duration `d`.
+Remove data of `data` corresponding to the duration identified by `tag_out`.
 """
-function excludeduration(data::IDFdata, d::Real)
+function excludeduration(data::IDFdata, tag_out::String)
+
+    tags = gettag(data)
+
+    if tag_out ∉ tags
+        throw(ArgumentError("tag_out not in the tags, got '$tag_out'."))
+    end
 
     new_year = Dict{String, Vector{Int64}}()
     new_data = Dict{String, Vector{Float64}}()
-    new_duration = Dict(k => v for (k, v) in getduration(data) if k != gettag(data, d))
+    new_duration = Dict{String, Float64}()
 
-    new_tag = collect(keys(new_duration))
+    new_tag = setdiff(tags, [tag_out])
+
     for key in new_tag
         new_year[key] = getyear(data, key)
         new_data[key] = getdata(data, key)
+        new_duration[key] = getduration(data, key)
     end
 
     return IDFdata(new_tag, new_duration, new_year, new_data)

@@ -17,7 +17,7 @@
         @test !insupport(d, -eps())
 
         xs = [1.0, 2.0, 5.0]
-        ps = ccdf(d, xs)
+        ps = ccdf.(d, xs)
         # Expected values obtained using ccdf on GeneralizedChisq(λ, ones(Float64, length(λ)), zeros(Float64, length(λ)), 0.0, 0.0) from GeneralizedChisqDistribution.jl
         ps = [0.5207596726624824
             0.05235770081094071
