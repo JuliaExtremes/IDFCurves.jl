@@ -163,20 +163,28 @@ function gettag(data::IDFdata, d::Real)
 end
 
 """
-    excludeduration(data::IDFdata, d::Real)
+    excludeduration(data::IDFdata, tag_out::String)
 
-Remove the data of `data` corresponding to the duration `d`.
+Remove data of `data` corresponding to the duration identified by `tag_out`.
 """
-function excludeduration(data::IDFdata, d::Real)
+function excludeduration(data::IDFdata, tag_out::String)
+
+    tags = gettag(data)
+
+    if tag_out ∉ tags
+        throw(ArgumentError("tag_out not in the tags, got '$tag_out'."))
+    end
 
     new_year = Dict{String, Vector{Int64}}()
     new_data = Dict{String, Vector{Float64}}()
-    new_duration = Dict(k => v for (k, v) in getduration(data) if k != gettag(data, d))
+    new_duration = Dict{String, Float64}()
 
-    new_tag = collect(keys(new_duration))
+    new_tag = setdiff(tags, [tag_out])
+
     for key in new_tag
         new_year[key] = getyear(data, key)
         new_data[key] = getdata(data, key)
+        new_duration[key] = getduration(data, key)
     end
 
     return IDFdata(new_tag, new_duration, new_year, new_data)
@@ -226,5 +234,80 @@ function getKendalldata(obj::IDFdata)
     end
 
     return df_kendall
+
+end
+
+"""
+    _common_years(data::IDFdata, tags::AbstractVector{<:AbstractString})
+
+Extract the common years vector of the records in `data` corresponding to the `tags`.
+"""
+function _common_years(data::IDFdata, tags::AbstractVector{<:AbstractString})
+
+    isempty(tags) && throw(ArgumentError("The data set must contain at least one duration."))
+
+    common = Set(getyear(data, tags[1]))
+
+    for tag in tags[2:end]
+        intersect!(common, Set(getyear(data, tag)))
+    end
+
+    return sort!(collect(common))
+end
+
+"""
+    _restrict_years(data::IDFdata, years::AbstractVector{<:Integer}; tags = gettag(data))
+
+Return a new `IDFdata` struct restrained to the `years` for each `tags`.    
+"""
+function _restrict_years(
+    data::IDFdata,
+    years::AbstractVector{<:Integer};
+    tags=gettag(data),
+)
+
+    new_tag = String.(collect(tags))
+
+    new_duration = Dict{String,Float64}()
+    new_year = Dict{String,Vector{Int64}}()
+    new_data = Dict{String,Vector{Float64}}()
+
+    years_vec = Int64.(collect(years))
+
+    for tag in new_tag
+        new_duration[tag] = Float64(getduration(data, tag))
+        new_year[tag] = copy(years_vec)
+        new_data[tag] = [Float64(getdata(data, tag, year)) for year in years_vec]
+    end
+
+    return IDFdata(new_tag, new_duration, new_year, new_data)
+end
+
+"""
+    _validation_tag(data::IDFdata, tag_out)
+
+The function returns the tag if it exists in `data`, otherwise, the function throws an error.
+"""
+function _validation_tag(data::IDFdata, tag_out)
+
+    tags = gettag(data)
+
+    if tag_out in tags
+        return tag_out
+    else
+        throw(ArgumentError("duration tag $tag_out does not correspond to an observed duration."))
+    end
+end
+
+"""
+    _validation_tag(data::IDFdata)
+
+    The tag corresponding to the minimal duration in `data` is returned.   
+"""
+function _validation_tag(data::IDFdata)
+
+    tags = gettag(data)
+    durations = [getduration(data, tag) for tag in tags]
+    return tags[argmin(durations)]
 
 end
