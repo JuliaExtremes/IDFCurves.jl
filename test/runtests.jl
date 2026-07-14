@@ -6,5 +6,5 @@ using CSV, DataFrames, Distributions, ForwardDiff, LinearAlgebra, PDMats, Random
     include("data_test.jl")
     include("structures_test.jl")
     include("scalingtest_test.jl")
-    # include("misspecification_test.jl")
+    include("misspecification_test.jl")
 end
