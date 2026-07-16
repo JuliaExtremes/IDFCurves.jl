@@ -136,22 +136,57 @@ end
 
 ### Fit
 
+"""
+    fit_mle(::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
 
-function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real, initialvalues::AbstractVector{<:Real})
+Fit a marginal scaling model by maximum likelihood using `initialmodel` for initialization.
+"""
+function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
 
-    fitted_global_model = fit_mle(DependentScalingModel{pd_type, UncorrelatedStructure, IdentityCopula}, data, d₀, initialvalues)
+    IDFCurves.scalingtype(initialmodel) == pd || 
+        throw(ArgumentError("Model and initial model must be of the same type, got $pd ≠ $(IDFCurves.scalingtype(initialmodel))"))
+
+    d₀ = duration(initialmodel)
+
+    initialvalues = collect(params(initialmodel))
+
+    θ₀ = map_to_real_space(pd, initialvalues)
+
+    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
+
+    isfinite(fobj(θ₀)) || 
+        throw(ArgumentError("The initial model has a nonfinite log-likelihood. At least one observation may lie outside its support."))
     
-    return getmarginalmodel(fitted_global_model)
+    res = Optim.optimize(fobj, θ₀)
+
+    if Optim.converged(res)
+        θ̂ = Optim.minimizer(res)
+    else
+        @warn "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values."
+        θ̂ = θ₀
+    end
+
+    return model(θ̂)
 
 end
 
-function fit_mle(pd_type::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
+"""
+    fit_mle(::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
 
-    fitted_global_model = fit_mle(DependentScalingModel{pd_type, UncorrelatedStructure, IdentityCopula}, data, d₀)
-    
-    return getmarginalmodel(fitted_global_model)
+Fit a marginal scaling model by maximum likelihood using automatically generated initial values.
+"""
+function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
+
+    (d₀ > 0) ||  throw(ArgumentError("Reference duration must be positive, got d₀=$d₀"))
+
+    initialmodel = initialize(pd, data, d₀)
+
+    return fit_mle(pd, data, initialmodel)
 
 end
+
+#TODO Specialize the methods for MarginalScalingModel without using DependentScalingModel
 
 """
 

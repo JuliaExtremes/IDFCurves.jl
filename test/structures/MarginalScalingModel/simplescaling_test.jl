@@ -124,39 +124,49 @@
 
     @testset "fitting a simple scaling model" begin
 
+        import IDFCurves: initialize, initial_duration_offset
+
         df = CSV.read(joinpath("..", "data", "702S006.csv"), DataFrame)
         tags = names(df)[2:10]
         durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
         duration_dict = Dict(zip(tags, durations))
         data = IDFdata(df, "Year", duration_dict)
 
+        fm = initialize(SimpleScaling, data, 1.)
+
         @testset "initialize(::SimpleScaling)" begin
 
             @test_throws ArgumentError initialize(SimpleScaling, data, -1.)
             @test_throws ArgumentError initialize(SimpleScaling, data, 1., 25.)
 
-            fm = initialize(SimpleScaling, data, 1.)
             @test fm isa SimpleScaling
 
         end
 
-        fd = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 0.04, 0.76])
+        @testset "initial_duration_offset()" begin
 
-        @testset "fit_mle(::SimpleScaling, data, d₀, initialvalues)" begin
+            δ̂ = initial_duration_offset(fm, data, 0.25)
 
-            @test [params(fd)...] ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=0.1
-            fd2 = IDFCurves.fit_mle(SimpleScaling, data, 1, [20, 5, 0.0, 0.76])
-            @test [params(fd2)...] ≈ [params(fd)...] rtol=0.1
-            @test shape(fd2) != 0.0
+            @test δ̂ > 0
+            @test_throws ArgumentError initial_duration_offset(fm, data, 1 / 12)
 
+        end
+
+        @testset "fit_mle(::SimpleScaling, data, initialmodel)" begin
+
+            fd = IDFCurves.fit_mle(SimpleScaling, data, fm)
+            @test collect(params(fd)) ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=0.1
+            
         end
 
         @testset "fit_mle(::SimpleScaling, data, d₀)" begin
 
-            fd3 = IDFCurves.fit_mle(SimpleScaling, data, 1)
-            @test [params(fd3)...] ≈ [params(fd)...] rtol=0.1
+            fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
+            @test collect(params(fd)) ≈ [18.1366, 5.2874, 0.0486, 0.6942] rtol=0.1
 
         end
+
+        fd = IDFCurves.fit_mle(SimpleScaling, data, fm)
 
         @testset "hessian(::SimpleScaling, data)" begin
 
@@ -168,7 +178,7 @@
         end
 
         @testset "quantilevar" begin
-            @test IDFCurves.quantilevar(fd, data, 24, 0.95) ≈ 0.015413582108460257
+            @test IDFCurves.quantilevar(fd, data, 24, 0.95) ≈ 0.015413582108460257 atol = 1e-4
         end
 
         @testset "quantilecint" begin

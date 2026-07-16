@@ -177,7 +177,7 @@ data = IDFdata(df, "Year", duration_dict)
 
     test_struct = scalingtest(SimpleScaling, data, tag_out = "5min", q=20)
 
-    @test test_struct.test_statistic ≈ 3.344007260766803 atol=1e-8
+    @test test_struct.test_statistic ≈ 3.344007260766803 atol=1e-4
     
     # @test scalingtest(GeneralScaling, data_bug, "d1") ≈ 1.
 

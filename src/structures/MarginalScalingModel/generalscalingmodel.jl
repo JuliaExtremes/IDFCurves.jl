@@ -151,15 +151,27 @@ function Base.show(io::IO, obj::GeneralScaling)
 end
 
 """
-    initialize(::Type{<:GeneralScaling}, data::IDFdata, d₀::Real)
+    initialize(::Type{<:GeneralScaling}, data::IDFdata, d₀::Real, threshold::Real=0.25)
 
-Initialize a vector of parameters for the GeneralScaling marginal model with reference duration d₀, adapted to the data.
-The initialization is the same as for the SImpleScaling model. δ is initialized at (close to) 0 as a default.
+Construct an initial `GeneralScaling` model from `data`, using `threshold` to
+separate the durations used to initialize the scaling parameters and offset.
 """
-function initialize(::Type{<:GeneralScaling}, data::IDFdata, d₀::Real)
-    
-    init_simple_scaling = initialize(SimpleScaling, data, d₀)
+function initialize(
+    ::Type{<:GeneralScaling},
+    data::IDFdata,
+    d₀::Real,
+    threshold::Real=0.25,
+)
 
-    return [ init_simple_scaling ; [0.001] ]
+    d₀ > 0 || throw(ArgumentError("Reference duration must be positive, got d₀=$d₀"))
 
+    ss = initialize(SimpleScaling, data, d₀, threshold)
+
+    μ₀ = location(ss)
+    σ₀ = IDFCurves.scale(ss)
+    ξ = shape(ss)
+    α = exponent(ss)
+    δ = initial_duration_offset(ss, data, threshold)
+
+    return GeneralScaling(d₀, μ₀, σ₀, ξ, α, δ)
 end

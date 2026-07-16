@@ -188,3 +188,49 @@ function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real, lower_th
     return SimpleScaling(d₀, μ₀, σ₀, 0.0, α)
 
 end
+
+"""
+    initial_duration_offset(fm::SimpleScaling, data::IDFdata, upper_threshold::Real=0.25)
+
+Estimate an initial duration offset from Gumbel location estimates at durations
+below `upper_threshold`.
+"""
+function initial_duration_offset(
+    fm::SimpleScaling,
+    data::IDFdata,
+    upper_threshold::Real=0.25,
+)
+
+    d₀ = duration(fm)
+
+    d = getduration.(data, gettag(data))
+    filter!(dᵢ -> dᵢ < upper_threshold && dᵢ != d₀, d)
+
+    isempty(d) && throw(ArgumentError("No durations below upper_threshold=$upper_threshold are available for estimating δ."))
+
+    tags = gettag.(data, d)
+
+    α = exponent(fm)
+    μ₀ = location(fm)
+
+    μ₀ > 0 || throw(ArgumentError("The reference location must be positive for estimating δ, got μ₀=$μ₀."
+    ))
+
+    μ = Vector{Float64}(undef, length(tags))
+
+    for (i, tag) in enumerate(tags)
+        fd = fit(Gumbel, getdata(data, tag), method="pwm")
+        μ[i] = location(fd)
+    end
+
+    all(>(0), μ) || throw(ArgumentError("The fitted Gumbel locations must be positive for estimating δ."))
+
+    z = -log.(μ ./ μ₀) ./ α
+    δ = (d .- d₀) ./ expm1.(z) .- d₀
+
+    filter!(isfinite, δ)
+
+    isempty(δ) && throw(ArgumentError("The duration offset could not be estimated from the selected durations."))
+
+    return max(median(δ), 0.)
+end

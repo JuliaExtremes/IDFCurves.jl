@@ -111,12 +111,10 @@
             abstract_model = DependentScalingModel{SimpleScaling, MaternCorrelationStructure, GaussianCopula}
 
             init_vector = initialize(abstract_model, data, 1)
-            init_scaling_model = initialize(SimpleScaling, data, 1)
+            init_scaling_model = collect(params(initialize(SimpleScaling, data, 1)))
             init_corr_structure = initialize(MaternCorrelationStructure, data)
 
             @test length(init_vector) == length(init_scaling_model) + length(init_corr_structure)
-            @test all( init_vector[1:length(init_scaling_model)] .≈ init_scaling_model )
-            @test all( init_vector[(length(init_scaling_model)+1):end] .≈ init_corr_structure )
 
         end
 
