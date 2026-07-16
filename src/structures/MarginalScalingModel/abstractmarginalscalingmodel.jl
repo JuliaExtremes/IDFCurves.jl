@@ -186,7 +186,7 @@ function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
 
 end
 
-#TODO Specialize the methods for MarginalScalingModel without using DependentScalingModel
+
 
 """
 
@@ -194,11 +194,22 @@ end
 
 Compute the Hessian matrix of the loglikelihood of the fitted scaling model `fd` associated with the IDF data `data`.
 """
-function hessian(fd::MarginalScalingModel, data::IDFdata)
+function hessian(fm::MarginalScalingModel, data::IDFdata)
 
-    return hessian(DependentScalingModel(fd, UncorrelatedStructure(), IdentityCopula), data)
+    T = scalingtype(fm)
+    d₀ = duration(fm)
+    θ̂ = collect(params(fm))
+
+    model(θ::DenseVector{<:Real}) = T(d₀, θ...)
+    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
+
+    H = ForwardDiff.hessian(fobj, θ̂)
+
+    return PDMat(Symmetric(H))
 
 end
+
+#TODO Specialize the methods for MarginalScalingModel without using DependentScalingModel
 
 """
     godambe(fd::GeneralScaling, data::IDFdata)
