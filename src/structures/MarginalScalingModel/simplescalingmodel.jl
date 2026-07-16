@@ -232,5 +232,5 @@ function initial_duration_offset(
 
     isempty(δ) && throw(ArgumentError("The duration offset could not be estimated from the selected durations."))
 
-    return max(median(δ), 0.)
+    return max(median(δ), sqrt(eps()))
 end
