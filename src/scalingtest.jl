@@ -55,25 +55,62 @@ end
 
 
 """
-    scalingtest(pd_type::Type{<:MarginalScalingModel}, data::IDFdata;
-        tag_out = nothing, q::Integer = 20, nquad::Integer = max(5q, q + 20))
+    scalingtest(::Type{<:MarginalScalingModel}, data::IDFdata;
+        tag_out=nothing, q::Integer=20)
 
-Perform the training-validation Cramér--von Mises goodness-of-fit test for a
-scaling model.
+    scalingtest(::Type{<:MarginalScalingModel}, data::IDFdata,
+        initialmodel::MarginalScalingModel;
+        tag_out=nothing, q::Integer=20)
 
-The duration identified by `tag_out` is used as the validation duration. If
-`tag_out` is not provided, the smallest observed duration is used.
+Perform the training-validation Cramér--von Mises test for a marginal scaling
+model, optionally using a supplied initial model.
 
-The argument `q` is the number of retained eigenvalues used in the finite
-approximation of the Cramér--von Mises null distribution.
+The duration identified by `tag_out` is used for validation. If `tag_out` is
+not provided, the smallest observed duration is used. The argument `q` is the
+number of eigenvalues retained to approximate the null distribution of the
+test statistic.
 """
+function scalingtest end
+
+
 function scalingtest(
     pd_type::Type{<:MarginalScalingModel},
     data::IDFdata;
+    tag_out=nothing,
+    q::Integer=20,
+)
+
+    q > 0 || throw(ArgumentError("q must be positive."))
+
+    tag_out = if isnothing(tag_out)
+        _validation_tag(data)
+    else
+        _validation_tag(data, tag_out)
+    end
+
+    train_data = excludeduration(data, tag_out)
+    initialmodel = initialize(pd_type, train_data, 1.0)
+
+    return scalingtest(
+        pd_type,
+        data,
+        initialmodel;
+        tag_out=tag_out,
+        q=q,
+    )
+end
+
+function scalingtest(
+    pd_type::Type{<:MarginalScalingModel},
+    data::IDFdata,
+    initialmodel::MarginalScalingModel;
     tag_out = nothing,
     q::Integer = 20,
 )
     q > 0 || throw(ArgumentError("q must be positive."))
+
+    scalingtype(initialmodel) === pd_type ||
+          throw(ArgumentError("Model and initial model must be of the same type, got $pd_type ≠ $(scalingtype(initialmodel))"))
 
     if tag_out === nothing
         tag_out = _validation_tag(data)
@@ -94,7 +131,7 @@ function scalingtest(
     train_data = excludeduration(data, tag_out)
 
     # Fit the scaling model using the training durations only
-    fitted_model = fit_mle(pd_type, train_data, d_out)
+    fitted_model = fit_mle(pd_type, train_data, initialmodel)
 
     # Test statistic
     F = getdistribution(fitted_model, d_out)
@@ -344,30 +381,44 @@ end
 
 
 """
-    scalingtest_bootstrap(fitted_model::MarginalScalingModel, data::IDFdata;
-        tag_out = nothing, B::Integer = 999, rng = Random.default_rng())
+    scalingtest_bootstrap(
+        fitted_model::MarginalScalingModel,
+        data::IDFdata;
+        tag_out=nothing,
+        B::Integer=999,
+        rng=Random.default_rng(),
+    )
 
-Generate dependence-aware bootstrap replicates of the training-validation
-Cramér--von Mises goodness-of-fit test.
+    scalingtest_bootstrap(
+        fitted_model::MarginalScalingModel,
+        data::IDFdata,
+        initialmodel::MarginalScalingModel;
+        tag_out=nothing,
+        B::Integer=999,
+        rng=Random.default_rng(),
+    )
 
-The bootstrap resamples entire yearly rank vectors across durations. This
-preserves the empirical cross-duration dependence while imposing the fitted
-scaling model on the marginal distributions through `fitted_model`.
+Generate `B` dependence-aware bootstrap replicates of the training-validation
+Cramér--von Mises test, optionally using a supplied initial model.
 
-The duration identified by `tag_out` is used as the validation duration. If
-`tag_out` is not provided, the smallest observed duration is used.
-
-The function returns a vector of `CvMValidationTest` objects, one for each
-bootstrap sample.
+Entire yearly rank vectors are resampled to preserve the empirical dependence
+across durations. The argument `tag_out` identifies the validation duration,
+and `rng` controls the random-number generation.
 """
+function scalingtest_bootstrap end
+
 function scalingtest_bootstrap(
     fitted_model::MarginalScalingModel,
-    data::IDFdata;
+    data::IDFdata,
+    initialmodel::MarginalScalingModel;
     tag_out = nothing,
     B::Integer = 999,
     rng = Random.default_rng(),
 )
     B > 0 || throw(ArgumentError("B must be positive."))
+
+    scalingtype(initialmodel) === scalingtype(fitted_model) ||
+          throw(ArgumentError("Fitted model and initial model must be of the same type, got $(scalingtype(fitted_model)) ≠ $(scalingtype(initialmodel))"))
 
     pd_type = scalingtype(fitted_model)
 
@@ -402,10 +453,34 @@ function scalingtest_bootstrap(
 
         data_star = _idfdata_from_pseudoobs(data_common, fitted_model, Ustar)
 
-        Tstar[b] = scalingtest(pd_type, data_star; tag_out = tag_out)
+        Tstar[b] = scalingtest(pd_type, data_star, initialmodel; tag_out = tag_out)
     end
 
     return Tstar
+end
+
+function scalingtest_bootstrap(
+    fitted_model::MarginalScalingModel,
+    data::IDFdata;
+    tag_out=nothing,
+    B::Integer=999,
+    rng=Random.default_rng(),
+)
+    B > 0 || throw(ArgumentError("B must be positive."))
+
+    pd_type = scalingtype(fitted_model)
+
+    tags = gettag(data)
+    if tag_out === nothing
+        tag_out = _validation_tag(data)
+    else
+        tag_out = _validation_tag(data, tag_out)
+    end
+
+    train_data = excludeduration(data, tag_out)
+    initialmodel = initialize(pd_type, train_data, 1.0)
+
+    return scalingtest_bootstrap(fitted_model, data, initialmodel; tag_out=tag_out, B=B, rng=rng)
 end
 
 
