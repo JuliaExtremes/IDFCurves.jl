@@ -4,9 +4,12 @@
 using Pkg
 pkg"activate ."
 
-using DataFrames, Distributions, Extremes, IDFCurves, LinearAlgebra
+using DataFrames, Distributions, Extremes, IDFCurves, LinearAlgebra, Optim
 using Cairo, Gadfly, Fontconfig
 
+using Test
+
+## Application
 
 # data at Mtl Trudeau
 df = IDFCurves.dataset("702S006")
@@ -19,7 +22,7 @@ data = IDFdata(df, "Year", duration_dict)
 fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(SimpleScaling, data, tag_out = "5min")
+T = scalingtest(SimpleScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -35,7 +38,7 @@ adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 fd = IDFCurves.fit_mle(GeneralScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(GeneralScaling, data, tag_out = "5min")
+T = scalingtest(GeneralScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -54,7 +57,7 @@ q, _ = Extremes.ecdf(getdata(data, "5min"))
 function F(q::AbstractVector{<:Real}, x::Real)
 
     # issorted(q) || throw(ArgumentError("quantiles must be sorted"))
-    return count(q .≤ x) / (length(q) + 1. )
+    return count(q .≤ x) / (length(q) + 1.)
 
 end
 
@@ -67,7 +70,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 250,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Mtl_cdf_simplescaling.pdf"), fig)
 
@@ -80,7 +83,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 250,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Mtl_cdf_generalscaling.pdf"), fig)
 
@@ -100,7 +103,7 @@ data = IDFdata(df, "Year", duration_dict)
 fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(SimpleScaling, data, tag_out = "5min")
+T = scalingtest(SimpleScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -116,7 +119,7 @@ adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 fd = IDFCurves.fit_mle(GeneralScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(GeneralScaling, data, tag_out = "5min")
+T = scalingtest(GeneralScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -135,7 +138,7 @@ q, _ = Extremes.ecdf(getdata(data, "5min"))
 function F(q::AbstractVector{<:Real}, x::Real)
 
     # issorted(q) || throw(ArgumentError("quantiles must be sorted"))
-    return count(q .≤ x) / (length(q) + 1. )
+    return count(q .≤ x) / (length(q) + 1.)
 
 end
 
@@ -148,7 +151,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 150,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Van_cdf_simplescaling.pdf"), fig)
 
@@ -161,7 +164,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 150,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Mtl_cdf_generalscaling.pdf"), fig)
 
@@ -182,7 +185,7 @@ data = IDFdata(df, "Year", duration_dict)
 fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(SimpleScaling, data, tag_out = "5min")
+T = scalingtest(SimpleScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -198,7 +201,7 @@ adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 fd = IDFCurves.fit_mle(GeneralScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(GeneralScaling, data, tag_out = "5min")
+T = scalingtest(GeneralScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -217,7 +220,7 @@ q, _ = Extremes.ecdf(getdata(data, "5min"))
 function F(q::AbstractVector{<:Real}, x::Real)
 
     # issorted(q) || throw(ArgumentError("quantiles must be sorted"))
-    return count(q .≤ x) / (length(q) + 1. )
+    return count(q .≤ x) / (length(q) + 1.)
 
 end
 
@@ -230,7 +233,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 150,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Tor_cdf_simplescaling.pdf"), fig)
 
@@ -243,7 +246,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 150,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Tor_cdf_generalscaling.pdf"), fig)
 
@@ -265,7 +268,7 @@ data = IDFdata(df, "Year", duration_dict)
 fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(SimpleScaling, data, tag_out = "5min")
+T = scalingtest(SimpleScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -281,7 +284,7 @@ adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 fd = IDFCurves.fit_mle(GeneralScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(GeneralScaling, data, tag_out = "5min")
+T = scalingtest(GeneralScaling, data, tag_out="5min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
@@ -300,7 +303,7 @@ q, _ = Extremes.ecdf(getdata(data, "5min"))
 function F(q::AbstractVector{<:Real}, x::Real)
 
     # issorted(q) || throw(ArgumentError("quantiles must be sorted"))
-    return count(q .≤ x) / (length(q) + 1. )
+    return count(q .≤ x) / (length(q) + 1.)
 
 end
 
@@ -313,7 +316,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 150,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Tor_cdf_simplescaling.pdf"), fig)
 
@@ -326,6 +329,7 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 150,
     Guide.xlabel("5-min precipitation intensity (mm/h)"),
     Guide.ylabel("probability"),
     Theme(key_position=:none)
-    )
+)
 
 draw(PDF("Tor_cdf_generalscaling.pdf"), fig)
+

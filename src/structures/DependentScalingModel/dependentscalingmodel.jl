@@ -160,7 +160,7 @@ function initialize(pd::Type{<:DependentScalingModel}, data::IDFdata, d₀::Real
     scaling_model = IDFCurves.getmarginaltype(pd)
     correlogram_model = IDFCurves.getcorrelogramtype(pd)
 
-    init_scaling_params = initialize(scaling_model, data, d₀)
+    init_scaling_params = collect(params(initialize(scaling_model, data, d₀)))
     init_corr_params = initialize(correlogram_model, data)
 
     return [init_scaling_params ; init_corr_params]
