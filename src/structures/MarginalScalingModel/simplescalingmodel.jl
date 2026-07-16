@@ -141,42 +141,50 @@ function Base.show(io::IO, obj::SimpleScaling)
 end
 
 """
-    initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
+    initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real, lower_threshold::Real=0)
 
-Initialize a vector of parameters for the SimpleScaling marginal model with reference duration d₀, adapted to the data.
-The initialization is done by fitting a Gumbel distribution independently for each duration in the data and then estimating the scaling relationship by
-    regression over μ and σ. ξ is initialized at 0 as a default.
+Construct an initial `SimpleScaling` model from IDF data.
+
+Gumbel distributions are fitted independently at each duration using probability
+weighted moments. The scaling exponent and reference-location parameter are then
+initialized by a log-log regression of the fitted Gumbel locations on duration.
+The reference-scale parameter is initialized from the fitted Gumbel scales using
+the same scaling exponent.
 """
-function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real)
+function initialize(::Type{<:SimpleScaling}, data::IDFdata, d₀::Real, lower_threshold::Real=0.0)
 
-    # step 1 : computing Gumbel parameters separately for each duration
-    log_μ_values = Dict{String,Real}()
-    log_σ_values = Dict{String,Real}()
-    duration_tags = gettag(data)
-    for tag in duration_tags
-        try
-            global fm = Extremes.gevfit(getdata(data, tag))
-        catch e
-            global fm = Extremes.gevfitpwm(getdata(data, tag))
-        end
-        log_μ_values[tag] = log(fm.θ̂[1])
-        log_σ_values[tag] = fm.θ̂[2]
+    d₀ > 0 || throw(ArgumentError("Reference duration must be positive, got d₀=$d₀"))
+
+    d = Float64.(getduration.(data, gettag(data)))
+    filter!(≥(lower_threshold), d)
+
+    length(d) ≥ 2 || throw(ArgumentError("Lower threshold is too high, at least two durations are required to initialize SimpleScaling."))
+
+    tags = gettag.(data, d)
+
+    μ = Vector{Float64}(undef, length(tags))
+    σ = Vector{Float64}(undef, length(tags))
+
+    for (i, tag) in enumerate(tags)
+        fd = fit(Gumbel, getdata(data, tag), method="pwm")
+
+        μ[i] = location(fd)
+        σ[i] = Distributions.scale(fd)
     end
 
-    # step 2 : computing μ_d₀, σ_d₀ et α using regression
-    regression_data = DataFrame(is_μ_value=Bool[], is_σ_value=Bool[], log_d=Float64[], param_value=Float64[])
-    for tag in duration_tags
-        push!(regression_data, [true, false, log(getduration(data, tag) / d₀), log_μ_values[tag]])
-        push!(regression_data, [false, true, log(getduration(data, tag) / d₀), log_σ_values[tag]])
-    end
-    X = Matrix(regression_data[:, 1:3])
-    y = Vector(regression_data[:, 4])
-    regression_res = X \ y
+    all(>(0), μ) || throw(ArgumentError("Fitted Gumbel locations must be positive to initialize SimpleScaling."))
+    all(>(0), σ) || throw(ArgumentError("Fitted Gumbel scales must be positive to initialize SimpleScaling."))
 
-    return [exp(regression_res[1]),
-        maximum([0.001, exp(regression_res[2])]), # avoids possible numerical errors
-        0.,
-        maximum([0.001, minimum([0.999, -regression_res[3]])]) # avoids possible domain errors
-    ]
+    logd = log.(d ./ d₀)
+
+    X = [ones(length(tags)) logd]
+    β = X \ log.(μ)
+
+    α = clamp(-β[2], 0.001, 0.999)
+
+    μ₀ = exp(β[1])
+    σ₀ = exp(mean(log.(σ) .+ α .* logd))
+
+    return SimpleScaling(d₀, μ₀, σ₀, 0.0, α)
 
 end
