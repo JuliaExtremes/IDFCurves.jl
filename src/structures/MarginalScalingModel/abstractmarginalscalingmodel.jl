@@ -143,7 +143,7 @@ Fit a marginal scaling model by maximum likelihood using `initialmodel` for init
 """
 function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
 
-    IDFCurves.scalingtype(initialmodel) == pd || 
+    IDFCurves.scalingtype(initialmodel) === pd || 
         throw(ArgumentError("Model and initial model must be of the same type, got $pd ≠ $(IDFCurves.scalingtype(initialmodel))"))
 
     d₀ = duration(initialmodel)
