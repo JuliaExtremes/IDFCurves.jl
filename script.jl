@@ -208,3 +208,13 @@ fig = plot([y->cdf(pd, y), y->F(q, y)], 0, 150,
 
 
 
+## All canadian stations 
+
+using CSV, DataFrames, Distributions, Plots
+
+df = CSV.read("/Users/jalbert/Library/CloudStorage/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC/scalingtest_canadian_stations.csv", DataFrame)
+
+count(df.SimpleScaling)
+count(df.GeneralScaling)
+
+scatter(df.Lon, df.Lat, df.GeneralScaling)
