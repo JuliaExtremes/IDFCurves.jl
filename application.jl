@@ -6,7 +6,7 @@
 
 using CSV, DataFrames, Distributions, Extremes, IDFCurves
 
-filepath = "/Users/jalbert/Library/CloudStorage/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC"
+filepath = "/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC"
 filenames = filter(f -> endswith(lowercase(f), ".csv"), readdir(joinpath(@__DIR__, filepath, "canadian_stations_data")))
 
 nstation = length(filenames)
@@ -163,10 +163,10 @@ Threads.@threads for i in eachindex(filenames)
 
         if adjusted_pvalue < .05 # SimpleScaling rejected
             gs = IDFCurves.fit_mle(GeneralScaling, data, 1.)
-            T = scalingtest(GeneralScaling, data, tag_out="5min")
+            T = scalingtest(GeneralScaling, data, tag_out="24h")
             S = T.test_statistic
 
-            Tstar = IDFCurves.scalingtest_bootstrap(gs, data, B=B)
+            Tstar = IDFCurves.scalingtest_bootstrap(gs, data, tag_out="24h", B=B)
             Sstar = [Tstar[b].test_statistic for b in eachindex(Tstar)]
             adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
