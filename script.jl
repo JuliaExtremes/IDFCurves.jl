@@ -142,14 +142,14 @@ data = IDFdata(df, "Year", duration_dict)
 fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(SimpleScaling, data, tag_out = "10min")
+T = scalingtest(SimpleScaling, data, tag_out="10min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
 
 # Adjust the p-value for the interduration dependence
 B = 999 # Number of bootstrap samples
-Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out = "10min", B = B)
+Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out="10min", B=B)
 Sstar = [Tstar[b].test_statistic for b in eachindex(Tstar)]
 adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
@@ -164,7 +164,7 @@ reject = IDFCurves.decision(T)
 
 # Adjust the p-value for the interduration dependence
 B = 999 # Number of bootstrap samples
-Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out = "10min", B=B)
+Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out="10min", B=B)
 Sstar = [Tstar[b].test_statistic for b in eachindex(Tstar)]
 adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 

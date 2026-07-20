@@ -51,6 +51,22 @@ end
 
 
 
+"""
+    CvMComponents(cdf_gradient, information_factor)
+
+Components defining the parameter-estimation correction in a Cramér--von Mises
+covariance kernel.
+
+The field `cdf_gradient` is a callable object returning the gradient of the
+fitted validation CDF at a probability level, and `information_factor` is a
+Cholesky factorization of the scaled information matrix used to solve systems involving
+its inverse.
+"""
+struct CvMComponents{G,F<:Cholesky}
+    cdf_gradient::G
+    information_factor::F
+end
+
 
 
 
@@ -137,20 +153,9 @@ function scalingtest(
     F = getdistribution(fitted_model, d_out)
     S = cvmcriterion(F, y)
 
-    # Observed information matrix.
-    #
-    # If H is the observed information summed over the training sample, then
-    # H / ℓ corresponds to the scaled information matrix entering the
-    # covariance kernel.
-    H = hessian(fitted_model, train_data)
-    A = Symmetric(H / ℓ)
-
-    # Covariance kernel
-    g = get_g(fitted_model, d_out)
-    ρ = cvmkernel(g, A)
-
-    # Eigenvalues of the covariance kernel
-    λ = approx_eigenvalues(ρ, q)
+    # CvM kernel components
+    cvm_components = compute_cvm_components(fitted_model, train_data, d_out, ℓ)
+    λ = approx_eigenvalues(cvm_components, q)
 
     # Test statistic distribution
     pd = CvMDistribution(λ)
@@ -161,118 +166,126 @@ end
 # Covariance kernel
 
 """
-    get_g(fd::MarginalScalingModel, d::Real)
+    compute_cvm_components(
+        fitted_model::MarginalScalingModel,
+        train_data::IDFdata,
+        d_out::Real,
+        ℓ::Integer,
+    )
 
-Return the function `g` involved in the covariance kernel of the
-training-validation Cramér--von Mises statistic.
-
-For `0 < u < 1`, `g(u)` returns the gradient, with respect to the model
-parameters, of the CDF of the marginal distribution at duration `d`, evaluated at
-
-    x = F̂_d^{-1}(u),
-
-where `F̂_d` is the fitted marginal distribution at duration `d`.
+Compute the CDF-gradient function and scaled-information factorization used in
+the covariance kernel of the training-validation Cramér--von Mises test.
 """
-function get_g(fd::MarginalScalingModel, d::Real)
+function compute_cvm_components(
+    fitted_model::MarginalScalingModel,
+    train_data::IDFdata,
+    d_out::Real,
+    ℓ::Integer,
+)
 
-    pd_type = typeof(fd)
-    d₀ = duration(fd)
-    θ̂ = collect(params(fd))
+    d_out > 0 || throw(ArgumentError(
+        "The validation duration must be positive, got d_out=$d_out.",
+    ))
 
-    # Fitted marginal distribution at the validation duration.
-    pd = getdistribution(fd, d)
+    ℓ > 0 || throw(ArgumentError(
+        "The validation sample size must be positive, got ℓ=$ℓ.",
+    ))
 
-    function g(u::Real)
-        0 < u < 1 || throw(ArgumentError("g is only defined for 0 < u < 1."))
+    any(d -> isapprox(d, d_out), values(getduration(train_data))) &&
+        throw(ArgumentError(
+            "The training data must exclude validation duration d_out=$d_out.",
+    ))
 
-        x = quantile(pd, u)
 
-        function F(θ::AbstractVector{<:Real})
-            return cdf(
-                construct_model(
-                    pd_type,
-                    d₀,
-                    map_to_real_space(pd_type, θ),
-                ),
-                d,
-                x,
-            )
+    T = scalingtype(fitted_model)
+    d₀ = duration(fitted_model)
+    θ̂ = collect(params(fitted_model))
+
+    # Fitted distribution at the validation duration. It is used only to
+    # determine the fixed quantile x = F̂⁻¹(u).
+    fitted_distribution = getdistribution(fitted_model, d_out)
+
+    function cdf_gradient(u::Real)
+
+        0 < u < 1 || throw(ArgumentError(
+            "The CDF gradient is defined only for 0 < u < 1, got u=$u.",
+        ))
+
+        x = quantile(fitted_distribution, u)
+
+        function cdf_at_x(θ::AbstractVector{<:Real})
+            model = T(d₀, θ...)
+            distribution = getdistribution(model, d_out)
+
+            return cdf(distribution, x)
         end
 
-        return ForwardDiff.gradient(F, θ̂)
+        return ForwardDiff.gradient(cdf_at_x, θ̂)
     end
 
-    return g
+    # If H is summed over the training sample, A = H / ℓ is the scaled
+    # information matrix entering the covariance kernel.
+    H = hessian(fitted_model, train_data)
+    A = Symmetric(Matrix(H) / ℓ)
+    information_factor = cholesky(A)
+
+    return CvMComponents(
+        cdf_gradient,
+        information_factor,
+    )
 end
 
 """
-    cvmkernel(g, A)
+    approx_eigenvalues(g, A::AbstractMatrix, q::Integer;
+        nquad::Integer=max(5q, q + 20),
+        eigentol::Real=sqrt(eps(Float64)))
 
-Return the covariance kernel used in the limiting distribution of the
-training-validation Cramér--von Mises statistic.
+Approximate the `q` largest eigenvalues of the Cramér--von Mises covariance
+kernel defined by `g` and `A`, using `nquad` midpoint quadrature nodes.
 
-The returned function is
-
-    ρ(u, v) = min(u, v) - u*v + g(u)' * A^{-1} * g(v),
-
-where `A` is typically `a * Î_m`. Equivalently, if `H` is the observed
-information matrix summed over the training sample and `ℓ` is the validation
-sample size, one may use `A = H / ℓ`.
-
-The matrix factorization of `A` is computed once and reused each time the kernel
-is evaluated.
-"""
-function cvmkernel(g, A::AbstractMatrix)
-    Afact = factorize(A)
-
-    function ρ(u::Real, v::Real)
-        gu = g(u)
-        gv = g(v)
-
-        return min(u, v) - u * v + dot(gu, Afact \ gv)
-    end
-
-    return ρ
-end
-
-"""
-    approx_eigenvalues(ρ, q; nquad = max(5q, q + 20), eigentol = sqrt(eps(Float64)))
-
-Approximate the largest `q` eigenvalues of the integral operator with kernel
-`ρ(u, v)` on `[0, 1]`, using a midpoint Nyström approximation with `nquad`
-quadrature points.
-
-### Details
-
-The returned eigenvalues are sorted in decreasing order. The ignored tail is
-not approximated.
-
-The method is a quadrature-based Nyström approximation for the eigenvalues of
-a compact integral operator; see Atkinson (1975).
-
-#### Reference
-
-Atkinson, K. E. (1975). Convergence rates for approximate eigenvalues of compact integral operators. *SIAM Journal on Numerical Analysis, 12(2), 213–222*. https://doi.org/10.1137/0712020
+Eigenvalues smaller than `eigentol` relative to the largest eigenvalue are
+treated as numerical zeros.
 """
 function approx_eigenvalues(
-    ρ::K,
+    cvm_components::CvMComponents,
     q::Integer;
     nquad::Integer=max(5q, q + 20),
-    eigentol::Real=sqrt(eps(Float64))) where {K}
+    eigentol::Real=sqrt(eps(Float64)),
+)
 
     q > 0 || throw(ArgumentError("q must be positive."))
     nquad >= q || throw(ArgumentError("nquad must be at least q."))
     eigentol >= 0 || throw(ArgumentError("eigentol must be non-negative."))
     isfinite(eigentol) || throw(ArgumentError("eigentol must be finite."))
 
+    nodes = [ (2i - 1) / (2nquad) for i in 1:nquad ]
+
+    # Evaluate g only once at each quadrature node.
+    g₁ = cvm_components.cdf_gradient(nodes[1])
+    p = length(g₁)
+
+    G = Matrix{Float64}(undef, nquad, p)
+    G[1, :] .= g₁
+
+    for i in 2:nquad
+        G[i, :] .= cvm_components.cdf_gradient(nodes[i])
+    end
+
+    # C[i, j] = g(uᵢ)' A⁻¹ g(uⱼ)
+    # Afact = factorize(A)
+    C = G * (cvm_components.information_factor \ transpose(G))
+
     Kmat = Matrix{Float64}(undef, nquad, nquad)
 
     for j in 1:nquad
-        v = (2j - 1) / (2nquad)
+        v = nodes[j]
 
         for i in 1:j
-            u = (2i - 1) / (2nquad)
-            Kmat[i, j] = ρ(u, v) / nquad
+            u = nodes[i]
+
+            Kmat[i, j] = (
+                min(u, v) - u * v + C[i, j]
+            ) / nquad
         end
     end
 
@@ -281,13 +294,19 @@ function approx_eigenvalues(
     λmax = maximum(abs, λraw)
     scale = max(λmax, 1.0)
 
-    if any(λ -> λ < -eigentol * scale, λraw)
-        throw(ArgumentError("Negative eigenvalue beyond numerical tolerance."))
-    end
+    any(λ -> λ < -eigentol * scale, λraw) &&
+        throw(ArgumentError(
+            "Negative eigenvalue beyond numerical tolerance.",
+        ))
 
-    λ = sort([λ for λ in λraw if λ > eigentol * scale]; rev=true)
+    λ = sort(
+        [x for x in λraw if x > eigentol * scale];
+        rev=true,
+    )
 
-    length(λ) >= q || throw(ArgumentError("Fewer than q positive eigenvalues were found."))
+    length(λ) >= q || throw(ArgumentError(
+        "Fewer than q positive eigenvalues were found.",
+    ))
 
     return λ[1:q]
 end
