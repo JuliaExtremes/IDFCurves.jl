@@ -491,3 +491,48 @@ IDFCurves.pvalue(T)
 
 T = scalingtest(GeneralScaling, data, tag_out=tag_out)
 IDFCurves.pvalue(T)
+
+#TODO Adapt the test before merging. Perform it on static Montreal data, by saving it in test/data in order to not provoque failures when data are updated.
+
+
+
+
+
+
+
+# @testset "compute_cvm_components()" begin
+
+    fm = SimpleScaling(1.0, 10.0, 2.0, 0.1, 0.7)
+
+    tags = ["10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
+    durations = [1 / 6, 1 / 4, 1 / 2, 1, 2.0, 6.0, 12.0, 24.0]
+
+    n = 60
+
+    train_data = IDFCurves.rand(fm, durations, n ; tags=tags)
+
+
+    ℓ = n
+
+    components = IDFCurves.compute_cvm_components(
+        fm,
+        train_data,
+        5/60,
+        ℓ,
+    )
+
+    # CDF gradient with respect to the original parameters.
+    @test components.cdf_gradient(0.8) ≈ [
+        -0.07682503485212765,
+        -0.1243238567355638,
+        -0.19113834851838096,
+         0.0,
+    ] atol = 1e-4
+
+    # The factorization represents A = H / ℓ.
+    # H = IDFCurves.hessian(fm, train_data)
+    # A = Symmetric(Matrix(H) / ℓ)
+    # F = components.information_factor
+
+    # @test Matrix(F) ≈ Matrix(A)
+# end

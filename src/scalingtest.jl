@@ -191,7 +191,10 @@ function compute_cvm_components(
         "The validation sample size must be positive, got ℓ=$ℓ.",
     ))
 
-    !any(values(getduration(train_data)) .≈  d_out) || throw(ArgumentError("Fitted model and data must exclude duration d_out = $d_out."))
+    any(d -> isapprox(d, d_out), values(getduration(train_data))) &&
+        throw(ArgumentError(
+            "The training data must exclude validation duration d_out=$d_out.",
+    ))
 
 
     T = scalingtype(fitted_model)
