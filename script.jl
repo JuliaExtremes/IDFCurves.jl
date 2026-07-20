@@ -374,8 +374,18 @@ NS_stations = filter(row -> !row.GeneralScaling, df )
 draw_map(SS_stations, GS_stations, NS_stations, "canadian_stations_map.png")
 
 
+## Show simulation results
 
+using Pkg
+pkg"activate ."
 
+using CSV, DataFrames, IDFCurves
+using Cairo, Gadfly, Fontconfig
 
+using CategoricalArrays
 
+df = CSV.read("SimpleScaling_type1_error.csv", DataFrame)
 
+df.ξ = categorical(string.(df.ξ))
+
+plot(df, x=:n, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
