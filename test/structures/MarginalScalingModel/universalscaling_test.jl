@@ -99,7 +99,10 @@ end
         d₀, μ₀, σ₀, ξ, α, δ, τ = (3, 1., 1., 0., .5, 1., .5)
         
         sm = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
-        data = rand(sm, [1, 3], 3, tags=["1", "3"])
+        
+        duration_dict = Dict(zip(["1", "3"], [1, 3]))
+        data = rand(sm, duration_dict, 3)
+
         y₁ = getdata(data, "1")
         y₃ = getdata(data, "3")
 
@@ -125,13 +128,13 @@ end
         n = 3
         d = [.5, 1, 24]
         tag = ["10", "11", "12"]
-        x = [10, 11, 12]
-        data = rand(pd, d, n, tags = tag, x = [10, 11, 12])
+        duration_dict = Dict(zip(tag,d))
+        data = rand(pd, duration_dict, n)
 
         @test issetequal(gettag(data), tag)
         for i in eachindex(tag)
             @test getduration(data, tag[i]) ≈ d[i]
-            @test getyear(data, tag[i]) == x
+            @test getyear(data, tag[i]) == collect(1:n)
             @test length(getdata(data, tag[i])) == n
         end
 

@@ -86,41 +86,65 @@ end
 
 
 """
-    rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
+    rand(
+        rng::AbstractRNG,
+        model::MarginalScalingModel,
+        duration_dict::AbstractDict{String,<:Real},
+        n::Integer=1,
+    )
 
-Generate a random sample of size `n` for duration vector `d` from the scaling model `pd`.
-    
-### Details
+    rand(
+        model::MarginalScalingModel,
+        duration_dict::AbstractDict{String,<:Real},
+        n::Integer=1,
+    )
 
-Duration tags and time vector can be provided with the keyword argument `tags` and `x` respectively. 
+Generate an `IDFdata` sample of size `n` from `model` at the durations specified
+by `duration_dict`.
+
+Samples are generated independently at each duration. The first method uses the
+provided random-number generator, while the second uses `Random.default_rng()`.
 """
-function rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
-    
-    m = length(d)
-    
-    if isempty(tags)
-        tags = string.(1:m)
-    else
-        @assert length(tags) == length(d) "Duration tag length must match the duration vector length."
+function rand end
+
+function rand(rng::Random.AbstractRNG, model::MarginalScalingModel, duration_dict::AbstractDict{String,<:Real}, n::Integer=1)
+
+    n > 0 || throw(ArgumentError("n must be positive."))
+
+    tags = sort!(
+        collect(keys(duration_dict));
+        by=tag -> duration_dict[tag],
+    )
+
+    durations = Dict{String,Float64}(
+        tag => Float64(duration_dict[tag]) for tag in tags
+    )
+
+    years = Dict{String,Vector{Int}}(
+        tag => collect(1:n) for tag in tags
+    )
+
+    observations = Dict{String,Vector{Float64}}()
+
+    for tag in tags
+        d = durations[tag]
+
+        d > 0 || throw(ArgumentError(
+            "Duration corresponding to tag=$tag must be positive, got $d.",
+        ))
+
+        pd = getdistribution(model, d)
+        observations[tag] = rand(rng, pd, n)
     end
 
-    if isempty(x)
-        x = collect(1:n)
-    else
-        @assert length(tags) == length(d) "X tick length must match the sample size n."
-    end
+    return IDFdata(tags, durations, years, observations)
+end
 
-    x_dict = Dict(zip(tags, repeat([x], m)))
-    d_dict = Dict(zip(tags, d))
+function rand(model::MarginalScalingModel, duration_dict::AbstractDict{String,<:Real}, n::Integer=1)
 
-    marginals = getdistribution.(pd, d)
-    
-    y = rand.(marginals, n)
+    rng=Random.default_rng()
 
-    data_dict = Dict(zip(tags, y))
-    
-    return IDFdata(tags, d_dict, x_dict, data_dict)
-    
+    return rand(rng, model, duration_dict, n)
 end
 
 """

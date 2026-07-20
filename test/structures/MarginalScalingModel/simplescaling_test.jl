@@ -63,7 +63,8 @@
     @testset "loglikelihood(::SimpleScaling)" begin
 
         pd = SimpleScaling(4, 2, 1, -0.1, 0.5)
-        data = rand(pd, [1, 4], 3, tags=["1", "4"])
+        duration_dict = Dict(zip(["1", "4"], [1, 4]))
+        data = rand(pd, duration_dict, 3)
         y₁ = getdata(data, "1")
         y₃ = getdata(data, "4")
 
@@ -86,7 +87,8 @@
         n = 1
         d = [0.5, 1, 4]
         tag = ["1", "2", "3"]
-        data = rand(pd, d)
+        duration_dict = Dict(zip(tag, d))
+        data = rand(pd, duration_dict)
 
         @test issetequal(gettag(data), tag)
         for i in eachindex(tag)
@@ -96,27 +98,12 @@
         end
 
         n = 3
-        d = [0.5, 1, 4]
-        tag = ["1", "2", "3"]
-        data = rand(pd, d, n)
+        data = rand(pd, duration_dict, n)
 
         @test issetequal(gettag(data), tag)
         for i in eachindex(tag)
             @test getduration(data, tag[i]) ≈ d[i]
             @test getyear(data, tag[i]) == collect(1:n)
-            @test length(getdata(data, tag[i])) == n
-        end
-
-        n = 3
-        d = [0.5, 1, 4]
-        tag = ["10", "11", "12"]
-        x = [10, 11, 12]
-        data = rand(pd, d, n, tags=tag, x=[10, 11, 12])
-
-        @test issetequal(gettag(data), tag)
-        for i in eachindex(tag)
-            @test getduration(data, tag[i]) ≈ d[i]
-            @test getyear(data, tag[i]) == x
             @test length(getdata(data, tag[i])) == n
         end
 
