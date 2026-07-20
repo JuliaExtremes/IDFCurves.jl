@@ -163,6 +163,114 @@ function scalingtest(
     return CvMValidationTest(fitted_model, S, pd)
 end
 
+# Cramér-von Mises statistic
+
+"""
+    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
+
+Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
+
+# Details
+
+The statistic is
+
+    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
+
+where `x_(i)` denotes the ordered sample.
+"""
+function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
+    n = length(x)
+    n > 0 || throw(ArgumentError("x must contain at least one observation."))
+
+    x̃ = sort(x)
+
+    ω² = 1/(12*n) + sum(((2*i-1)/(2*n) - cdf(pd, x̃[i]))^2 for i=1:n)
+
+    return ω²
+
+end
+
+"""
+    validation_cvm_statistic(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata;
+        tag_out=nothing,
+    )
+
+    validation_cvm_statistic(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata,
+        initialmodel::MarginalScalingModel;
+        tag_out=nothing,
+    )
+
+Compute the training-validation Cramér--von Mises statistic for a marginal
+scaling model, optionally using a supplied initial model.
+
+The duration identified by `tag_out` is used for validation. If `tag_out` is
+not provided, the smallest observed duration is used.
+
+### Detail
+
+Lightweight version of scaling test when only the test statistic matters, and not the test statistic distribution under the null hypothesis.
+"""
+function validation_cvm_statistic end
+
+function validation_cvm_statistic(
+    pd_type::Type{<:MarginalScalingModel},
+    data::IDFdata,
+    initialmodel::MarginalScalingModel;
+    tag_out=nothing,
+)
+
+    scalingtype(initialmodel) === pd_type ||
+        throw(ArgumentError(
+            "Model and initial model must be of the same type.",
+        ))
+
+    if isnothing(tag_out)
+        tag_out = _validation_tag(data)
+    else
+        tag_out = _validation_tag(data, tag_out)
+    end
+
+    d_out = getduration(data, tag_out)
+    y_out = getdata(data, tag_out)
+
+    isempty(y_out) && throw(ArgumentError(
+        "The validation sample must contain at least one observation.",
+    ))
+
+    train_data = excludeduration(data, tag_out)
+
+    fitted_model = fit_mle(pd_type, train_data, initialmodel)
+
+    distribution = getdistribution(fitted_model, d_out)
+    test_statistic = cvmcriterion(distribution, y_out)
+
+    return test_statistic
+end
+
+function validation_cvm_statistic(
+    pd_type::Type{<:MarginalScalingModel},
+    data::IDFdata;
+    tag_out=nothing,
+)
+
+    if isnothing(tag_out)
+        tag_out = _validation_tag(data)
+    else
+        tag_out = _validation_tag(data, tag_out)
+    end
+
+    train_data = excludeduration(data, tag_out)
+
+    initialmodel = initialize(pd_type, train_data, 1.0)
+
+    return validation_cvm_statistic(pd_type, data, initialmodel; tag_out = tag_out)
+end
+
+
 # Covariance kernel
 
 """
@@ -311,33 +419,6 @@ function approx_eigenvalues(
     return λ[1:q]
 end
 
-
-# Cramér-von Mises statistic
-
-"""
-    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
-
-Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
-
-# Details
-
-The statistic is
-
-    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
-
-where `x_(i)` denotes the ordered sample.
-"""
-function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
-    n = length(x)
-    n > 0 || throw(ArgumentError("x must contain at least one observation."))
-
-    x̃ = sort(x)
-
-    ω² = 1/(12*n) + sum(((2*i-1)/(2*n) - cdf(pd, x̃[i]))^2 for i=1:n)
-
-    return ω²
-
-end
 
 # Computing p-values
 

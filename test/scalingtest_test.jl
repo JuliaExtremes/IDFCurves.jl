@@ -60,6 +60,12 @@
 
     fm = IDFCurves.fit_mle(SimpleScaling, train_data, 1.)
 
+    @testset "validation_cvm_statistic()" begin
+        import IDFCurves.validation_cvm_statistic
+        @test validation_cvm_statistic(SimpleScaling, data; tag_out = "5min") ≈ 3.3440 rtol=1e-4
+        @test validation_cvm_statistic(SimpleScaling, data, fm; tag_out = "5min") ≈ 3.3440 rtol=1e-4
+    end
+
     @testset "cvm_components" begin
         components = IDFCurves.compute_cvm_components(fm, train_data, d_out, ℓ)
 
