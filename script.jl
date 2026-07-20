@@ -142,14 +142,14 @@ data = IDFdata(df, "Year", duration_dict)
 fd = IDFCurves.fit_mle(SimpleScaling, data, 1.)
 
 # Goodness-of-fit test using the 5min duration as validation
-T = scalingtest(SimpleScaling, data, tag_out = "10min")
+T = scalingtest(SimpleScaling, data, tag_out="10min")
 S = T.test_statistic
 pvalue = IDFCurves.pvalue(T)
 reject = IDFCurves.decision(T)
 
 # Adjust the p-value for the interduration dependence
 B = 999 # Number of bootstrap samples
-Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out = "10min", B = B)
+Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out="10min", B=B)
 Sstar = [Tstar[b].test_statistic for b in eachindex(Tstar)]
 adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
@@ -164,7 +164,7 @@ reject = IDFCurves.decision(T)
 
 # Adjust the p-value for the interduration dependence
 B = 999 # Number of bootstrap samples
-Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out = "10min", B=B)
+Tstar = IDFCurves.scalingtest_bootstrap(fd, data; tag_out="10min", B=B)
 Sstar = [Tstar[b].test_statistic for b in eachindex(Tstar)]
 adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
@@ -235,18 +235,18 @@ import IDFCurves.approx_eigenvalues
     λs = IDFCurves.approx_eigenvalues(ρ, 10)
 
     @test length(λs) == 10
-    @test issorted(λs; rev = true)
+    @test issorted(λs; rev=true)
     @test all(λs .>= -sqrt(eps(Float64)))
 
     λs = IDFCurves.approx_eigenvalues(ρ, 100)
 
     @test length(λs) == 100
-    @test issorted(λs; rev = true)
+    @test issorted(λs; rev=true)
 
     # Exact eigenvalues of the Brownian bridge covariance kernel
-    @test isapprox(λs[1], 1 / π^2, rtol = 2e-3)
-    @test isapprox(λs[2], 1 / (4π^2), rtol = 3e-3)
-    @test isapprox(λs[3], 1 / (9π^2), rtol = 5e-3)
+    @test isapprox(λs[1], 1 / π^2, rtol=2e-3)
+    @test isapprox(λs[2], 1 / (4π^2), rtol=3e-3)
+    @test isapprox(λs[3], 1 / (9π^2), rtol=5e-3)
 end
 
 # New version
@@ -262,13 +262,13 @@ end
     λs = IDFCurves.approx_eigenvalues(g, A, 10)
 
     @test length(λs) == 10
-    @test issorted(λs; rev = true)
+    @test issorted(λs; rev=true)
     @test all(λs .>= -sqrt(eps(Float64)))
 
     # Exact eigenvalues of the Brownian bridge covariance kernel
-    @test isapprox(λs[1], 1 / π^2, rtol = 2e-3)
-    @test isapprox(λs[2], 1 / (4π^2), rtol = 3e-3)
-    @test isapprox(λs[3], 1 / (9π^2), rtol = 5e-3)
+    @test isapprox(λs[1], 1 / π^2, rtol=2e-3)
+    @test isapprox(λs[2], 1 / (4π^2), rtol=3e-3)
+    @test isapprox(λs[3], 1 / (9π^2), rtol=5e-3)
 
 end
 
@@ -306,7 +306,7 @@ function compute_cvm_components(
         "The validation sample size must be positive, got ℓ=$ℓ.",
     ))
 
-    !any(values(getduration(train_data)) .≈  d_out) || throw(ArgumentError("Fitted model and data must exclude duration d_out = $d_out."))
+    !any(values(getduration(train_data)) .≈ d_out) || throw(ArgumentError("Fitted model and data must exclude duration d_out = $d_out."))
 
 
     T = scalingtype(fitted_model)
@@ -370,7 +370,7 @@ function approx_eigenvalues(
     eigentol >= 0 || throw(ArgumentError("eigentol must be non-negative."))
     isfinite(eigentol) || throw(ArgumentError("eigentol must be finite."))
 
-    nodes = [ (2i - 1) / (2nquad) for i in 1:nquad ]
+    nodes = [(2i - 1) / (2nquad) for i in 1:nquad]
 
     # Evaluate g only once at each quadrature node.
     g₁ = cvm_components.cdf_gradient(nodes[1])
@@ -460,7 +460,7 @@ information_factor = cholesky(A)
 g = IDFCurves.get_g(fm, d_out)
 ρ = IDFCurves.cvmkernel(g, A)
 
-@time λ̃ =  approx_eigenvalues(ρ, 20)
+@time λ̃ = approx_eigenvalues(ρ, 20)
 
 λ .≈ λ̃
 
@@ -474,17 +474,21 @@ g = IDFCurves.get_g(fm, d_out)
 using Pkg
 pkg"activate ."
 
-using DataFrames, IDFCurves
+using CSV, DataFrames, IDFCurves
 
 using Test
 
-df = IDFCurves.dataset("702S006")
+df = CSV.read("test/data/702S006.csv", DataFrame)
 tags = names(df)[2:10]
 durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
 duration_dict = Dict(zip(tags, durations))
 data = IDFdata(df, "Year", duration_dict)
 
 tag_out = "5min"
+d_out = getduration(data, tag_out)
+
+train_data = IDFCurves.excludeduration(data, "5min")
+ℓ = length(getdata(data, tag_out))
 
 T = scalingtest(SimpleScaling, data, tag_out=tag_out)
 IDFCurves.pvalue(T)
@@ -492,47 +496,62 @@ IDFCurves.pvalue(T)
 T = scalingtest(GeneralScaling, data, tag_out=tag_out)
 IDFCurves.pvalue(T)
 
+fm = IDFCurves.fit_mle(SimpleScaling, train_data, 1.)
+
+components = IDFCurves.compute_cvm_components(fm, train_data, d_out, ℓ)
+
+v = [-0.0310430, -0.0486335, -0.195152, -2.07987]
+
+A = [0.303977 -0.157451 0.620122 -2.4917
+    -0.157451 0.517504 0.168475 -0.544275
+    0.620122 0.168475 16.6242 3.49233
+    -2.4917 -0.544275 3.49233 296.449]
+
+@test components.cdf_gradient(0.8) ≈ v rtol=1e-4
+@test Matrix(components.information_factor) ≈ A rtol=1e-4
+
+
 #TODO Adapt the test before merging. Perform it on static Montreal data, by saving it in test/data in order to not provoque failures when data are updated.
 
+@testset "cvm_components" begin
+
+    df = CSV.read("test/data/702S006.csv", DataFrame)
+    tags = names(df)[2:10]
+    durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+    duration_dict = Dict(zip(tags, durations))
+    data = IDFdata(df, "Year", duration_dict)
+
+    tag_out = "5min"
+    d_out = getduration(data, tag_out)
+
+    train_data = IDFCurves.excludeduration(data, "5min")
+    ℓ = length(getdata(data, tag_out))
+
+    T = scalingtest(SimpleScaling, data, tag_out=tag_out)
+    IDFCurves.pvalue(T)
+
+    T = scalingtest(GeneralScaling, data, tag_out=tag_out)
+    IDFCurves.pvalue(T)
+
+    fm = IDFCurves.fit_mle(SimpleScaling, train_data, 1.)
+
+    components = IDFCurves.compute_cvm_components(fm, train_data, d_out, ℓ)
+
+    v = [-0.0310430, -0.0486335, -0.195152, -2.07987]
+
+    A = [0.303977 -0.157451 0.620122 -2.4917
+        -0.157451 0.517504 0.168475 -0.544275
+        0.620122 0.168475 16.6242 3.49233
+        -2.4917 -0.544275 3.49233 296.449]
+
+    @test components.cdf_gradient(0.8) ≈ v rtol=1e-4
+    @test Matrix(components.information_factor) ≈ A rtol=1e-4
+
+end
 
 
 
 
 
 
-# @testset "compute_cvm_components()" begin
 
-    fm = SimpleScaling(1.0, 10.0, 2.0, 0.1, 0.7)
-
-    tags = ["10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
-    durations = [1 / 6, 1 / 4, 1 / 2, 1, 2.0, 6.0, 12.0, 24.0]
-
-    n = 60
-
-    train_data = IDFCurves.rand(fm, durations, n ; tags=tags)
-
-
-    ℓ = n
-
-    components = IDFCurves.compute_cvm_components(
-        fm,
-        train_data,
-        5/60,
-        ℓ,
-    )
-
-    # CDF gradient with respect to the original parameters.
-    @test components.cdf_gradient(0.8) ≈ [
-        -0.07682503485212765,
-        -0.1243238567355638,
-        -0.19113834851838096,
-         0.0,
-    ] atol = 1e-4
-
-    # The factorization represents A = H / ℓ.
-    # H = IDFCurves.hessian(fm, train_data)
-    # A = Symmetric(Matrix(H) / ℓ)
-    # F = components.information_factor
-
-    # @test Matrix(F) ≈ Matrix(A)
-# end
