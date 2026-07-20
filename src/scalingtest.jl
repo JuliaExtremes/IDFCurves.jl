@@ -542,7 +542,7 @@ function scalingtest_bootstrap(
     U = _pseudoobs_matrix(data_common, tags)
     n = size(U, 1)
 
-    Tstar = Vector{CvMValidationTest}(undef, B)
+    Sstar = Vector{Float64}(undef, B)
 
     # Generate bootstrap indices sequentially to avoid sharing the RNG across threads.
     bootstrap_indices = [rand(rng, 1:n, n) for _ in 1:B]
@@ -553,10 +553,10 @@ function scalingtest_bootstrap(
 
         data_star = _idfdata_from_pseudoobs(data_common, fitted_model, Ustar)
 
-        Tstar[b] = scalingtest(pd_type, data_star, initialmodel; tag_out = tag_out)
+        Sstar[b] = validation_cvm_statistic(pd_type, data_star, initialmodel, tag_out = tag_out)
     end
 
-    return Tstar
+    return Sstar
 end
 
 function scalingtest_bootstrap(
