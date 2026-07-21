@@ -65,7 +65,7 @@ function rejection_rate(
     duration_dict = getduration(template)
 
     # Use the generating parameters as starting values, except for ξ = 0.
-    initialmodel = _neutral_initial_model(model)
+    initialmodel = IDFCurves._neutral_initial_model(model)
 
     # One deterministic and independent seed per replication.
     seeds = rand(Xoshiro(seed), UInt64, simulation_size)

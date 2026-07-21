@@ -70,7 +70,12 @@
         pd = GeneralScaling(60, 100, 1, 0, 0.8, 5)
         buffer = IOBuffer()
         @test_logs Base.show(buffer, pd)
+    end
 
+    @testset "_neutral_initial_model" begin
+        model = GeneralScaling(1., 20. ,5., .1, .8, .5)
+        neutral_model = GeneralScaling(1., 20. ,5., 0., .8, .5)
+        @test neutral_model == IDFCurves._neutral_initial_model(model)
     end
 
     @testset "cdf(::GeneralScaling)" begin

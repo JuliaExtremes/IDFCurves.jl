@@ -53,6 +53,12 @@
 
     end
 
+    @testset "_neutral_initial_model" begin
+        model = SimpleScaling(1., 20. ,5., .1, .8)
+        neutral_model = SimpleScaling(1., 20. ,5., 0., .8)
+        @test neutral_model == IDFCurves._neutral_initial_model(model)
+    end
+
     @testset "cdf(::SimpleScaling)" begin
         pd = SimpleScaling(1, 100, 1, 0, 0.8)
 
