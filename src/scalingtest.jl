@@ -1,8 +1,18 @@
+"""
+    CvMValidationTest(fitted_model, test_statistic, null_distribution)
 
+Result of a training-validation Cramér--von Mises goodness-of-fit test.
+
+The field `fitted_model` contains the model used to compute `test_statistic`.
+The field `null_distribution` contains the asymptotic null distribution of the
+statistic. It is set to `nothing` when maximum likelihood estimation does not
+converge, in which case the statistic is computed using the initial model and
+no p-value or test decision is available.
+"""
 struct CvMValidationTest{
     M,
     S<:Real,
-    D<:ContinuousUnivariateDistribution,
+    D<:Union{Nothing,ContinuousUnivariateDistribution},
 }
     fitted_model::M
     test_statistic::S
@@ -17,14 +27,33 @@ function Base.show(io::IO, test_struct::CvMValidationTest)
     print(io, ")")
 end
 
+"""
+    isvalid(test::CvMValidationTest)
+
+Return whether the null distribution of `test` is available.
+"""
+isvalid(test::CvMValidationTest) = !isnothing(test.null_distribution)
+
+
+function _null_distribution(test::CvMValidationTest)
+
+    isvalid(test) || 
+        throw(ArgumentError("The null distribution is unavailable because maximum likelihood estimation did not converge."))
+
+    return test.null_distribution
+end
+
+
+
 
 """
     pvalue(test)
 
 Return the upper-tail p-value of the validation statistic.
 """
-function pvalue(test_struct::CvMValidationTest)
-    return ccdf(test_struct.null_distribution, test_struct.test_statistic)
+function pvalue(test::CvMValidationTest)
+    pd = _null_distribution(test)
+    return ccdf(pd, test.test_statistic)
 end
 
 """
@@ -32,10 +61,13 @@ end
 
 Return the rejection threshold at level `α`.
 """
-function decision_threshold(test_struct::CvMValidationTest, α::Real=0.05)
-    0 < α < 1 || throw(ArgumentError("The test level should be in (0, 1), got $α."))
+function decision_threshold(test::CvMValidationTest, α::Real=0.05)
 
-    return quantile(test_struct.null_distribution, 1. - α)
+    0 < α < 1 || throw(ArgumentError("The test level must be in (0, 1), got α=$α."))
+
+    pd = _null_distribution(test)
+
+    return quantile(pd, 1 - α)
 end
 
 """
@@ -44,11 +76,8 @@ end
 Return whether the validation test rejects the null hypothesis at level `α`.
 """
 function decision(test_struct::CvMValidationTest, α::Real=0.05)
-    threshold = decision_threshold(test_struct, α)
-
-    return test_struct.test_statistic > threshold
+    return pvalue(test_struct) < α
 end
-
 
 
 """
