@@ -7,12 +7,14 @@
 using CSV, DataFrames, Distributions, IDFCurves, LinearAlgebra, Random
 using Base.Threads
 
+import IDFCurves: scalingtype
+
 BLAS.set_num_threads(1)
 
 # Simulation parameters
 n_vec = [10, 15, 30, 50, 75, 100]
 ξ_vec = collect(-0.4:0.2:0.4)
-simulation_size = 1000
+simulation_size = 10000
 
 
 d₀ = 1.
@@ -79,14 +81,19 @@ function rejection_rate(
 
         data = rand(rng, model, duration_dict, sample_size)
 
-        test = scalingtest(target_model, data, initialmodel; tag_out=tag_out, q=q)
+        try
+            test = scalingtest(target_model, data, initialmodel; tag_out=tag_out, q=q)
 
-        valid[m] = IDFCurves.isvalid(test)
+            valid[m] = IDFCurves.isvalid(test)
 
-        rejected[m] = if valid[m]
-            IDFCurves.decision(test, level)
-        else
-            false
+            rejected[m] = if valid[m]
+                IDFCurves.decision(test, level)
+            else
+                false
+            end
+        catch error
+            valid[m] = false
+            rejected[m] = false
         end
     end
 
@@ -132,8 +139,12 @@ function run_simulation_simplescaling_errortype1(
 
             results[k] = (n=Int(n), ξ=Float64(ξ), RejectionRate=res.rejection_rate)
 
-            @info "Completed simulation" n ξ res.rejection_rate 
-            @info "Number of discarded simulations : " res.nfailed " / " res.nvalid+res.nfailed
+            # @info "Completed simulation" n ξ res.rejection_rate 
+            # @info "Discarded simulations" discarded=res.nfailed total=res.nvalid + res.nfailed
+
+            total = res.nvalid + res.nfailed
+
+            @info "Completed simulation" n ξ rejection_rate=res.rejection_rate discarded=res.nfailed total=total
         end
     end
 
@@ -165,53 +176,49 @@ function run_simulation_generalscaling_errortype1(
 
             results[k] = (n=Int(n), ξ=Float64(ξ), RejectionRate=res.rejection_rate)
 
-            @info "Completed simulation" n ξ res.rejection_rate 
-            @info "Number of discarded simulations : " res.nfailed " / " res.nvalid+res.nfailed
+            total = res.nvalid + res.nfailed
+
+            @info "Completed simulation" n ξ rejection_rate=res.rejection_rate discarded=res.nfailed total=total
         end
     end
 
     return DataFrame(results)
 end
 
-# Compilation warm-up - SimpleScaling
-model = SimpleScaling(d₀, μ₀, σ₀, ξ, α)
-template = rand(model, duration_dict, 1)
-rejection_rate(SimpleScaling, model, template, 50, 100, tag_out = "5min")
+# # Compilation warm-up - SimpleScaling
+# model = SimpleScaling(d₀, μ₀, σ₀, ξ, α)
+# template = rand(model, duration_dict, 1)
+# rejection_rate(SimpleScaling, model, template, 50, 100, tag_out = "5min")
 
-run_simulation_simplescaling_errortype1(
-    [10],
-    [0.],
-    10,
-    template;
-    tag_out = "5min",
-    q = 20,
-    seed=1234)
-
-
-
-
-
+# run_simulation_simplescaling_errortype1(
+#     [10],
+#     [0.],
+#     10,
+#     template;
+#     tag_out = "5min",
+#     q = 20,
+#     seed=1234)
 
 #  Simulation study
 
-results_simplescaling = run_simulation_simplescaling_errortype1(
-    n_vec,
-    ξ_vec,
-    simulation_size,
-    template;
-    tag_out = "5min",
-    q = 40,
-    seed=1234)
+# results_simplescaling = run_simulation_simplescaling_errortype1(
+#     n_vec,
+#     ξ_vec,
+#     simulation_size,
+#     template;
+#     tag_out = "5min",
+#     q = 40,
+#     seed=1234)
 
-CSV.write("SimpleScaling_type1_error.csv", results_simplescaling)
+# CSV.write("SimpleScaling_type1_error.csv", results_simplescaling)
 
 results_generalscaling = run_simulation_generalscaling_errortype1(
     n_vec,
     ξ_vec,
     simulation_size,
     template;
-    tag_out = "5min",
+    tag_out = "24h",
     q = 20,
-    seed=1234)
+    seed=12345)
 
 CSV.write("GeneralScaling_type1_error.csv", results_generalscaling)
