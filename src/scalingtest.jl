@@ -44,8 +44,6 @@ function _null_distribution(test::CvMValidationTest)
 end
 
 
-
-
 """
     pvalue(test)
 
@@ -95,8 +93,6 @@ struct CvMComponents{G,F<:Cholesky}
     cdf_gradient::G
     information_factor::F
 end
-
-
 
 
 """
@@ -165,31 +161,49 @@ function scalingtest(
 
     # Validation duration and validation data
     d_out = getduration(data, tag_out)
-    y = getdata(data, tag_out)
-    ℓ = length(y)
+    y_out = getdata(data, tag_out)
+    ℓ = length(y_out)
 
-    ℓ > 0 || throw(ArgumentError(
-        "The validation sample must contain at least one observation.",
-    ))
+    ℓ > 0 || 
+        throw(ArgumentError("The validation sample must contain at least one observation."))
 
     # Training data
     train_data = excludeduration(data, tag_out)
 
-    # Fit the scaling model using the training durations only
-    fitted_model = fit_mle(pd_type, train_data, initialmodel)
+    # Fit to the training durations
+    fit_result = fit_mle_detailed(pd_type, train_data, initialmodel)
+
+    if !fit_result.converged
+        distribution = getdistribution(initialmodel, d_out)
+        test_statistic = cvmcriterion(distribution, y_out)
+
+        @warn("Maximum likelihood estimation did not converge. The test statistic is computed using the initial model and the null distribution is unavailable.")
+
+        return CvMValidationTest(
+            initialmodel,
+            test_statistic,
+            nothing,
+        )
+    end
+
+    fitted_model = fit_result.fitted_model
 
     # Test statistic
-    F = getdistribution(fitted_model, d_out)
-    S = cvmcriterion(F, y)
+    distribution = getdistribution(fitted_model, d_out)
+    test_statistic = cvmcriterion(distribution, y_out)
 
-    # CvM kernel components
-    cvm_components = compute_cvm_components(fitted_model, train_data, d_out, ℓ)
-    λ = approx_eigenvalues(cvm_components, q)
+    # Null distribution
+    components = compute_cvm_components(fitted_model, train_data, d_out, ℓ)
 
-    # Test statistic distribution
-    pd = CvMDistribution(λ)
+    eigenvalues = approx_eigenvalues(components, q)
 
-    return CvMValidationTest(fitted_model, S, pd)
+    null_distribution = CvMDistribution(eigenvalues)
+
+    return CvMValidationTest(
+        fitted_model,
+        test_statistic,
+        null_distribution,
+    )
 end
 
 # Cramér-von Mises statistic
