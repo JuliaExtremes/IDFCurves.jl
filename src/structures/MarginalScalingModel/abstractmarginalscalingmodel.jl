@@ -161,45 +161,37 @@ end
 ### Fit
 
 """
-    fit_mle(::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
+    fit_mle(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata,
+        initialmodel::MarginalScalingModel,
+    )
 
-Fit a marginal scaling model by maximum likelihood using `initialmodel` for initialization.
+    fit_mle(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata,
+        d₀::Real,
+    )
+
+Fit a marginal scaling model by maximum likelihood.
+
+The first method uses `initialmodel` for initialization. The second constructs
+initial values automatically using the reference duration `d₀`. If optimization
+does not converge, the initial model is returned and a warning is issued.
 """
+function fit_mle end
+
 function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
 
-    IDFCurves.scalingtype(initialmodel) === pd || 
-        throw(ArgumentError("Model and initial model must be of the same type, got $pd ≠ $(IDFCurves.scalingtype(initialmodel))"))
+    result = fit_mle_detailed(pd, data, initialmodel)
 
-    d₀ = duration(initialmodel)
+    result.converged ||
+        @warn("The maximum likelihood algorithm did not converge. The initial model is returned.")
 
-    initialvalues = collect(params(initialmodel))
-
-    θ₀ = map_to_real_space(pd, initialvalues)
-
-    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
-    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
-
-    isfinite(fobj(θ₀)) || 
-        throw(ArgumentError("The initial model has a nonfinite log-likelihood. At least one observation may lie outside its support."))
-    
-    res = Optim.optimize(fobj, θ₀)
-
-    if Optim.converged(res)
-        θ̂ = Optim.minimizer(res)
-    else
-        @warn "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values."
-        θ̂ = θ₀
-    end
-
-    return model(θ̂)
+    return result.fitted_model
 
 end
 
-"""
-    fit_mle(::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
-
-Fit a marginal scaling model by maximum likelihood using automatically generated initial values.
-"""
 function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
 
     (d₀ > 0) ||  throw(ArgumentError("Reference duration must be positive, got d₀=$d₀"))
@@ -210,7 +202,49 @@ function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
 
 end
 
+"""
+    fit_mle_detailed(::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
 
+Fit a marginal scaling model by maximum likelihood using `initialmodel` for
+initialization, and return the fitted model together with detailed optimization
+results.
+
+The returned named tuple contains:
+
+- `fitted_model`: the fitted model, or `initialmodel` if optimization did not
+  converge;
+- `converged`: whether the optimization algorithm converged;
+- `optimization_result`: the complete result returned by `Optim.optimize`.
+"""
+function fit_mle_detailed(pd::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
+
+    IDFCurves.scalingtype(initialmodel) === pd || 
+        throw(ArgumentError("Model and initial model must be of the same type, got $pd ≠ $(IDFCurves.scalingtype(initialmodel))"))
+
+    d₀ = duration(initialmodel)
+
+    initialvalues = collect(params(initialmodel))
+
+    θ₀ = map_to_real_space(pd, initialvalues)
+
+    model(θ::AbstractVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
+    fobj(θ::AbstractVector{<:Real}) = -loglikelihood(model(θ), data)
+
+    isfinite(fobj(θ₀)) || 
+        throw(ArgumentError("The initial model has a nonfinite log-likelihood. At least one observation may lie outside its support."))
+    
+    res = Optim.optimize(fobj, θ₀)
+    converged = Optim.converged(res)
+
+    θ̂ = converged ? Optim.minimizer(res) : θ₀
+
+    return (
+        fitted_model=model(θ̂),
+        converged=converged,
+        optimization_result=res,
+    )
+
+end
 
 """
 
