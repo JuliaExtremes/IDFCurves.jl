@@ -14,7 +14,7 @@ BLAS.set_num_threads(1)
 # Simulation parameters
 n_vec = [10, 15, 30, 50, 75, 100]
 ξ_vec = collect(-0.4:0.2:0.4)
-simulation_size = 10000
+simulation_size = 15000
 
 
 d₀ = 1.
@@ -201,16 +201,16 @@ end
 
 #  Simulation study
 
-# results_simplescaling = run_simulation_simplescaling_errortype1(
-#     n_vec,
-#     ξ_vec,
-#     simulation_size,
-#     template;
-#     tag_out = "5min",
-#     q = 40,
-#     seed=1234)
+results_simplescaling = run_simulation_simplescaling_errortype1(
+    n_vec,
+    ξ_vec,
+    simulation_size,
+    template;
+    tag_out = "5min",
+    q = 40,
+    seed=1234)
 
-# CSV.write("SimpleScaling_type1_error.csv", results_simplescaling)
+CSV.write("SimpleScaling_type1_error.csv", results_simplescaling)
 
 results_generalscaling = run_simulation_generalscaling_errortype1(
     n_vec,
@@ -219,6 +219,6 @@ results_generalscaling = run_simulation_generalscaling_errortype1(
     template;
     tag_out = "24h",
     q = 20,
-    seed=12345)
+    seed=1234)
 
 CSV.write("GeneralScaling_type1_error.csv", results_generalscaling)

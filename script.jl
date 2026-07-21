@@ -308,29 +308,9 @@ df.ξ = categorical(string.(df.ξ))
 
 plot(df, x=:n, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
 
-## Refactorization proposition for scalingtest_bootstrap
+df = CSV.read("GeneralScaling_type1_error.csv", DataFrame)
 
-using Pkg
-pkg"activate ."
+df.ξ = categorical(string.(df.ξ))
 
-using DataFrames, Distributions, Extremes, IDFCurves
+plot(df, x=:n, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
 
-import IDFCurves: scalingtype, _validation_tag, fit_mle, getdistribution, cvmcriterion, excludeduration
-
-
-
-
-
-
-
-
-df = IDFCurves.dataset("702S006")
-tags = names(df)[2:10]
-durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
-duration_dict = Dict(zip(tags, durations))
-data = IDFdata(df, "Year", duration_dict)
-
-train_data = excludeduration(data, "5min")
-initial_model = fit_mle(SimpleScaling, train_data, 1.)
-
-IDFCurves.validation_cvm_statistic(SimpleScaling, data; tag_out = "5min")
