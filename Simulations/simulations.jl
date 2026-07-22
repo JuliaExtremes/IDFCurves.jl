@@ -9,12 +9,16 @@ using Base.Threads
 
 import IDFCurves: scalingtype
 
+include("hybridscaling.jl")
+
 BLAS.set_num_threads(1)
 
 # Simulation parameters
 n_vec = [10, 15, 30, 50, 75, 100]
 ξ_vec = collect(-0.4:0.2:0.4)
-simulation_size = 15000
+δ_vec = collect(0:.01:.05)
+r_vec = collect(-.3:.1:.3)
+simulation_size = 100
 
 
 d₀ = 1.
@@ -55,8 +59,8 @@ function rejection_rate(
     0 < level < 1 ||
         throw(ArgumentError("level must lie in (0, 1), got level=$level."))
 
-    scalingtype(model) === target_model ||
-        throw(ArgumentError("For a Type I error study, the generating and fitted models must have the same type, got $(scalingtype(model)) and $target_model."))
+    # scalingtype(model) === target_model ||
+    #     throw(ArgumentError("For a Type I error study, the generating and fitted models must have the same type, got $(scalingtype(model)) and $target_model."))
 
     tag_out = if isnothing(tag_out)
         IDFCurves._validation_tag(template)
@@ -185,19 +189,82 @@ function run_simulation_generalscaling_errortype1(
     return DataFrame(results)
 end
 
-# # Compilation warm-up - SimpleScaling
-# model = SimpleScaling(d₀, μ₀, σ₀, ξ, α)
-# template = rand(model, duration_dict, 1)
-# rejection_rate(SimpleScaling, model, template, 50, 100, tag_out = "5min")
 
-# run_simulation_simplescaling_errortype1(
-#     [10],
-#     [0.],
-#     10,
-#     template;
-#     tag_out = "5min",
-#     q = 20,
-#     seed=1234)
+function run_simulation_simplescaling_power(
+    δ_vec::AbstractVector{<:Real},
+    ξ_vec::AbstractVector{<:Real},
+    simulation_size::Integer,
+    template::IDFdata;
+    tag_out = nothing,
+    q::Integer=20,
+    level::Real = .05,
+    seed::Integer=1234)
+
+    N = length(δ_vec) * length(ξ_vec)
+
+    results = Vector{NamedTuple{(:δ, :ξ, :RejectionRate), Tuple{Int,Float64,Float64}}}(undef, N)
+
+    # Fixed sample size
+    n = 60
+
+    k = 0
+
+    for δ in δ_vec
+        for ξ in ξ_vec
+            k += 1
+
+            model = GeneralScaling(d₀, μ₀, σ₀, ξ, α, δ)
+            res = rejection_rate(SimpleScaling, model, template, n, simulation_size; tag_out=tag_out, q=q, level=level, seed = seed + k)
+
+            results[k] = (δ =Float64(δ), ξ=Float64(ξ), RejectionRate=res.rejection_rate)
+
+            total = res.nvalid + res.nfailed
+
+            @info "Completed simulation" n ξ rejection_rate=res.rejection_rate discarded=res.nfailed total=total
+        end
+    end
+
+    return DataFrame(results)
+end
+
+function run_simulation_generalscaling_power(
+    r_vec::AbstractVector{<:Real},
+    ξ_vec::AbstractVector{<:Real},
+    simulation_size::Integer,
+    template::IDFdata;
+    tag_out = nothing,
+    q::Integer=20,
+    level::Real = .05,
+    seed::Integer=1234)
+
+    N = length(r_vec) * length(ξ_vec)
+
+    results = Vector{NamedTuple{(:r, :ξ, :RejectionRate), Tuple{Int,Float64,Float64}}}(undef, N)
+
+    # Fixed sample size
+    n = 60
+
+    k = 0
+
+    for r in r_vec
+        for ξ in ξ_vec
+            k += 1
+
+            model = HybridScaling(d₀, μ₀, σ₀, ξ, .6, .6/(1. - r))
+            res = rejection_rate(GeneralScaling, model, template, n, simulation_size; tag_out=tag_out, q=q, level=level, seed = seed + k)
+
+            results[k] = (r =Float64(r), ξ=Float64(ξ), RejectionRate=res.rejection_rate)
+
+            total = res.nvalid + res.nfailed
+
+            @info "Completed simulation" n ξ rejection_rate=res.rejection_rate discarded=res.nfailed total=total
+        end
+    end
+
+    return DataFrame(results)
+end
+
+
 
 #  Simulation study
 
@@ -222,3 +289,25 @@ results_generalscaling = run_simulation_generalscaling_errortype1(
     seed=1234)
 
 CSV.write("GeneralScaling_type1_error.csv", results_generalscaling)
+
+results_simplescaling_power = run_simulation_simplescaling_power(
+    δ_vec,
+    ξ_vec,
+    simulation_size,
+    template;
+    tag_out = "5min",
+    q = 40,
+    seed=1234)
+
+CSV.write("SimpleScaling_power.csv", results_simplescaling)
+
+results_generalscaling_power = run_simulation_generalscaling_power(
+    r_vec,
+    ξ_vec,
+    simulation_size,
+    template;
+    tag_out = "24h",
+    q = 20,
+    seed=1234)
+
+CSV.write("GeneralScaling_power.csv", results_generalscaling)

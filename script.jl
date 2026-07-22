@@ -135,18 +135,7 @@ df = CSV.read("/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalber
 count(df.SimpleScaling)
 count(df.GeneralScaling)
 
-scatter(df.Lon, df.Lat, df.GeneralScaling)
-
-df2 = filter(row -> row.valid, df)
-
-count(df.SimpleScaling)
-count(df.GeneralScaling)
-
-## Plot df_results
-
-
-
-using CSV, DataFrames, CSV, PyCall
+using PyCall
 
 df = CSV.read("/Users/jalbert/Library/CloudStorage/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC/scalingtest_canadian_stations.csv", DataFrame)
 

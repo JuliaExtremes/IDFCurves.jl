@@ -34,23 +34,23 @@ valid_computation = trues(nstation)
 
 B = 999
 
-# Threads.@threads for i in eachindex(filenames)
-for i in eachindex(filenames)
+Threads.@threads for i in eachindex(filenames)
+# for i in eachindex(filenames)
     df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
     data = IDFdata(df, "Year", duration_dict)
 
     ss = IDFCurves.fit_mle(SimpleScaling, data, 1.)
-    T = scalingtest(SimpleScaling, data, tag_out="5min")
-    S = T.test_statistic
 
+    S = IDFCurves.validation_cvm_statistic(SimpleScaling, data, tag_out = "5min")
+    
     Sstar = IDFCurves.scalingtest_bootstrap(ss, data, B=B)
     adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
     if adjusted_pvalue < .05 # SimpleScaling rejected
         gs = IDFCurves.fit_mle(GeneralScaling, data, 1.)
-        T = scalingtest(GeneralScaling, data, tag_out="24h")
-        S = T.test_statistic
 
+        S = IDFCurves.validation_cvm_statistic(GeneralScaling, data, tag_out = "24h")
+        
         Sstar = IDFCurves.scalingtest_bootstrap(gs, data, tag_out="24h", B=B)
         adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
