@@ -132,8 +132,28 @@ using CSV, DataFrames, Distributions, Plots
 
 df = CSV.read("/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC/scalingtest_canadian_stations.csv", DataFrame)
 
-count(df.SimpleScaling)
-count(df.GeneralScaling)
+filter!(row->row.nyear>15, df)
+
+scatter(df.Lon, df.Lat, df.SimpleScaling_pvalue)
+
+nstation = nrow(df)
+nreject = count(df.SimpleScaling_pvalue .< .05)
+
+p = nreject/nstation
+q = 1-p
+
+pd = Normal(p, sqrt(p*q/nstation))
+quantile(pd, [.025, .95])
+
+nreject = count(df.GeneralScaling_pvalue .< .05)
+
+scatter(df.Lon, df.Lat, df.GeneralScaling_pvalue)
+
+p = nreject/nstation
+q = 1-p
+
+pd = Normal(p, sqrt(p*q/nstation))
+quantile(pd, [.025, .95])
 
 using PyCall
 
@@ -314,62 +334,4 @@ df = CSV.read("Simulations/simulation_results/GeneralScaling_power.csv", DataFra
 
 df.ξ = categorical(string.(df.ξ))
 
-plot(df, x=:r, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
-
-
-
-
-
-
-## 
-
-using Pkg
-pkg"activate ."
-
-using DataFrames, Distributions, Extremes, IDFCurves
-
-include("Simulations/hybridscaling.jl")
-
-α₂ = .8
-α₁ = .7
-d₀ = 1.
-μ₀ = 20.
-σ₀ = 4.
-ξ = .1
-
-pd = HybridScaling(d₀, μ₀, σ₀, ξ, α₁, α₂)
-
-tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
-durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
-duration_dict = Dict(zip(tags, durations))
-tag_out = "5min"
-
-data = rand(pd, duration_dict, 60)
-T = scalingtest(GeneralScaling, data, tag_out = tag_out)
-IDFCurves.pvalue(T)
-
-
-using Pkg
-pkg"activate ."
-
-using DataFrames, Distributions, Extremes, IDFCurves
-
-
-d₀ = 1.
-μ₀ = 20.
-σ₀ = 5.
-ξ = .1
-α = .8
-δ = .05
-τ = .01
-
-pd = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
-
-tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
-durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
-duration_dict = Dict(zip(tags, durations))
-
-data = rand(pd, duration_dict, 60)
-
-T = scalingtest(SimpleScaling, data, tag_out = "24h")
-IDFCurves.pvalue(T)
+plot(df, x=:α₁, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)

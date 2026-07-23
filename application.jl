@@ -32,50 +32,37 @@ simplescaling_pvalue = Vector{Float64}(undef, nstation)
 generalscaling_pvalue = Vector{Float64}(undef, nstation)
 nyear = Vector{Int64}(undef, nstation)
 
-B = 9
+B = 999
 
-
-i = 78
-
-df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
-data = IDFdata(df, "Year", duration_dict)
-
-nyear[i] = length(IDFCurves._common_years(data, tags))
-
-ss = IDFCurves.fit_mle(SimpleScaling, data, 1.)
-S = IDFCurves.validation_cvm_statistic(SimpleScaling, data, tag_out = "5min")
-
-
-# Threads.@threads for i in eachindex(filenames)
-for i in eachindex(filenames)
+Threads.@threads for i in eachindex(filenames)
+# for i in eachindex(filenames)
     df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
     data = IDFdata(df, "Year", duration_dict)
 
     nyear[i] = length(IDFCurves._common_years(data, tags))
 
-    if nyear[i] < 10
+    if nyear[i] < 15
         simplescaling_pvalue[i] = NaN
         generalscaling_pvalue[i] = NaN
     else
         ss = IDFCurves.fit_mle(SimpleScaling, data, 1.)
         S = IDFCurves.validation_cvm_statistic(SimpleScaling, data, tag_out = "5min")
         
-        # Sstar = IDFCurves.scalingtest_bootstrap(ss, data, B=B)
-        # simplescaling_pvalue[i] = (1 + count(s -> s >= S, Sstar)) / (B + 1)
+        Sstar = IDFCurves.scalingtest_bootstrap(ss, data, B=B)
+        simplescaling_pvalue[i] = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
         gs = IDFCurves.fit_mle(GeneralScaling, data, 1.)
-
         S = IDFCurves.validation_cvm_statistic(GeneralScaling, data, tag_out = "5min")
             
-        # Sstar = IDFCurves.scalingtest_bootstrap(gs, data, tag_out="5min", B=B)
-        # generalscaling_pvalue[i] = (1 + count(s -> s >= S, Sstar)) / (B + 1)
+        Sstar = IDFCurves.scalingtest_bootstrap(gs, data, tag_out="5min", B=B)
+        generalscaling_pvalue[i] = (1 + count(s -> s >= S, Sstar)) / (B + 1)
     end
     
     @info "Completed station" i
 
 end
 
-df.nyear = nyear
+df_results.nyear = nyear
 df_results.SimpleScaling_pvalue = simplescaling_pvalue
 df_results.GeneralScaling_pvalue = generalscaling_pvalue
 
@@ -86,27 +73,28 @@ CSV.write(joinpath(@__FILE__, filepath, "scalingtest_canadian_stations.csv"), df
 
 
 
-using CSV, DataFrames
+# using CSV, DataFrames
 
-filepath = "/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC"
-filenames = filter(f -> endswith(lowercase(f), ".csv"), readdir(joinpath(@__DIR__, filepath, "canadian_stations_data")))
+# filepath = "/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC"
+# filenames = filter(f -> endswith(lowercase(f), ".csv"), readdir(joinpath(@__DIR__, filepath, "canadian_stations_data")))
 
-tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
-durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
-duration_dict = Dict(zip(tags, durations))
+# tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
+# durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+# duration_dict = Dict(zip(tags, durations))
 
-for i in eachindex(filenames)
-    df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
-    rename!(df, ["Year", tags...])
-    allowmissing!(df)
-    for col in eachcol(df)
-        replace!(col, -99.9 => missing)
-    end
-    for tag in tags
-        df[!,tag] = round.(df[:,tag] ./ duration_dict[tag], digits=1)
-    end
-    CSV.write(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), df)
-end
+# for i in eachindex(filenames)
+#     println(i)
+#     df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
+#     rename!(df, ["Year", tags...])
+#     allowmissing!(df)
+#     for col in eachcol(df)
+#         replace!(col, -99.9 => missing)
+#     end
+#     for tag in tags
+#         df[!,tag] = round.(df[:,tag] ./ duration_dict[tag], digits=1)
+#     end
+#     CSV.write(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), df)
+# end
 
 
 
