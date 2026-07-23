@@ -330,12 +330,11 @@ using DataFrames, Distributions, Extremes, IDFCurves
 
 include("Simulations/hybridscaling.jl")
 
-r = -0.3
-α₁ = .4
-α₂ = α₁ * (1. - r)
+α₂ = .8
+α₁ = .7
 d₀ = 1.
 μ₀ = 20.
-σ₀ = 5.
+σ₀ = 4.
 ξ = .1
 
 pd = HybridScaling(d₀, μ₀, σ₀, ξ, α₁, α₂)
@@ -343,10 +342,34 @@ pd = HybridScaling(d₀, μ₀, σ₀, ξ, α₁, α₂)
 tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
 durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
 duration_dict = Dict(zip(tags, durations))
+tag_out = "5min"
+
+data = rand(pd, duration_dict, 60)
+T = scalingtest(GeneralScaling, data, tag_out = tag_out)
+IDFCurves.pvalue(T)
+
+
+using Pkg
+pkg"activate ."
+
+using DataFrames, Distributions, Extremes, IDFCurves
+
+
+d₀ = 1.
+μ₀ = 20.
+σ₀ = 5.
+ξ = .1
+α = .8
+δ = .05
+τ = .01
+
+pd = UniversalScaling(d₀, μ₀, σ₀, ξ, α, δ, τ)
+
+tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
+durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+duration_dict = Dict(zip(tags, durations))
 
 data = rand(pd, duration_dict, 60)
 
-tag_out = (r<0) ? "5min" : "24h"
-
-T = scalingtest(GeneralScaling, data, tag_out = tag_out)
+T = scalingtest(SimpleScaling, data, tag_out = "24h")
 IDFCurves.pvalue(T)
