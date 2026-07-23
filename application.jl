@@ -34,6 +34,18 @@ nyear = Vector{Int64}(undef, nstation)
 
 B = 9
 
+
+i = 78
+
+df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
+data = IDFdata(df, "Year", duration_dict)
+
+nyear[i] = length(IDFCurves._common_years(data, tags))
+
+ss = IDFCurves.fit_mle(SimpleScaling, data, 1.)
+S = IDFCurves.validation_cvm_statistic(SimpleScaling, data, tag_out = "5min")
+
+
 # Threads.@threads for i in eachindex(filenames)
 for i in eachindex(filenames)
     df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
@@ -86,6 +98,10 @@ duration_dict = Dict(zip(tags, durations))
 for i in eachindex(filenames)
     df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
     rename!(df, ["Year", tags...])
+    allowmissing!(df)
+    for col in eachcol(df)
+        replace!(col, -99.9 => missing)
+    end
     for tag in tags
         df[!,tag] = round.(df[:,tag] ./ duration_dict[tag], digits=1)
     end
