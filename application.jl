@@ -28,44 +28,69 @@ duration_dict = Dict(zip(tags, durations))
 
 # Ici on est trop sévère sur le rejet, il suffit d'un replicat qui ne converge pas pour rejeter l'hypothèse nulle
 
-simplescaling_appropriate = falses(nstation)
-generalscaling_appropriate = falses(nstation)
-valid_computation = trues(nstation)
+simplescaling_pvalue = Vector{Float64}(undef, nstation)
+generalscaling_pvalue = Vector{Float64}(undef, nstation)
+nyear = Vector{Int64}(undef, nstation)
 
-B = 999
+B = 9
 
-Threads.@threads for i in eachindex(filenames)
-# for i in eachindex(filenames)
+# Threads.@threads for i in eachindex(filenames)
+for i in eachindex(filenames)
     df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
     data = IDFdata(df, "Year", duration_dict)
 
-    ss = IDFCurves.fit_mle(SimpleScaling, data, 1.)
+    nyear[i] = length(IDFCurves._common_years(data, tags))
 
-    S = IDFCurves.validation_cvm_statistic(SimpleScaling, data, tag_out = "5min")
-    
-    Sstar = IDFCurves.scalingtest_bootstrap(ss, data, B=B)
-    adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
+    if nyear[i] < 10
+        simplescaling_pvalue[i] = NaN
+        generalscaling_pvalue[i] = NaN
+    else
+        ss = IDFCurves.fit_mle(SimpleScaling, data, 1.)
+        S = IDFCurves.validation_cvm_statistic(SimpleScaling, data, tag_out = "5min")
+        
+        # Sstar = IDFCurves.scalingtest_bootstrap(ss, data, B=B)
+        # simplescaling_pvalue[i] = (1 + count(s -> s >= S, Sstar)) / (B + 1)
 
-    if adjusted_pvalue < .05 # SimpleScaling rejected
         gs = IDFCurves.fit_mle(GeneralScaling, data, 1.)
 
-        S = IDFCurves.validation_cvm_statistic(GeneralScaling, data, tag_out = "24h")
-        
-        Sstar = IDFCurves.scalingtest_bootstrap(gs, data, tag_out="24h", B=B)
-        adjusted_pvalue = (1 + count(s -> s >= S, Sstar)) / (B + 1)
-
-        generalscaling_appropriate[i] = adjusted_pvalue >.05
-    else
-        simplescaling_appropriate[i] = true
-        generalscaling_appropriate[i] = true
+        S = IDFCurves.validation_cvm_statistic(GeneralScaling, data, tag_out = "5min")
+            
+        # Sstar = IDFCurves.scalingtest_bootstrap(gs, data, tag_out="5min", B=B)
+        # generalscaling_pvalue[i] = (1 + count(s -> s >= S, Sstar)) / (B + 1)
     end
+    
     @info "Completed station" i
+
 end
-  
-df_results.SimpleScaling = simplescaling_appropriate
-df_results.GeneralScaling = generalscaling_appropriate
-# df_results.valid = valid_computation
+
+df.nyear = nyear
+df_results.SimpleScaling_pvalue = simplescaling_pvalue
+df_results.GeneralScaling_pvalue = generalscaling_pvalue
+
 
 CSV.write(joinpath(@__FILE__, filepath, "scalingtest_canadian_stations.csv"), df_results)
+
+
+
+
+
+using CSV, DataFrames
+
+filepath = "/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC"
+filenames = filter(f -> endswith(lowercase(f), ".csv"), readdir(joinpath(@__DIR__, filepath, "canadian_stations_data")))
+
+tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
+durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+duration_dict = Dict(zip(tags, durations))
+
+for i in eachindex(filenames)
+    df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
+    rename!(df, ["Year", tags...])
+    for tag in tags
+        df[!,tag] = round.(df[:,tag] ./ duration_dict[tag], digits=1)
+    end
+    CSV.write(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), df)
+end
+
 
 
