@@ -291,15 +291,62 @@ using Cairo, Gadfly, Fontconfig
 
 using CategoricalArrays
 
-df = CSV.read("SimpleScaling_type1_error.csv", DataFrame)
+df = CSV.read("Simulations/simulation_results/SimpleScaling_type1_error.csv", DataFrame)
 
 df.ξ = categorical(string.(df.ξ))
 
 plot(df, x=:n, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
 
-df = CSV.read("GeneralScaling_type1_error.csv", DataFrame)
+df = CSV.read("Simulations/simulation_results/GeneralScaling_type1_error.csv", DataFrame)
 
 df.ξ = categorical(string.(df.ξ))
 
 plot(df, x=:n, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
 
+
+df = CSV.read("Simulations/simulation_results/SimpleScaling_power.csv", DataFrame)
+
+df.ξ = categorical(string.(df.ξ))
+
+plot(df, x=:δ, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
+
+df = CSV.read("Simulations/simulation_results/GeneralScaling_power.csv", DataFrame)
+
+df.ξ = categorical(string.(df.ξ))
+
+plot(df, x=:r, y=:RejectionRate, color=:ξ, Geom.line, Geom.point)
+
+
+
+
+
+
+## 
+
+using Pkg
+pkg"activate ."
+
+using DataFrames, Distributions, Extremes, IDFCurves
+
+include("Simulations/hybridscaling.jl")
+
+r = -0.3
+α₁ = .4
+α₂ = α₁ * (1. - r)
+d₀ = 1.
+μ₀ = 20.
+σ₀ = 5.
+ξ = .1
+
+pd = HybridScaling(d₀, μ₀, σ₀, ξ, α₁, α₂)
+
+tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
+durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
+duration_dict = Dict(zip(tags, durations))
+
+data = rand(pd, duration_dict, 60)
+
+tag_out = (r<0) ? "5min" : "24h"
+
+T = scalingtest(GeneralScaling, data, tag_out = tag_out)
+IDFCurves.pvalue(T)

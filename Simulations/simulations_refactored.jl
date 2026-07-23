@@ -390,6 +390,7 @@ function run_simulation_generalscaling_power(
     level::Real=0.05,
     seed::Integer=1234,
 )
+
     N = length(r_vec) * length(ξ_vec)
 
     results = Vector{
@@ -405,8 +406,8 @@ function run_simulation_generalscaling_power(
         for ξ in ξ_vec
             k += 1
 
-            α₁ = 0.6
-            α₂ = α₁ / (1 - r)
+            α₂ = 0.6
+            α₁ = α₂/(1. - r)
 
             # At r = 0, α₁ = α₂ and HybridScaling reduces to simple scaling.
             generating_model =
@@ -454,54 +455,54 @@ end
 # Run simulation study
 # -----------------------------------------------------------------------------
 
-results_simplescaling_type1 = run_simulation_simplescaling_type1(
-    N_VEC,
-    Ξ_VEC,
-    SIMULATION_SIZE,
-    TEMPLATE;
-    tag_out="5min",
-    q=40,
-    level=LEVEL,
-    seed=1234,
-)
+# results_simplescaling_type1 = run_simulation_simplescaling_type1(
+#     N_VEC,
+#     Ξ_VEC,
+#     SIMULATION_SIZE,
+#     TEMPLATE;
+#     tag_out="5min",
+#     q=100,
+#     level=LEVEL,
+#     seed=1234,
+# )
 
-CSV.write(
-    joinpath(OUTPUT_DIR, "SimpleScaling_type1_error.csv"),
-    results_simplescaling_type1,
-)
+# CSV.write(
+#     joinpath(OUTPUT_DIR, "SimpleScaling_type1_error.csv"),
+#     results_simplescaling_type1,
+# )
 
-results_generalscaling_type1 = run_simulation_generalscaling_type1(
-    N_VEC,
-    Ξ_VEC,
-    SIMULATION_SIZE,
-    TEMPLATE;
-    tag_out="24h",
-    q=20,
-    level=LEVEL,
-    seed=1234,
-)
+# results_generalscaling_type1 = run_simulation_generalscaling_type1(
+#     N_VEC,
+#     Ξ_VEC,
+#     SIMULATION_SIZE,
+#     TEMPLATE;
+#     tag_out="5min",
+#     q=100,
+#     level=LEVEL,
+#     seed=1234,
+# )
 
-CSV.write(
-    joinpath(OUTPUT_DIR, "GeneralScaling_type1_error.csv"),
-    results_generalscaling_type1,
-)
+# CSV.write(
+#     joinpath(OUTPUT_DIR, "GeneralScaling_type1_error.csv"),
+#     results_generalscaling_type1,
+# )
 
-results_simplescaling_power = run_simulation_simplescaling_power(
-    Δ_VEC,
-    Ξ_VEC,
-    SIMULATION_SIZE,
-    TEMPLATE;
-    sample_size=60,
-    tag_out="5min",
-    q=40,
-    level=LEVEL,
-    seed=1234,
-)
+# results_simplescaling_power = run_simulation_simplescaling_power(
+#     Δ_VEC,
+#     Ξ_VEC,
+#     SIMULATION_SIZE,
+#     TEMPLATE;
+#     sample_size=60,
+#     tag_out="5min",
+#     q=100,
+#     level=LEVEL,
+#     seed=1234,
+# )
 
-CSV.write(
-    joinpath(OUTPUT_DIR, "SimpleScaling_power.csv"),
-    results_simplescaling_power,
-)
+# CSV.write(
+#     joinpath(OUTPUT_DIR, "SimpleScaling_power.csv"),
+#     results_simplescaling_power,
+# )
 
 results_generalscaling_power = run_simulation_generalscaling_power(
     R_VEC,
@@ -509,8 +510,8 @@ results_generalscaling_power = run_simulation_generalscaling_power(
     SIMULATION_SIZE,
     TEMPLATE;
     sample_size=60,
-    tag_out="24h",
-    q=20,
+    tag_out="5min",
+    q=40,
     level=LEVEL,
     seed=1234,
 )
