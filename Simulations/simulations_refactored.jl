@@ -49,7 +49,7 @@ const DURATIONS = [
 const DURATION_DICT = Dict(zip(TAGS, DURATIONS))
 
 const N_VEC = [10, 15, 30, 50, 75, 100]
-const Ξ_VEC = collect(-0.4:0.2:0.4)
+const Ξ_VEC = collect(-0.3:0.15:0.3)
 const Δ_VEC = collect(0.0:0.01:0.05)
 const A_VEC = collect(.4:.05:.8)
 
