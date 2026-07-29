@@ -70,31 +70,77 @@ df_results.GeneralScaling_pvalue = generalscaling_pvalue
 CSV.write(joinpath(@__FILE__, filepath, "scalingtest_canadian_stations.csv"), df_results)
 
 
+## Display the p-value
+
+using CSV, DataFrames, Distributions, Extremes, IDFCurves
+using CanadaMap, CairoMakie
+
+filepath = "/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC"
+filename = joinpath(@__FILE__, filepath, "scalingtest_canadian_stations.csv")
+
+df = CSV.read(filename, DataFrame)
+
+p = clamp.(df.SimpleScaling_pvalue, 1e-10, 1.0)
+values = -log10.(p)
+
+fig, ga = generate_canada_map()
+
+sc = scatter!(
+    ga,
+    df.Lon,
+    df.Lat;
+    color = values,
+    colormap = :viridis,
+    colorrange = (0, 3),
+    markersize = 10
+)
+
+Colorbar(
+    fig[1, 2],
+    sc;
+    label = "p-value",
+    ticks = (
+        [0, -log10(0.05), 2, 3],
+        ["1", "0.05", "0.01", "≤0.001"]
+    )
+)
+
+ga.xticklabelsvisible[] = false
+ga.yticklabelsvisible[] = false
+
+fig
+
+save(joinpath(@__FILE__, filepath, "simple_scaling_pvalue.png"), fig; pt_per_unit = 1)
 
 
+p = clamp.(df.GeneralScaling_pvalue, 1e-10, 1.0)
+values = -log10.(p)
 
-# using CSV, DataFrames
+fig, ga = generate_canada_map()
 
-# filepath = "/Users/jalbert/Dropbox/Files/Papers/InProgress/PaoliCarreauJalbert2024/JRSSC"
-# filenames = filter(f -> endswith(lowercase(f), ".csv"), readdir(joinpath(@__DIR__, filepath, "canadian_stations_data")))
+sc = scatter!(
+    ga,
+    df.Lon,
+    df.Lat;
+    color = values,
+    colormap = :viridis,
+    colorrange = (0, 3),
+    markersize = 10
+)
 
-# tags = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
-# durations = [1/12, 1/6, 1/4, 1/2, 1, 2, 6, 12, 24]
-# duration_dict = Dict(zip(tags, durations))
+Colorbar(
+    fig[1, 2],
+    sc;
+    label = "p-value",
+    ticks = (
+        [0, -log10(0.05), 2, 3],
+        ["1", "0.05", "0.01", "≤0.001"]
+    )
+)
 
-# for i in eachindex(filenames)
-#     println(i)
-#     df = CSV.read(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), DataFrame)
-#     rename!(df, ["Year", tags...])
-#     allowmissing!(df)
-#     for col in eachcol(df)
-#         replace!(col, -99.9 => missing)
-#     end
-#     for tag in tags
-#         df[!,tag] = round.(df[:,tag] ./ duration_dict[tag], digits=1)
-#     end
-#     CSV.write(joinpath(@__FILE__, filepath, "canadian_stations_data", filenames[i]), df)
-# end
+ga.xticklabelsvisible[] = false
+ga.yticklabelsvisible[] = false
 
+fig
 
-
+save(joinpath(@__FILE__, filepath, "general_scaling_pvalue.png"), fig; pt_per_unit = 1)
