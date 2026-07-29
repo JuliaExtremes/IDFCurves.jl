@@ -22,3 +22,6 @@ Documenter = "^1.3"
 Fontconfig = "^0"
 Gadfly = "^1"
 Optim = "^1"
+
+[sources]
+CanadaMap = {url = "https://github.com/JuliaExtremes/CanadaMap.jl", rev = "main"}
