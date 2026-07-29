@@ -356,3 +356,12 @@ function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real};
     return θ̂
 
 end
+
+"""
+    ecdf_fun(q::AbstractVector{<:Real}, x::Real)
+
+Compute the ecdf with observation vector `q` evaluated at `x`.
+"""
+function ecdf_fun(q::AbstractVector{<:Real}, x::Real)
+    return count(q .≤ x) / (length(q) + 1.)
+end
