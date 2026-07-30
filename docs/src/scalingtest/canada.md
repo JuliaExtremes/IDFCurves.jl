@@ -1,6 +1,6 @@
 # All Canadian stations
 
-```@setup canada
+```julia
 using CSV, DataFrames, IDFCurves
 using CairoMakie, CanadaMap
 ```
@@ -10,30 +10,27 @@ can be reproduced using the `application.jl` script available in this
 repository.
 
 Load the precomputed results:
-```@example canada
+```julia canada
 filename = normpath(joinpath(@__DIR__, "..","..","..", "data", "scalingtest_canadian_stations.csv"))
 df = CSV.read(filename, DataFrame)
-nothing #hide
 ```
 
 ## Simple scaling
 
 Extract the bootstrap-based goodness-of-fit p-values for the Simple Scaling
 model 
-```@example canada
+```julia
 p = clamp.(df.SimpleScaling_pvalue, 1e-10, 1.0)
 values = -log10.(p)
-nothing #hide
 ```
 
 Generate an empty map of Canada
-```@example canada
+```julia
 fig, ga = generate_canada_map()
-nothing #hide
 ```
 
 Displays the p-values on the map
-```@example canada
+```julia
 sc = scatter!(
     ga,
     df.Lon,
@@ -61,25 +58,26 @@ fig #hide
 
 #save(joinpath(@__FILE__, filepath, "simple_scaling_pvalue.png"), fig; pt_per_unit = 1) #hide
 ```
+![Image Description](simple_scaling_pvalue.png)
 
 ## General scaling
 
 Extract the bootstrap-based goodness-of-fit p-values for the General Scaling
 model 
-```@example canada
+```julia
 p = clamp.(df.GeneralScaling_pvalue, 1e-10, 1.0)
 values = -log10.(p)
 nothing #hide
 ```
 
 Generate an empty map of Canada
-```@example canada
+```julia
 fig, ga = generate_canada_map()
 nothing #hide
 ```
 
 Displays the p-values on the map:
-```@example canada
+```julia
 sc = scatter!(
     ga,
     df.Lon,
@@ -107,3 +105,5 @@ fig #hide
 
 #save(joinpath(@__FILE__, filepath, "simple_scaling_pvalue.png"), fig; pt_per_unit = 1) #hide
 ```
+
+![Image Description](general_scaling_pvalue.png)
