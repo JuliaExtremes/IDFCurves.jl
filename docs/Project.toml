@@ -3,6 +3,7 @@ CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 CanadaMap = "6fe70468-9827-40a8-b9ce-2b1eaed9124c"
+CategoricalArrays = "324d7699-5711-5eae-9e2f-1d82baa6b597"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
@@ -13,6 +14,9 @@ IDFCurves = "17afcda4-a678-4b99-aabd-b1f8835dcb1e"
 Optim = "429524aa-4258-5aef-a3af-852621145aeb"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[sources]
+CanadaMap = {rev = "main", url = "https://github.com/JuliaExtremes/CanadaMap.jl"}
+
 [compat]
 CSV = "^0.10"
 Cairo = "^1"
@@ -22,6 +26,3 @@ Documenter = "^1.3"
 Fontconfig = "^0"
 Gadfly = "^1"
 Optim = "^1"
-
-[sources]
-CanadaMap = {url = "https://github.com/JuliaExtremes/CanadaMap.jl", rev = "main"}
