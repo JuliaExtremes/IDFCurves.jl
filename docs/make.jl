@@ -7,11 +7,16 @@ makedocs(sitename = "IDFCurves.jl",
     format = Documenter.HTML(
         prettyurls = CI, size_threshold_warn=10^8 ,size_threshold=10^9, example_size_threshold=10^9),
     pages = [
-        "Tutorial" =>["IDF estimation" => "tutorial/idf_estimation.md"],
-        "index.md",
-    #    "contributing.md",
-        "functions.md"
-       ]
+            "scalingtest/index.md",
+            "Training-validation goodness-of-fit test" =>
+            [
+                "Montréal data" => "scalingtest/montreal.md",
+                "Nanaimo data" => "scalingtest/nanaimo.md",
+                "All Canadian stations" => "scalingtest/canada.md",
+                "Simulations" => "scalingtest/simulations.md"
+            ],
+        "functions.md",
+    ],
 )
 
 if CI

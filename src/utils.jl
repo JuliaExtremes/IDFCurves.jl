@@ -1,5 +1,37 @@
 
 """
+    _logpdf(d::GeneralizedExtremeValue, x::Real)
+
+Return the log-density of the generalized extreme-value distribution `d` at `x`.
+
+This internal implementation explicitly checks the GEV support condition before
+evaluating the density and returns `-Inf` outside the support. It avoids a
+`DomainError` that may occur in `Distributions.logpdf` near a support boundary,
+where floating-point rounding can make `1 + ξ * (x - μ) / σ` slightly negative.
+
+The function is used internally instead of extending
+`logpdf(::GeneralizedExtremeValue, ::Real)`, which would constitute type piracy.
+"""
+function _logpdf(d::GeneralizedExtremeValue, x::Real)
+    μ, σ, ξ = params(d)
+    z = (x - μ) / σ
+
+    if abs(ξ) < eps(one(ξ))
+        return -log(σ) - z - exp(-z)
+    end
+
+    v = z * ξ
+
+    # The GEV support requires 1 + ξz > 0.
+    v > -one(v) || return -Inf
+
+    logt = -log1p(v) / ξ
+
+    return -log(σ) + (ξ + one(ξ)) * logt - exp(logt)
+end
+
+
+"""
     compute_coeff(pd::TDist, max_coeff::Int=750)
     
 Return the coefficients for the series development of the Student distribution in the bulk.
@@ -323,4 +355,13 @@ function perform_optimization(fobj::Function, θ₀::AbstractArray{<:Real};
 
     return θ̂
 
+end
+
+"""
+    ecdf_fun(q::AbstractVector{<:Real}, x::Real)
+
+Compute the ecdf with observation vector `q` evaluated at `x`.
+"""
+function ecdf_fun(q::AbstractVector{<:Real}, x::Real)
+    return count(q .≤ x) / (length(q) + 1.)
 end

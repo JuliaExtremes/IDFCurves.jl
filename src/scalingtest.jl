@@ -1,8 +1,18 @@
+"""
+    CvMValidationTest(fitted_model, test_statistic, null_distribution)
 
+Result of a training-validation Cramér--von Mises goodness-of-fit test.
+
+The field `fitted_model` contains the model used to compute `test_statistic`.
+The field `null_distribution` contains the asymptotic null distribution of the
+statistic. It is set to `nothing` when maximum likelihood estimation does not
+converge, in which case the statistic is computed using the initial model and
+no p-value or test decision is available.
+"""
 struct CvMValidationTest{
     M,
     S<:Real,
-    D<:ContinuousUnivariateDistribution,
+    D<:Union{Nothing,ContinuousUnivariateDistribution},
 }
     fitted_model::M
     test_statistic::S
@@ -17,14 +27,31 @@ function Base.show(io::IO, test_struct::CvMValidationTest)
     print(io, ")")
 end
 
+"""
+    isvalid(test::CvMValidationTest)
+
+Return whether the null distribution of `test` is available.
+"""
+isvalid(test::CvMValidationTest) = !isnothing(test.null_distribution)
+
+
+function _null_distribution(test::CvMValidationTest)
+
+    isvalid(test) || 
+        throw(ArgumentError("The null distribution is unavailable because maximum likelihood estimation did not converge."))
+
+    return test.null_distribution
+end
+
 
 """
     pvalue(test)
 
 Return the upper-tail p-value of the validation statistic.
 """
-function pvalue(test_struct::CvMValidationTest)
-    return ccdf(test_struct.null_distribution, test_struct.test_statistic)
+function pvalue(test::CvMValidationTest)
+    pd = _null_distribution(test)
+    return ccdf(pd, test.test_statistic)
 end
 
 """
@@ -32,10 +59,13 @@ end
 
 Return the rejection threshold at level `α`.
 """
-function decision_threshold(test_struct::CvMValidationTest, α::Real=0.05)
-    0 < α < 1 || throw(ArgumentError("The test level should be in (0, 1), got $α."))
+function decision_threshold(test::CvMValidationTest, α::Real=0.05)
 
-    return quantile(test_struct.null_distribution, 1. - α)
+    0 < α < 1 || throw(ArgumentError("The test level must be in (0, 1), got α=$α."))
+
+    pd = _null_distribution(test)
+
+    return quantile(pd, 1 - α)
 end
 
 """
@@ -44,11 +74,8 @@ end
 Return whether the validation test rejects the null hypothesis at level `α`.
 """
 function decision(test_struct::CvMValidationTest, α::Real=0.05)
-    threshold = decision_threshold(test_struct, α)
-
-    return test_struct.test_statistic > threshold
+    return pvalue(test_struct) < α
 end
-
 
 
 """
@@ -66,8 +93,6 @@ struct CvMComponents{G,F<:Cholesky}
     cdf_gradient::G
     information_factor::F
 end
-
-
 
 
 """
@@ -136,32 +161,158 @@ function scalingtest(
 
     # Validation duration and validation data
     d_out = getduration(data, tag_out)
-    y = getdata(data, tag_out)
-    ℓ = length(y)
+    y_out = getdata(data, tag_out)
+    ℓ = length(y_out)
 
-    ℓ > 0 || throw(ArgumentError(
-        "The validation sample must contain at least one observation.",
-    ))
+    ℓ > 0 || 
+        throw(ArgumentError("The validation sample must contain at least one observation."))
 
     # Training data
     train_data = excludeduration(data, tag_out)
 
-    # Fit the scaling model using the training durations only
-    fitted_model = fit_mle(pd_type, train_data, initialmodel)
+    # Fit to the training durations
+    fit_result = fit_mle_detailed(pd_type, train_data, initialmodel)
+
+    if !fit_result.converged
+        distribution = getdistribution(initialmodel, d_out)
+        test_statistic = cvmcriterion(distribution, y_out)
+
+        @warn("Maximum likelihood estimation did not converge. The test statistic is computed using the initial model and the null distribution is unavailable.")
+
+        return CvMValidationTest(
+            initialmodel,
+            test_statistic,
+            nothing,
+        )
+    end
+
+    fitted_model = fit_result.fitted_model
 
     # Test statistic
-    F = getdistribution(fitted_model, d_out)
-    S = cvmcriterion(F, y)
+    distribution = getdistribution(fitted_model, d_out)
+    test_statistic = cvmcriterion(distribution, y_out)
 
-    # CvM kernel components
-    cvm_components = compute_cvm_components(fitted_model, train_data, d_out, ℓ)
-    λ = approx_eigenvalues(cvm_components, q)
+    # Null distribution
+    components = compute_cvm_components(fitted_model, train_data, d_out, ℓ)
 
-    # Test statistic distribution
-    pd = CvMDistribution(λ)
+    eigenvalues = approx_eigenvalues(components, q)
 
-    return CvMValidationTest(fitted_model, S, pd)
+    null_distribution = CvMDistribution(eigenvalues)
+
+    return CvMValidationTest(
+        fitted_model,
+        test_statistic,
+        null_distribution,
+    )
 end
+
+# Cramér-von Mises statistic
+
+"""
+    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
+
+Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
+
+# Details
+
+The statistic is
+
+    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
+
+where `x_(i)` denotes the ordered sample.
+"""
+function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
+    n = length(x)
+    n > 0 || throw(ArgumentError("x must contain at least one observation."))
+
+    x̃ = sort(x)
+
+    ω² = 1/(12*n) + sum(((2*i-1)/(2*n) - cdf(pd, x̃[i]))^2 for i=1:n)
+
+    return ω²
+
+end
+
+"""
+    validation_cvm_statistic(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata;
+        tag_out=nothing,
+    )
+
+    validation_cvm_statistic(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata,
+        initialmodel::MarginalScalingModel;
+        tag_out=nothing,
+    )
+
+Compute the training-validation Cramér--von Mises statistic for a marginal
+scaling model, optionally using a supplied initial model.
+
+The duration identified by `tag_out` is used for validation. If `tag_out` is
+not provided, the smallest observed duration is used.
+
+### Detail
+
+Lightweight version of scaling test when only the test statistic matters, and not the test statistic distribution under the null hypothesis.
+"""
+function validation_cvm_statistic end
+
+function validation_cvm_statistic(
+    pd_type::Type{<:MarginalScalingModel},
+    data::IDFdata,
+    initialmodel::MarginalScalingModel;
+    tag_out=nothing,
+)
+
+    scalingtype(initialmodel) === pd_type ||
+        throw(ArgumentError(
+            "Model and initial model must be of the same type.",
+        ))
+
+    if isnothing(tag_out)
+        tag_out = _validation_tag(data)
+    else
+        tag_out = _validation_tag(data, tag_out)
+    end
+
+    d_out = getduration(data, tag_out)
+    y_out = getdata(data, tag_out)
+
+    isempty(y_out) && throw(ArgumentError(
+        "The validation sample must contain at least one observation.",
+    ))
+
+    train_data = excludeduration(data, tag_out)
+
+    fitted_model = fit_mle(pd_type, train_data, initialmodel)
+
+    distribution = getdistribution(fitted_model, d_out)
+    test_statistic = cvmcriterion(distribution, y_out)
+
+    return test_statistic
+end
+
+function validation_cvm_statistic(
+    pd_type::Type{<:MarginalScalingModel},
+    data::IDFdata;
+    tag_out=nothing,
+)
+
+    if isnothing(tag_out)
+        tag_out = _validation_tag(data)
+    else
+        tag_out = _validation_tag(data, tag_out)
+    end
+
+    train_data = excludeduration(data, tag_out)
+
+    initialmodel = initialize(pd_type, train_data, 1.0)
+
+    return validation_cvm_statistic(pd_type, data, initialmodel; tag_out = tag_out)
+end
+
 
 # Covariance kernel
 
@@ -312,33 +463,6 @@ function approx_eigenvalues(
 end
 
 
-# Cramér-von Mises statistic
-
-"""
-    cvmcriterion(pd::UnivariateDistribution, x::AbstractVector{<:Real})
-
-Compute the Cramér--von Mises statistic between the distribution `pd` and the data vector `x`.
-
-# Details
-
-The statistic is
-
-    1/(12n) + sum((F(x_(i)) - (2i - 1)/(2n))^2, i = 1:n),
-
-where `x_(i)` denotes the ordered sample.
-"""
-function cvmcriterion(pd::UnivariateDistribution, x::Vector{<:Real})
-    n = length(x)
-    n > 0 || throw(ArgumentError("x must contain at least one observation."))
-
-    x̃ = sort(x)
-
-    ω² = 1/(12*n) + sum(((2*i-1)/(2*n) - cdf(pd, x̃[i]))^2 for i=1:n)
-
-    return ω²
-
-end
-
 # Computing p-values
 
 """
@@ -461,7 +585,7 @@ function scalingtest_bootstrap(
     U = _pseudoobs_matrix(data_common, tags)
     n = size(U, 1)
 
-    Tstar = Vector{CvMValidationTest}(undef, B)
+    Sstar = Vector{Float64}(undef, B)
 
     # Generate bootstrap indices sequentially to avoid sharing the RNG across threads.
     bootstrap_indices = [rand(rng, 1:n, n) for _ in 1:B]
@@ -472,10 +596,10 @@ function scalingtest_bootstrap(
 
         data_star = _idfdata_from_pseudoobs(data_common, fitted_model, Ustar)
 
-        Tstar[b] = scalingtest(pd_type, data_star, initialmodel; tag_out = tag_out)
+        Sstar[b] = validation_cvm_statistic(pd_type, data_star, initialmodel, tag_out = tag_out)
     end
 
-    return Tstar
+    return Sstar
 end
 
 function scalingtest_bootstrap(

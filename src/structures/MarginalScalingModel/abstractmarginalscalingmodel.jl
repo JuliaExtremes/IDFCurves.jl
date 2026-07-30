@@ -61,10 +61,10 @@ function loglikelihood(pd::MarginalScalingModel, data::IDFdata)
 
         marginal = getdistribution(pd, getduration(data, tag))
 
-        ll += sum(logpdf.(marginal, getdata(data, tag)))
+        ll += sum(_logpdf.(marginal, getdata(data, tag)))
 
     end
-    
+
     return ll
     
 end
@@ -86,41 +86,65 @@ end
 
 
 """
-    rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
+    rand(
+        rng::AbstractRNG,
+        model::MarginalScalingModel,
+        duration_dict::AbstractDict{String,<:Real},
+        n::Integer=1,
+    )
 
-Generate a random sample of size `n` for duration vector `d` from the scaling model `pd`.
-    
-### Details
+    rand(
+        model::MarginalScalingModel,
+        duration_dict::AbstractDict{String,<:Real},
+        n::Integer=1,
+    )
 
-Duration tags and time vector can be provided with the keyword argument `tags` and `x` respectively. 
+Generate an `IDFdata` sample of size `n` from `model` at the durations specified
+by `duration_dict`.
+
+Samples are generated independently at each duration. The first method uses the
+provided random-number generator, while the second uses `Random.default_rng()`.
 """
-function rand(pd::MarginalScalingModel, d::AbstractVector{<:Real}, n::Int=1, ; tags::AbstractVector{<:AbstractString}=String[], x::AbstractVector{<:Real}=Float64[])
-    
-    m = length(d)
-    
-    if isempty(tags)
-        tags = string.(1:m)
-    else
-        @assert length(tags) == length(d) "Duration tag length must match the duration vector length."
+function rand end
+
+function rand(rng::Random.AbstractRNG, model::MarginalScalingModel, duration_dict::AbstractDict{String,<:Real}, n::Integer=1)
+
+    n > 0 || throw(ArgumentError("n must be positive."))
+
+    tags = sort!(
+        collect(keys(duration_dict));
+        by=tag -> duration_dict[tag],
+    )
+
+    durations = Dict{String,Float64}(
+        tag => Float64(duration_dict[tag]) for tag in tags
+    )
+
+    years = Dict{String,Vector{Int}}(
+        tag => collect(1:n) for tag in tags
+    )
+
+    observations = Dict{String,Vector{Float64}}()
+
+    for tag in tags
+        d = durations[tag]
+
+        d > 0 || throw(ArgumentError(
+            "Duration corresponding to tag=$tag must be positive, got $d.",
+        ))
+
+        pd = getdistribution(model, d)
+        observations[tag] = rand(rng, pd, n)
     end
 
-    if isempty(x)
-        x = collect(1:n)
-    else
-        @assert length(tags) == length(d) "X tick length must match the sample size n."
-    end
+    return IDFdata(tags, durations, years, observations)
+end
 
-    x_dict = Dict(zip(tags, repeat([x], m)))
-    d_dict = Dict(zip(tags, d))
+function rand(model::MarginalScalingModel, duration_dict::AbstractDict{String,<:Real}, n::Integer=1)
 
-    marginals = getdistribution.(pd, d)
-    
-    y = rand.(marginals, n)
+    rng=Random.default_rng()
 
-    data_dict = Dict(zip(tags, y))
-    
-    return IDFdata(tags, d_dict, x_dict, data_dict)
-    
+    return rand(rng, model, duration_dict, n)
 end
 
 """
@@ -137,45 +161,37 @@ end
 ### Fit
 
 """
-    fit_mle(::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
+    fit_mle(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata,
+        initialmodel::MarginalScalingModel,
+    )
 
-Fit a marginal scaling model by maximum likelihood using `initialmodel` for initialization.
+    fit_mle(
+        ::Type{<:MarginalScalingModel},
+        data::IDFdata,
+        d₀::Real,
+    )
+
+Fit a marginal scaling model by maximum likelihood.
+
+The first method uses `initialmodel` for initialization. The second constructs
+initial values automatically using the reference duration `d₀`. If optimization
+does not converge, the initial model is returned and a warning is issued.
 """
+function fit_mle end
+
 function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
 
-    IDFCurves.scalingtype(initialmodel) === pd || 
-        throw(ArgumentError("Model and initial model must be of the same type, got $pd ≠ $(IDFCurves.scalingtype(initialmodel))"))
+    result = fit_mle_detailed(pd, data, initialmodel)
 
-    d₀ = duration(initialmodel)
+    result.converged ||
+        @warn("The maximum likelihood algorithm did not converge. The initial model is returned.")
 
-    initialvalues = collect(params(initialmodel))
-
-    θ₀ = map_to_real_space(pd, initialvalues)
-
-    model(θ::DenseVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
-    fobj(θ::DenseVector{<:Real}) = -loglikelihood(model(θ), data)
-
-    isfinite(fobj(θ₀)) || 
-        throw(ArgumentError("The initial model has a nonfinite log-likelihood. At least one observation may lie outside its support."))
-    
-    res = Optim.optimize(fobj, θ₀)
-
-    if Optim.converged(res)
-        θ̂ = Optim.minimizer(res)
-    else
-        @warn "The maximum likelihood algorithm did not find a solution. Maybe try with different initial values or with another method. The returned values are the initial values."
-        θ̂ = θ₀
-    end
-
-    return model(θ̂)
+    return result.fitted_model
 
 end
 
-"""
-    fit_mle(::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
-
-Fit a marginal scaling model by maximum likelihood using automatically generated initial values.
-"""
 function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
 
     (d₀ > 0) ||  throw(ArgumentError("Reference duration must be positive, got d₀=$d₀"))
@@ -186,7 +202,49 @@ function fit_mle(pd::Type{<:MarginalScalingModel}, data::IDFdata, d₀::Real)
 
 end
 
+"""
+    fit_mle_detailed(::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
 
+Fit a marginal scaling model by maximum likelihood using `initialmodel` for
+initialization, and return the fitted model together with detailed optimization
+results.
+
+The returned named tuple contains:
+
+- `fitted_model`: the fitted model, or `initialmodel` if optimization did not
+  converge;
+- `converged`: whether the optimization algorithm converged;
+- `optimization_result`: the complete result returned by `Optim.optimize`.
+"""
+function fit_mle_detailed(pd::Type{<:MarginalScalingModel}, data::IDFdata, initialmodel::MarginalScalingModel)
+
+    IDFCurves.scalingtype(initialmodel) === pd || 
+        throw(ArgumentError("Model and initial model must be of the same type, got $pd ≠ $(IDFCurves.scalingtype(initialmodel))"))
+
+    d₀ = duration(initialmodel)
+
+    initialvalues = collect(params(initialmodel))
+
+    θ₀ = map_to_real_space(pd, initialvalues)
+
+    model(θ::AbstractVector{<:Real}) = IDFCurves.construct_model(pd, d₀, θ)
+    fobj(θ::AbstractVector{<:Real}) = -loglikelihood(model(θ), data)
+
+    isfinite(fobj(θ₀)) || 
+        throw(ArgumentError("The initial model has a nonfinite log-likelihood. At least one observation may lie outside its support."))
+    
+    res = Optim.optimize(fobj, θ₀)
+    converged = Optim.converged(res)
+
+    θ̂ = converged ? Optim.minimizer(res) : θ₀
+
+    return (
+        fitted_model=model(θ̂),
+        converged=converged,
+        optimization_result=res,
+    )
+
+end
 
 """
 

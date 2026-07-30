@@ -80,6 +80,15 @@ params_number(::Type{<:GeneralScaling}) = 5
 ### Methods
 
 """
+    _neutral_initial_model(model::GeneralScaling)
+
+Construct an initial scaling model from `model` with the shape parameter set to
+zero and all other parameters unchanged.
+"""
+_neutral_initial_model(model::GeneralScaling) =
+    GeneralScaling(duration(model), location(model), scale(model), 0.0, exponent(model), offset(model))
+
+"""
     scaling_factor(sm::GeneralScaling, d::Real)
 
 Compute the scaling factor for duration `d` under the General Scaling model `sm`.

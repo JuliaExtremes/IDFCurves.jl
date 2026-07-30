@@ -69,6 +69,19 @@ params_number(::Type{<:SimpleScaling}) = 4
 
 ### Methods
 
+
+
+"""
+    _neutral_initial_model(model::SimpleScaling)
+
+Construct an initial scaling model from `model` with the shape parameter set to
+zero and all other parameters unchanged.
+"""
+_neutral_initial_model(model::SimpleScaling) =
+    SimpleScaling(duration(model), location(model), scale(model), 0.0, exponent(model))
+
+
+
 """
     scaling_factor(sm::SimpleScaling, d::Real)
 

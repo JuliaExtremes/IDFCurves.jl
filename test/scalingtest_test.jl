@@ -22,8 +22,14 @@
 
         @test_throws ArgumentError decision_threshold(test_struct, 0.0)
         @test_throws ArgumentError decision_threshold(test_struct, 1.0)
-        @test_throws ArgumentError decision(test_struct, 0.0)
-        @test_throws ArgumentError decision(test_struct, 1.0)
+
+        invalid_test = CvMValidationTest(fitted_model, 0.25, nothing)
+        @test !IDFCurves.isvalid(invalid_test)
+        @test_throws ArgumentError IDFCurves._null_distribution(invalid_test)
+        @test_throws ArgumentError pvalue(invalid_test)
+        @test_throws ArgumentError decision_threshold(invalid_test, .05)
+        @test_throws ArgumentError decision(invalid_test, .05)
+        
     end
 
     @testset "CvMValidationTest show" begin
@@ -59,6 +65,12 @@
     ℓ = length(getdata(data, tag_out))
 
     fm = IDFCurves.fit_mle(SimpleScaling, train_data, 1.)
+
+    @testset "validation_cvm_statistic()" begin
+        import IDFCurves.validation_cvm_statistic
+        @test validation_cvm_statistic(SimpleScaling, data; tag_out = "5min") ≈ 3.3440 rtol=1e-4
+        @test validation_cvm_statistic(SimpleScaling, data, fm; tag_out = "5min") ≈ 3.3440 rtol=1e-4
+    end
 
     @testset "cvm_components" begin
         components = IDFCurves.compute_cvm_components(fm, train_data, d_out, ℓ)

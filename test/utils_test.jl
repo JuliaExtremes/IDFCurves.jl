@@ -1,4 +1,32 @@
 
+@testset "_logpdf()" begin
+    # Positive shape parameter: finite lower endpoint
+    d = GeneralizedExtremeValue(1.0, 2.0, 0.25)
+
+    @test IDFCurves._logpdf(d, 2.0) ≈ logpdf(d, 2.0)
+    @test IDFCurves._logpdf(d, -7.0) ≈ logpdf(d, -7.0)
+
+    lower_endpoint = location(d) - scale(d) / shape(d)
+
+    @test IDFCurves._logpdf(d, lower_endpoint) == -Inf
+    @test IDFCurves._logpdf(d, prevfloat(lower_endpoint)) == -Inf
+
+    # Negative shape parameter: finite upper endpoint
+    d = GeneralizedExtremeValue(1.0, 2.0, -0.25)
+
+    @test IDFCurves._logpdf(d, 2.0) ≈ logpdf(d, 2.0)
+
+    upper_endpoint = location(d) - scale(d) / shape(d)
+
+    @test IDFCurves._logpdf(d, upper_endpoint) == -Inf
+    @test IDFCurves._logpdf(d, nextfloat(upper_endpoint)) == -Inf
+
+    # Zero shape parameter: Gumbel distribution
+    d = GeneralizedExtremeValue(1.0, 2.0, 0.0)
+
+    @test IDFCurves._logpdf(d, 2.0) ≈ logpdf(d, 2.0)
+end
+
 @testset "logpdf_TCopula" begin
     u = [.2, .7]
     ν = 5
