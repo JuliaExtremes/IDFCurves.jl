@@ -162,13 +162,13 @@ end
     initialize(::Type{<:UniversalScaling}, data::IDFdata, d₀::Real)
 
 Initialize a vector of parameters for the UniversalScaling marginal model with reference duration d₀, adapted to the data.
-The initialization is the same as for the GeneralScaling model. τ is initialized at 0.01 (close to) 0 as a default.
+The initialization is the same as for the GeneralScaling model. τ is initialized at 0+ as a default.
 """
 function initialize(::Type{<:UniversalScaling}, data::IDFdata, d₀::Real)
     
     gs = fit_mle(GeneralScaling, data, d₀)
 
-    initial_model = UniversalScaling(d₀, gs.μ₀, gs.σ₀, gs.ξ, gs.α, gs.δ, 0.01)
+    initial_model = UniversalScaling(d₀, gs.μ₀, gs.σ₀, gs.ξ, gs.α, gs.δ, sqrt(eps()))
 
     return initial_model
 
